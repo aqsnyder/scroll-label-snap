@@ -110,7 +110,8 @@ def main(key_path, answers_path, out_md=None):
 
     ctrl = Counter(by["no move"])
     if by["no move"]:
-        out.append(f"Controls (snapped and original agree within 0.25 voxel): {ctrl['same']} of "
+        out.append(f"Controls (snapped and original agree within 0.25 voxel at the item's centre; the rest of "
+                   f"the window can differ): {ctrl['same']} of "
                    f"{len(by['no move'])} rated the same; {ctrl['snapped'] + ctrl['original']} got a preference "
                    f"({ctrl['snapped']} snapped, {ctrl['original']} original), {ctrl['unsure']} can't tell.")
     ok = sum(c[0] for c in catch.values())

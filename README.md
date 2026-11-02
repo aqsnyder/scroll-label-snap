@@ -140,10 +140,23 @@ The first review set is `32989576ca01`. Its answer key was sealed before any ans
 the SHA-256 of the key (as `json.dumps(key, sort_keys=True)`) is
 `32989576ca01fe3ce79d7ab8491025ed9730d72ac8529d673898dc4182edcb28`, and an encrypted copy is
 `review/sealed_key_32989576ca01.enc` (AES-256-CBC, `openssl enc -pbkdf2 -iter 200000`). The
-passphrase and the plain key will be published with the results.
+key, the passphrase and the answers are now in `results/`.
+
+### Result of review v1 ([`results/review_v1.md`](results/review_v1.md))
+
+Where the snapper moved the label, the reviewer preferred the snapped label 98 times and the
+original 8 times. That is 92% of decisive answers (95% CI 86-96%); 14 of 120 were "about the
+same" or "can't tell". Big moves (2+ voxels) went 47 to 6 and moderate moves (1-2 voxels) 51
+to 2. The hazy cubes flagged by the automatic evaluation went 20 to 1, so the large moves there
+are mostly fixes, not mistakes.
+
+Five of the eight losses put the label inside a thick sheet instead of on its face. Caveats:
+- One reviewer, who owns this repo.
+- The snapped band's stair-step edge can give it away.
+- The controls and catch items were only clean at the centre point of each 48-voxel window.
 
 ## Next steps
 
-1. **Finish the blind review** (above) and use it to decide how to handle hazy cubes.
+1. **Fix what the review found:** smooth the warped band (no stair steps) and stop moves that land inside a thick sheet. Then repeat the review with window-level controls and an independent reviewer.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
 3. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.
