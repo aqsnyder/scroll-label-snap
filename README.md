@@ -132,9 +132,15 @@ person judges a sample by eye without knowing which label is which.
   accuracy, left/right bias and answer times.
 
 ```bash
-python tools/make_review.py review/ review/key.json data/images data/labels out/labels --seed 0
-python tools/score_review.py review/key.json answers.json results/review_v1.md
+python tools/make_review.py review/ out/review_key.json data/images data/labels out/labels --seed 0
+python tools/score_review.py out/review_key.json answers.json results/review_v1.md
 ```
+
+The first review set is `32989576ca01`. Its answer key was sealed before any answers came in:
+the SHA-256 of the key (as `json.dumps(key, sort_keys=True)`) is
+`32989576ca01fe3ce79d7ab8491025ed9730d72ac8529d673898dc4182edcb28`, and an encrypted copy is
+`review/sealed_key_32989576ca01.enc` (AES-256-CBC, `openssl enc -pbkdf2 -iter 200000`). The
+passphrase and the plain key will be published with the results.
 
 ## Next steps
 
