@@ -20,49 +20,64 @@ For each labeled cube:
    - an L1 smoothness term between neighbouring samples on the same sheet
    - a hard limit of 1 voxel shift difference between neighbours
    - a weak pull toward the original label
-4. **Move the label band** along the solved shift field. Not-annotated regions (label 2) are never changed. A per-voxel confidence map is written as well.
+   - a penalty for moving a label outward (toward the gap) to a spot with papyrus on both sides. There the normal is probably flipped, or the label sits on the far face of a sheet, and pushing it further only buries it in the sheet (new in v2).
+4. **Move the label band** along the solved shift field. Each voxel's displacement is blended from nearby samples on the same sheet, and the band is resampled with interpolation, so a moved band keeps clean edges (new in v2; v1 left stair steps). Not-annotated regions (label 2) are never changed. A per-voxel confidence map is written as well.
 
 `scroll_label_snap/core.py` also contains a port of the existing VC3D refiner (`ObjAlphaCompRefinement`) as a baseline. `tests/test_solver.py` checks the graph cut against brute force.
 
-## Results (20 cubes, ~2.5 million surface points)
+## Results (v2, 20 cubes, ~2.5 million surface points)
 
-These are the full results in [`results/eval_v1.md`](results/eval_v1.md), with per-cube numbers in [`results/eval_v1.json`](results/eval_v1.json). They come from `tools/eval_snap.py` with the default parameters.
+These are the full results in [`results/eval_v2.md`](results/eval_v2.md), with per-cube numbers in [`results/eval_v2.json`](results/eval_v2.json). They come from `tools/eval_snap.py` with the default parameters. The v1 numbers are in [`results/eval_v1.md`](results/eval_v1.md).
 
-![per-cube results](results/eval_v1.png)
+![per-cube results](results/eval_v2.png)
 
 **Drift test.** Each cube's labels were pushed off the surface by a known smooth random drift (std 1.5 voxels, correlation length 40 voxels). Each method was then run on the drifted labels, and we measured how far the result lands from the original label. This is scored only at **trusted points**: places where the original label sits on a strong, unambiguous edge, so it can serve as ground truth (258,394 points).
 
 | Method | Mean error (voxels) | Within 1 voxel | Over 2 voxels |
 |---|---|---|---|
-| No correction (drifted labels) | 1.10 | 57% | 16% |
-| Existing refiner (alpha-composite port) | 2.88 | 11% | 70% |
-| **Snapper** | **0.54** | **87%** | **3%** |
+| No correction (drifted labels) | 1.10 | 58% | 14% |
+| Existing refiner (alpha-composite port) | 3.09 | 9% | 75% |
+| **Snapper** | **0.46** | **91%** | **1%** |
 
-**Consistency** is measured at all points. It asks whether correcting the drifted labels lands in the same place as correcting the clean labels. The snapper is within 1 voxel at 79% of points; the existing refiner at 60%.
+**Consistency** is measured at all points. It asks whether correcting the drifted labels lands in the same place as correcting the clean labels. The snapper is within 1 voxel at 83% of points; the existing refiner at 61%.
 
 **Clean labels.** This is the intensity step across each label, papyrus side minus gap side. Higher means the label sits more sharply on the papyrus edge.
 
 | Labels | Step across label | Papyrus on the correct side |
 |---|---|---|
 | Original | 25.7 | 67% |
-| Existing refiner | −16.2 | 36% |
-| **Snapper** | **58.6** | **92%** |
+| Existing refiner | −17.8 | 35% |
+| **Snapper** | **58.4** | **91%** |
+
+### Changes since v1
+
+| | v1 | v2 |
+|---|---|---|
+| Drift test: within 1 voxel | 87% | 91% |
+| Drift test: mean error (voxels) | 0.54 | 0.46 |
+| Consistency: within 1 voxel | 79% | 83% |
+| Extra edge roughness of the band vs. the original labels | +11% | +6% |
+
+- **Smooth warp.** Roughness is the number of exposed voxel faces per band voxel, over all 20 cubes (`tools/roughness.py`). Moving a band by a perfectly smooth shift still adds 2-4% from resampling, so +6% is close to that floor. See [`results/warp_v1_vs_v2.png`](results/warp_v1_vs_v2.png).
+- **Inside-the-sheet guard.** On the 120 moves in the blind review, v2 puts 3 of the 8 losses back on the original label (q057, q070, q107). It leaves 90 of the 98 wins within 0.5 voxel of where v1 put them; 2 went back to the original. See [`results/review_v1_losses_v2.png`](results/review_v1_losses_v2.png); `tools/recheck_review.py` produced the per-item numbers in [`results/review_v1_items_under_v2.json`](results/review_v1_items_under_v2.json).
+  - The guard only blocks outward moves. We chose that after seeing that blocking inward moves as well also undid 2 wins, so these review numbers are optimistic. A fresh review is the real test.
+- **Drift-test inputs.** The drifted labels and the existing refiner's output now go through the smooth warp too, so their rows moved slightly from v1.
 
 ### Caveats
 
 - **The clean-label table is partly circular**, because the snapper optimizes edge strength. The drift test is the stronger evidence.
-- **Trusted points are the easy places.** In hazy regions the picture is less clear.
+- **Trusted points are the easy places.** In hazy regions the picture is less clear; the blind review below covers them.
 - **The existing refiner's numbers depend on its fixed thresholds** (tuned for other volumes) and on its convention of moving 1 voxel past the first material hit. It is not a like-for-like competitor on this data. It is included because it is the refinement step that exists today.
 
 ### Known failure mode
 
-On some cubes the snapper moves many clean labels 2+ voxels into the sheet or into the gap. Sample 2 is the clearest case; samples 8, 17 and 18 show lower consistency. Compare [`results/compare_sample_00002.png`](results/compare_sample_00002.png) with the good case [`results/compare_sample_00005.png`](results/compare_sample_00005.png).
+The automatic evaluation flagged hazy cubes (sample 2; samples 8, 17 and 18), where the snapper moves many clean labels 2+ voxels. The blind review found those moves are mostly right: 20 of 21 decisive answers there preferred the snapped label.
 
-Our reading draws on the [scroll anatomy notes](https://github.com/ScrollPrize/villa/blob/main/SCROLL_ANATOMY.md). In hazy scans, phase-contrast halos, or the boundary between a sheet's two fiber layers, can look more like an edge than the true outer face. Two experimental options did not fix it:
-- `calibrate`: removes any cube-wide offset.
-- `stay_bonus`: a "do no harm" bonus for staying put.
+The moves the review rejected look different. In 6 of the 8 losses, the original label sits on a face whose gap is on the opposite side from the oriented normal. Either the normal is flipped there, or the label is on the far face of its sheet. v1 then pushed the label outward into papyrus. The v2 guard stops 3 of these 6; the other 3 still go into the sheet.
 
-Both are off by default. A blind human review is the next step to settle which moves are right.
+Of the two remaining losses, one is a small move. In the other, the snapper put the band centre on the papyrus side of the edge, which is where this cube's own labels usually sit (sample 11 places them about 1.5 voxels in). The reviewer preferred the band nearer the edge.
+
+Compare [`results/compare_sample_00002.png`](results/compare_sample_00002.png) with [`results/compare_sample_00005.png`](results/compare_sample_00005.png) for what v1 does on a hazy and a clear cube.
 
 ## Setup
 
@@ -85,7 +100,7 @@ python tools/summarize_eval.py out/summary out/eval.json
 python tools/render_compare.py out/cmp.png images/X.tif labels/X.tif OUT_DIR/labels/X.tif z
 ```
 
-Each worker needs about 3 GB of RAM. A 320³ cube takes 30–70 s per core.
+Each worker needs about 3 GB of RAM. A 320³ cube takes 30–120 s per core.
 
 ### Windows
 
@@ -157,6 +172,7 @@ Five of the eight losses put the label inside a thick sheet instead of on its fa
 
 ## Next steps
 
-1. **Fix what the review found:** smooth the warped band (no stair steps) and stop moves that land inside a thick sheet. Then repeat the review with window-level controls and an independent reviewer.
-2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
-3. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.
+1. **Review v2** on fresh items, with controls and catch items that are clean across the whole window, not just at its centre, and an independent reviewer.
+2. **Better orientation where a label sits on the far face of a sheet**, the cause of most of the remaining losses.
+3. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
+4. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.

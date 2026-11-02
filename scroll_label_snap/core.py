@@ -55,6 +55,11 @@ class Params:
     border: int = 8               # samples this close to the cube edge are not moved
     convention_offset: float | None = None  # label centre relative to the edge (None = estimate)
     batch_points: int = 60000     # max samples per graph-cut problem
+    smooth_warp: bool = True      # blend displacements and resample linearly (False = v1 warp)
+    inside_penalty: float = 2.0   # cost of moving a label outward (+n) to a spot that has
+                                  # papyrus on both sides, i.e. into a sheet (0 = v1)
+    inside_margin: float = 0.1    # 'papyrus' = brighter than the local mid level by this
+                                  # fraction of the papyrus-gap contrast
 
     def asdict(self):
         return asdict(self)
@@ -261,6 +266,29 @@ def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000):
     return S, tmpl
 
 
+def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5):
+    """True where candidate t puts the label inside papyrus: the mean CT over
+    [t-reach, t-0.5] and over [t+0.5, t+reach] (around the expected edge, t + c_off) are
+    both above the papyrus/gap mid level. At a real face one side is gap."""
+    grid = np.arange(float(ts.min()) + c_off - reach, float(ts.max()) + c_off + reach + 1e-6, 0.5,
+                     dtype=np.float32)
+    prof = np.stack([sample(ct_s, pts + g * n) for g in grid], 1)
+    near = prof[:, np.abs(grid - c_off) <= 3.0]
+    mid = float(np.median(near))
+    thr = mid + margin * float(np.percentile(near, 90) - np.percentile(near, 10))
+    offs = np.arange(0.5, reach + 1e-6, 0.5, dtype=np.float32)
+
+    def mean_at(x):
+        k = np.clip(np.rint((x - grid[0]) / 0.5).astype(int), 0, len(grid) - 1)
+        return prof[:, k].mean(1)
+
+    out = np.zeros((len(pts), len(ts)), bool)
+    for k, t in enumerate(ts):
+        e = t + c_off
+        out[:, k] = (mean_at(e - offs) > thr) & (mean_at(e + offs) > thr)
+    return out
+
+
 def estimate_convention(ct_s, pts, n, p: Params):
     """Where the labels put the band centre relative to the steepest edge, and the
     typical edge strength. Returns (offset, scale)."""
@@ -329,9 +357,17 @@ def _batches(comp, size):
 
 # --------------------------------------------------------------------------- 6. warp
 
-def warp_labels(lab, pts, n, shift, radius=6, chunk=2_000_000):
+def warp_labels(lab, pts, n, shift, radius=6, chunk=1_000_000, comp=None, smooth=True,
+                sigma=None, k=12):
     """Move the label-1 band so the surface near sample p shifts by shift[p] * n[p].
-    Label-2 voxels are never changed."""
+    Label-2 voxels are never changed.
+
+    smooth=True (default): each voxel's displacement is a Gaussian-weighted blend of the
+    displacements of nearby samples on the same sheet (sigma defaults to the sample
+    spacing), and the band is resampled with linear interpolation. The moved band then has
+    clean edges like the original. smooth=False reproduces v1: each voxel takes its nearest
+    sample's displacement and the band is resampled to the nearest voxel, which leaves
+    stair steps wherever neighbouring samples moved by different amounts."""
     band = lab == SURF
     out = lab.copy()
     if len(pts) == 0:
@@ -341,16 +377,41 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=2_000_000):
     tree = cKDTree(pts)
     new_band = np.zeros_like(band)
     hi = np.array(lab.shape) - 1
-    for k in range(0, len(xs), chunk):
-        x = xs[k:k + chunk]
-        _, idx = tree.query(x, k=1)
-        disp = shift[idx][:, None] * n[idx]
-        src = np.clip(np.rint(x - disp).astype(np.int64), 0, hi)
-        new_band[x[:, 0], x[:, 1], x[:, 2]] = band[src[:, 0], src[:, 1], src[:, 2]]
+    vec = (np.asarray(shift, np.float32)[:, None] * n).astype(np.float32)
+    if smooth:
+        sigma = float(sigma) if sigma is not None else _sample_spacing(pts)
+        bandf = band.astype(np.float32)
+        comp = np.zeros(len(pts), np.int64) if comp is None else np.asarray(comp)
+        kk = min(k, len(pts))
+    for a in range(0, len(xs), chunk):
+        x = xs[a:a + chunk]
+        if not smooth:
+            _, idx = tree.query(x, k=1)
+            src = np.clip(np.rint(x - vec[idx]).astype(np.int64), 0, hi)
+            new_band[x[:, 0], x[:, 1], x[:, 2]] = band[src[:, 0], src[:, 1], src[:, 2]]
+            continue
+        d, idx = tree.query(x, k=kk, workers=-1)
+        if kk == 1:
+            d, idx = d[:, None], idx[:, None]
+        w = np.exp(-0.5 * (d / sigma) ** 2)
+        w *= comp[idx] == comp[idx[:, :1]]                 # same sheet as the nearest sample
+        disp = np.einsum("ik,ikc->ic", w, vec[idx]) / w.sum(1, keepdims=True)
+        src = np.clip(x - disp, 0, hi).T
+        vals = ndi.map_coordinates(bandf, src, order=1, mode="nearest")
+        new_band[x[:, 0], x[:, 1], x[:, 2]] = vals >= 0.5
     annotated = lab != UNK
     out[band & annotated] = 0
     out[new_band & annotated] = SURF
     return out
+
+
+def _sample_spacing(pts):
+    """Typical distance between neighbouring samples."""
+    if len(pts) < 2:
+        return 1.0
+    sub = pts[np.random.default_rng(0).choice(len(pts), min(len(pts), 5000), replace=False)]
+    d, _ = cKDTree(pts).query(sub, k=2)
+    return float(np.median(d[:, 1]))
 
 
 def shift_volume(lab_shape, mask, pts, values, fill=0):
@@ -449,10 +510,18 @@ def snap(img, lab, p: Params | None = None, prepared=None):
     ct_s, pts, n, i, j, comp = prepared
     ts, U, E, S, movable, c_off, scale = unary_scores(lab.shape, prepared, p)
     D = -U + p.prior_mu * np.abs(ts)[None, :]
-    D[:, np.argmin(np.abs(ts))] -= p.stay_bonus
+    k0 = int(np.argmin(np.abs(ts)))
+    D[:, k0] -= p.stay_bonus
+    if p.inside_penalty > 0:
+        # +n points from papyrus toward the gap, so moving a label outward should never
+        # end with papyrus on both sides of it. When it would, the normal is probably
+        # flipped there or the label sits on the far face of a sheet; don't push it in.
+        inside = inside_sheet(ct_s, pts, n, ts, c_off, p.inside_margin)
+        inside[:, ts <= 0] = False
+        D = D + p.inside_penalty * inside
     # border samples: forced to stay put
     D[~movable] = 1e3
-    D[~movable, np.argmin(np.abs(ts))] = 0.0
+    D[~movable, k0] = 0.0
 
     labels = solve_all(D, i, j, comp, p)
     shift = ts[labels]
@@ -460,7 +529,7 @@ def snap(img, lab, p: Params | None = None, prepared=None):
     # confidence: how label-like the CT profile is at the chosen position (template
     # match), falling back to edge strength when the template is off
     conf = np.clip(S[rows, labels] if p.template_weight > 0 else E[rows, labels], 0, 1)
-    out = warp_labels(lab, pts, n, shift)
+    out = warp_labels(lab, pts, n, shift, comp=comp, smooth=p.smooth_warp)
     info = dict(n_samples=int(len(pts)), n_pairs=int(len(i)), n_sheets=int(comp.max() + 1) if len(comp) else 0,
                 convention_offset=float(c_off), edge_scale=float(scale),
                 mean_abs_shift=float(np.mean(np.abs(shift[movable]))) if movable.any() else 0.0,
