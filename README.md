@@ -110,8 +110,34 @@ The tools run on the Vesuvius Challenge surface-label cubes ([Hugging Face bucke
 
 The data is licensed CC BY-NC 4.0 and is not included here. The example images in `results/` are crops of that data.
 
+## Blind human review
+
+The automatic tests can't say whether a big move on a hazy cube is a fix or a mistake, so a
+person judges a sample by eye without knowing which label is which.
+
+- `tools/make_review.py` picks, per cube, 3 points where the snapper moved the label by 2+
+  voxels, 3 where it moved 1-2 voxels and 1 where it didn't move (a control), spread at least
+  32 voxels apart: 140 comparisons. It adds 14 catch items, where the original label is
+  compared with itself pushed 3 voxels into the gap or 2.5 voxels into the sheet, at points
+  where the snapper and the original agree; a reviewer who can't spot those can't be trusted
+  on the rest.
+- Each item shows a 48 x 48 voxel slice, cut perpendicular to the axis closest to the surface,
+  with a zoomed-out context view and the two candidates side by side. Item order is shuffled,
+  and exactly half the comparisons (and half the catch items) put each candidate on the left.
+- The reviewer answers "A is better", "B is better", "About the same" or "Can't tell"
+  (`review/index.html`). The page shows only item ids and images; the answer key stays
+  with whoever runs the review until the answers are in.
+- `tools/score_review.py` unblinds the answers and reports preferences per stratum, for the
+  hazy cubes, by direction of the move and per cube, with an exact sign test, catch
+  accuracy, left/right bias and answer times.
+
+```bash
+python tools/make_review.py review/ review/key.json data/images data/labels out/labels --seed 0
+python tools/score_review.py review/key.json answers.json results/review_v1.md
+```
+
 ## Next steps
 
-1. **Blind human review.** Show close-ups with the original and snapped label in random order, and record which sits on the papyrus surface. This is the ground truth the automatic tests can't provide, and it decides how to handle hazy cubes.
+1. **Finish the blind review** (above) and use it to decide how to handle hazy cubes.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
 3. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scroll label review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* One dark "viewer" world, like a radiology workstation: the CT stays the brightest thing
+     on screen and nothing competes with the yellow label band. Single theme by choice. */
+  --bg: #121417;
+  --panel: #1b1e23;
+  --line: #2c3138;
+  --text: #e6e8eb;
+  --muted: #9aa3ad;
+  --accent: #5ab4e6;          /* UI accent (cool, so it never reads as the yellow label) */
+  --label: #ffd228;           /* the label band colour used in the images */
+  --good: #6cc48a;
+  --warn: #e0a54a;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --panel-size: 300px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+}
+.wrap { max-width: 1440px; margin: 0 auto; padding: 16px 20px 32px; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; justify-content: space-between; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; text-wrap: balance; }
+.counter { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.counter b { color: var(--text); font-weight: 500; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.chip.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+
+.guide { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px;
+  display: grid; grid-template-columns: minmax(0, 62ch) auto; gap: 16px 28px; align-items: start; }
+.guide h2 { font-size: 15px; margin: 0 0 6px; }
+.guide ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.guide .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 2px; background: var(--label); vertical-align: -1px; opacity: .85; }
+.example { display: grid; gap: 6px; }
+.example .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.example .pane canvas { width: 104px; height: 104px; border-radius: 4px; }
+.example .pane .cap b { font-size: 13px; }
+.example p { margin: 0; color: var(--muted); font-size: 13px; max-width: 46ch; }
+details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+
+.viewer { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.pane { display: grid; gap: 6px; justify-items: start; }
+.pane .cap { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: baseline; }
+.pane .cap b { color: var(--text); font-size: 15px; font-weight: 600; }
+.pane canvas { width: var(--panel-size); height: var(--panel-size); border-radius: 6px; background: #000;
+  outline: 1px solid var(--line); image-rendering: pixelated; }
+.pane.ctx canvas { width: calc(var(--panel-size) * 0.62); height: calc(var(--panel-size) * 0.62); }
+.pane.cand canvas { outline: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); }
+
+.answers { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 16px; cursor: pointer; display: inline-flex; gap: 10px; align-items: center; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button .k { font-family: var(--font-mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 4px; padding: 0 6px; }
+button.primary { background: color-mix(in srgb, var(--accent) 16%, var(--panel)); }
+button.chosen { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+button.ghost { background: transparent; }
+.tools { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; color: var(--muted); font-size: 13px; }
+.tools label { display: inline-flex; gap: 8px; align-items: center; }
+.done { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: none; gap: 10px; }
+.done h2 { margin: 0; font-size: 18px; }
+.done.show { display: grid; }
+textarea { width: 100%; min-height: 120px; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; font-family: var(--font-mono); font-size: 12px; padding: 8px; }
+footer { color: var(--muted); font-size: 12px; }
+.hidden { display: none !important; }
+@media (max-width: 760px) {
+  :root { --panel-size: min(42vw, 260px); }
+  .guide { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Scroll label review</h1>
+    <div class="counter" id="counter">Loading items…</div>
+    <span class="chip" id="store">Connecting storage…</span>
+  </header>
+  <div class="bar" aria-hidden="true"><div id="bar"></div></div>
+
+  <section class="guide" id="guide">
+    <div>
+      <h2>Which label sits on the papyrus surface?</h2>
+      <ul>
+        <li>Each item is a close-up slice through a CT scan of a rolled scroll. Lighter grey is papyrus, darker is the gap between wraps. Each voxel is one square.</li>
+        <li><b>A</b> and <b>B</b> show the same slice with two candidate labels (<span class="swatch"></span> yellow band) for one face of a sheet. They come from different methods, and which one appears as A or B is random. A few items are built-in checks with a known answer.</li>
+        <li>Pick the band that follows the sheet's face more exactly: the edge where papyrus meets the gap. A band floating out in the gap or buried inside the sheet is worse. A thin bright or dark fringe right beside a surface is a scanner artifact, not papyrus.</li>
+        <li>Choose <b>About the same</b> when neither is clearly better, and <b>Can't tell</b> when the image doesn't let you judge. Go with your first impression; most items take a few seconds.</li>
+      </ul>
+    </div>
+    <div class="example" id="example">
+      <details open>
+        <summary>Worked example</summary>
+        <div class="row" id="exRow"></div>
+        <p id="exText">Here B is worse: its band floats about 3 voxels out in the dark gap, while A sits on the sheet's face. So this one is “A is better”.</p>
+      </details>
+    </div>
+  </section>
+
+  <section id="work">
+    <div class="viewer" id="viewer">
+      <div class="pane ctx"><div class="cap"><b>Context</b> zoomed out, box = close-up</div><canvas id="cCtx" width="48" height="48"></canvas></div>
+      <div class="pane"><div class="cap"><b>Scan</b> close-up, no label</div><canvas id="cCt" width="48" height="48"></canvas></div>
+      <div class="pane cand"><div class="cap"><b>A</b></div><canvas id="cA" width="48" height="48"></canvas></div>
+      <div class="pane cand"><div class="cap"><b>B</b></div><canvas id="cB" width="48" height="48"></canvas></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="answers" id="answers">
+      <button class="primary" data-choice="A" id="btnA"><span class="k">1</span>A is better</button>
+      <button class="primary" data-choice="B" id="btnB"><span class="k">2</span>B is better</button>
+      <button data-choice="same" id="btnSame"><span class="k">3</span>About the same</button>
+      <button data-choice="unsure" id="btnUnsure"><span class="k">4</span>Can't tell</button>
+      <button class="ghost" id="btnBack"><span class="k">⌫</span>Previous</button>
+    </div>
+    <div style="height:14px"></div>
+    <div class="tools">
+      <label for="size">Image size <input type="range" id="size" min="180" max="440" step="20" value="300"></label>
+      <label for="smooth"><input type="checkbox" id="smooth"> Smooth pixels</label>
+      <span>Answers save as you go. You can stop and come back later.</span>
+    </div>
+  </section>
+
+  <section class="done" id="done">
+    <h2>All done. Thank you!</h2>
+    <p id="doneText">Every item has an answer. Tell Claude in the chat that the review is finished.</p>
+    <div id="fallback" class="hidden">
+      <p>This page couldn't reach its database, so your answers are only on this device. Copy them and paste them into the chat:</p>
+      <button id="btnCopy">Copy answers</button>
+      <textarea id="dump" readonly></textarea>
+    </div>
+    <div><button class="ghost" id="btnReview">Go back through my answers</button></div>
+  </section>
+
+  <footer>CT data: Vesuvius Challenge surface-label cubes, CC BY-NC 4.0. Labels compared: original annotations vs. scroll-label-snap output.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  let LS_KEY = "scroll-label-review";
+  let data = null, items = [], answers = {}, pos = 0, db = null, saving = Promise.resolve();
+  let writeFailed = false;
+  let shownAt = performance.now();
+  const $ = (id) => document.getElementById(id);
+  const sprite = new Image();
+
+  function loadLocal() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch (e) { return {}; } }
+  function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(answers)); } catch (e) { /* ignore */ } }
+
+  function setStore(text, cls) { const s = $("store"); s.textContent = text; s.className = "chip " + (cls || ""); }
+
+  function drawPanel(canvas, img, k, panel, gap) {
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, k * (panel + gap), 0, panel, panel, 0, 0, canvas.width, canvas.height);
+  }
+
+  function smoothMode() {
+    const on = $("smooth").checked;
+    document.querySelectorAll("canvas").forEach(c => c.style.imageRendering = on ? "auto" : "pixelated");
+  }
+
+  function answeredCount() { return items.filter(it => answers[it.id]).length; }
+
+  function updateCounter() {
+    const n = answeredCount();
+    $("counter").innerHTML = items.length
+      ? `Item <b>${Math.min(pos + 1, items.length)}</b> of ${items.length} · <b>${n}</b> answered`
+      : "No items";
+    $("bar").style.width = items.length ? (100 * n / items.length) + "%" : "0";
+  }
+
+  function show(i) {
+    pos = Math.max(0, Math.min(i, items.length - 1));
+    const it = items[pos];
+    const img = new Image();
+    img.onload = () => {
+      const P = data.panel, G = data.gap;
+      drawPanel($("cCtx"), img, 0, P, G);
+      drawPanel($("cCt"), img, 1, P, G);
+      drawPanel($("cA"), img, 2, P, G);
+      drawPanel($("cB"), img, 3, P, G);
+    };
+    img.src = it.sprite;
+    document.querySelectorAll("[data-choice]").forEach(b =>
+      b.classList.toggle("chosen", answers[it.id] && answers[it.id].choice === b.dataset.choice));
+    shownAt = performance.now();
+    updateCounter();
+  }
+
+  function finish() {
+    $("work").classList.add("hidden");
+    $("done").classList.add("show");
+    if (!db || writeFailed) {
+      $("fallback").classList.remove("hidden");
+      $("dump").value = JSON.stringify(answers);
+    }
+  }
+
+  function nextUnanswered(from) {
+    for (let k = 0; k < items.length; k++) {
+      const j = (from + k) % items.length;
+      if (!answers[items[j].id]) return j;
+    }
+    return -1;
+  }
+
+  // one write at a time; a transient failure is retried once after a short random pause
+  function put(id, rec) {
+    const ref = db.doc("answers/" + id);
+    const once = () => ref.set(rec);
+    saving = saving.then(() => once().catch((e) => {
+      if (e && e.code === "unavailable") return new Promise(r => setTimeout(r, 400 + Math.random() * 800)).then(once);
+      throw e;
+    })).then(
+      () => { if (!writeFailed) setStore("Saved", "ok"); },
+      (e) => {
+        writeFailed = true;
+        setStore(e && e.code === "quota_exceeded" ? "Storage full: answers kept on this device" :
+                 "Couldn't save to the page; answers kept on this device", "warn");
+      });
+  }
+
+  function choose(choice) {
+    if (!items.length || $("work").classList.contains("hidden")) return;
+    const it = items[pos];
+    const prev = answers[it.id];
+    if (!prev || prev.choice !== choice) {
+      const rec = { choice, ms: Math.round(performance.now() - shownAt), at: new Date().toISOString(),
+                    set: data.set || "" };
+      answers[it.id] = rec;
+      saveLocal();
+      if (db) put(it.id, rec);
+    }
+    const j = nextUnanswered(pos + 1);
+    if (j < 0) { updateCounter(); finish(); } else { show(j); }
+  }
+
+  function wire() {
+    document.querySelectorAll("[data-choice]").forEach(b => b.addEventListener("click", () => choose(b.dataset.choice)));
+    $("btnBack").addEventListener("click", () => show(pos - 1));
+    $("btnReview").addEventListener("click", () => { $("done").classList.remove("show"); $("work").classList.remove("hidden"); show(0); });
+    $("size").addEventListener("input", (e) => document.documentElement.style.setProperty("--panel-size", e.target.value + "px"));
+    $("smooth").addEventListener("change", smoothMode);
+    $("btnCopy").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText($("dump").value); $("btnCopy").textContent = "Copied"; }
+      catch (e) { $("dump").select(); $("btnCopy").textContent = "Select the text and copy it"; }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target && e.target.tagName === "INPUT" && e.target.type !== "checkbox") return;
+      const map = { "1": "A", "2": "B", "3": "same", "4": "unsure" };
+      if (map[e.key]) { e.preventDefault(); choose(map[e.key]); }
+      else if (e.key === "Backspace" || e.key === "ArrowLeft") { e.preventDefault(); show(pos - 1); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); show(pos + 1); }
+    });
+  }
+
+  function drawExample() {
+    if (!data.example) { $("example").classList.add("hidden"); return; }
+    const img = new Image();
+    img.onload = () => {
+      const names = ["Context", "Scan", "A", "B"];
+      for (let k = 0; k < 4; k++) {
+        const wrap = document.createElement("div");
+        wrap.className = "pane";
+        const cap = document.createElement("div"); cap.className = "cap"; cap.innerHTML = "<b>" + names[k] + "</b>";
+        const c = document.createElement("canvas"); c.width = 48; c.height = 48;
+        wrap.appendChild(cap); wrap.appendChild(c); $("exRow").appendChild(wrap);
+        drawPanel(c, img, k, data.panel, data.gap);
+      }
+      smoothMode();
+    };
+    img.src = data.example.sprite;
+  }
+
+  async function connectDb() {
+    const api = window.claude;
+    if (!api || typeof api.use !== "function") { setStore("Saving on this device only", "warn"); return; }
+    let timer = setTimeout(() => setStore("Storage not reachable yet; saving on this device", "warn"), 10000);
+    try {
+      db = await api.use("db");
+    } catch (e) { db = null; }
+    clearTimeout(timer);
+    if (!db) { setStore("Saving on this device only", "warn"); return; }
+    timer = setTimeout(() => setStore("Storage slow to answer; saving on this device too", "warn"), 10000);
+    try {
+      const snap = await db.collection("answers").get();
+      clearTimeout(timer);
+      snap.docs.forEach(d => {
+        const v = d.exists ? d.data() : null;
+        if (v && (v.set || "") === (data.set || "")) answers[d.id] = v;     // ignore answers to another set
+      });
+      // anything answered on this device before the database connected goes up now
+      const local = loadLocal();
+      for (const id of Object.keys(local)) {
+        if (!answers[id]) {
+          answers[id] = local[id];
+          put(id, local[id]);
+        }
+      }
+      saveLocal();
+      setStore("Answers save to this page", "ok");
+      const j = nextUnanswered(0);
+      if (j < 0 && items.length) finish(); else if (j >= 0) show(j);
+    } catch (e) {
+      clearTimeout(timer);
+      db = null;
+      setStore("Saving on this device only", "warn");
+    }
+  }
+
+  async function start() {
+    wire();
+    try {
+      const r = await fetch("items.json");
+      data = await r.json();
+      items = data.items || [];
+      LS_KEY = "scroll-label-review-" + (data.set || "v1");
+    } catch (e) {
+      $("counter").textContent = "Couldn't load the review items. Reload the page to try again.";
+      return;
+    }
+    answers = loadLocal();
+    drawExample();
+    const j = nextUnanswered(0);
+    show(j < 0 ? 0 : j);
+    smoothMode();
+    connectDb();
+  }
+  start();
+})();
+</script>
+</body>
+</html>
