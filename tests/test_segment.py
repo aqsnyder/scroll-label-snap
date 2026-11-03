@@ -34,7 +34,7 @@ def test_tiled_segment_matches_one_piece(tmp_path):
     tool = os.path.join(HERE, "..", "tools", "snap_segment.py")
     subprocess.run([sys.executable, tool, str(tmp_path / "out"), "--segment", str(tmp_path / "seg.tifxyz"),
                     "--volume", str(tmp_path / "scan.zarr"), "--tile", "8", "--overlap", "2", "--workers", "1",
-                    "--sample-tiles", "4", "--normals", "flipped"], check=True, capture_output=True)
+                    "--sample-tiles", "4", "--normals", "flipped", "--name", "synth"], check=True, capture_output=True)
     summary = json.load(open(tmp_path / "out" / "snap_segment.json"))
     assert not summary["tiles_failed"]
     one = snap_mesh(ct, P, valid, replace(Params(), convention_offset=summary["convention_offset"]), normal_sign=-1)
