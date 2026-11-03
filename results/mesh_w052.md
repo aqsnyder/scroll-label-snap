@@ -20,11 +20,13 @@ This is the held-out test for mesh snapping. It was set out in commit `daf4b81` 
 | Mean CT step across the face: original → snapped | 30.2 → 75.3 | 8.4 → 60.4 |
 | Drift test (std 1.5, corr. 40), within 1 voxel: no correction | 69% | 70% |
 | same: VC3D refiner, thresholds tuned on these patches, offset removed | 68% | 61% |
+| same: VC3D refiner, thresholds from each patch's levels, offset removed (added later) | 70% | 57% |
 | same: **snapper** | **94%** | 90% |
 | Drift test (std 2, corr. 80), within 1 voxel: no correction | 41% | 42% |
 | same: VC3D refiner, tuned, offset removed | 64% | 57% |
+| same: VC3D refiner, each patch's levels, offset removed (added later) | 66% | 55% |
 | same: **snapper** | **92%** | 90% |
-| Consistency, std 1.5 drift: snapper / refiner | 90% / 66% | 84% / 62% |
+| Consistency, std 1.5 drift: snapper / refiner (default) / refiner (each patch's levels) | 90% / 66% / 84% | 84% / 62% / 75% |
 | Fibre check, recto signature: snapped | **+0.198, 8 of 8 patches** | +0.147, 8 of 8 |
 | same: original mesh | +0.070, 6 of 8 | +0.010, 5 of 8 |
 | same: control snapped onto the opposite faces | +0.091, 6 of 8 | −0.009, 4 of 8 |

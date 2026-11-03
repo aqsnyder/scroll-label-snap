@@ -55,17 +55,23 @@ We used two drift settings:
 | No correction (drifted mesh) | 0.78 | 70% | 5% | 1.37 | 42% | 27% |
 | VC3D alpha-composite refiner, default thresholds | 10.84 | 5% | 88% | 10.73 | 4% | 89% |
 | same, median offset removed | 6.79 | 10% | 81% | 6.74 | 10% | 82% |
+| same, thresholds from each patch's own gap and papyrus levels, offset removed | 0.97 | 57% | 8% | 1.05 | 55% | 11% |
 | same, thresholds tuned on these patches (50 and 110 of 255), offset removed | 0.91 | 61% | 6% | 1.01 | 57% | 10% |
 | **Snapper** | **0.51** | **90%** | **2%** | **0.54** | **90%** | **2%** |
 
-The refiner is a Python port of VC3D's `ObjAlphaCompRefinement`. Its default opacity thresholds (118 and 165 of 255) are above most of this scan's papyrus, so the table also gives it its most generous setting: thresholds picked by grid search on these same patches, plus removing its median offset. Even then it does worse than no correction.
+The refiner is a Python port of VC3D's `ObjAlphaCompRefinement`. Its default opacity thresholds (118 and 165 of 255) are above most of this scan's papyrus. So the table also gives it two kinds of help, both with its median offset removed:
+- thresholds set from each patch's own gap and papyrus brightness (the two Otsu class means; added later);
+- its most generous setting, the threshold pair that does best in a grid search on these same patches.
+
+Even then it does worse than no correction.
 
 **Consistency.** This is measured at all 210k samples. It asks whether snapping the drifted mesh lands where snapping the original lands.
 
 | | std 1.5, corr. 40 | std 2.0, corr. 80 |
 |---|---|---|
 | Snapper | 84% | 75% |
-| Refiner | 62% | 51% |
+| Refiner, default thresholds | 62% | 51% |
+| Refiner, thresholds from each patch's levels | 75% | 61% |
 
 Per-patch numbers are in [`eval_mesh_w035.json`](eval_mesh_w035.json) and [`eval_mesh_w035_drift80.json`](eval_mesh_w035_drift80.json).
 

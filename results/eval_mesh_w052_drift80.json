@@ -56,6 +56,18 @@
    "over_2": 0.709951800396938,
    "n": 24689
   },
+  "baseline, adaptive thresholds, offset-corrected": {
+   "mean": 0.8873616867499217,
+   "within_1": 0.657013244764875,
+   "over_2": 0.07302847421928794,
+   "n": 24689
+  },
+  "baseline, adaptive thresholds consistency": {
+   "mean": 0.884777357661008,
+   "within_1": 0.7073163758350884,
+   "over_2": 0.14286326944886543,
+   "n": 209858
+  },
   "snapper consistency": {
    "mean": 0.7146806181034396,
    "within_1": 0.8476160070142668,
@@ -102,6 +114,11 @@
    "papyrus_side": 0.9259257494389036,
    "mean_step": 75.2997354448469
   }
+ },
+ "recto_prediction_hits": {
+  "original": 0.9203217590589039,
+  "snapped": 0.9342101838519112,
+  "snap to m7": 0.9596690027373642
  },
  "baseline_grid_pooled": {
   "118-165": {
@@ -247,7 +264,7 @@
  "patches": [
   {
    "patch": "patch_0",
-   "seconds": 38.3,
+   "seconds": 9.1,
    "n_dense": 26244,
    "n_trusted": 2551,
    "factor": 7,
@@ -288,6 +305,20 @@
      "within_1": 0.047432379459035674,
      "over_2": 0.8953351626813014,
      "n": 2551
+    },
+    "baseline, adaptive thresholds, offset-corrected": {
+     "mean": 1.198271632194519,
+     "median": 1.1270911693572998,
+     "within_1": 0.43237945903567226,
+     "over_2": 0.12504900039200315,
+     "n": 2551
+    },
+    "baseline, adaptive thresholds consistency": {
+     "mean": 1.0474801063537598,
+     "median": 0.4782387316226959,
+     "within_1": 0.6474241731443378,
+     "over_2": 0.17779301935680536,
+     "n": 26244
     },
     "snapper consistency": {
      "mean": 0.910968542098999,
@@ -569,6 +600,11 @@
      "n": 26244
     }
    },
+   "recto_prediction_hits": {
+    "original": 0.7994970278920897,
+    "snapped": 0.8307803688462124,
+    "snap to m7": 0.9179622008840116
+   },
    "original_mesh_moves": {
     "mean_abs": 1.6983120441436768,
     "frac_moved_1vox": 0.724775186709343,
@@ -578,7 +614,7 @@
   },
   {
    "patch": "patch_1",
-   "seconds": 38.5,
+   "seconds": 7.4,
    "n_dense": 26244,
    "n_trusted": 3670,
    "factor": 7,
@@ -619,6 +655,20 @@
      "within_1": 0.17356948228882835,
      "over_2": 0.6422343324250681,
      "n": 3670
+    },
+    "baseline, adaptive thresholds, offset-corrected": {
+     "mean": 0.7814487814903259,
+     "median": 0.5535779595375061,
+     "within_1": 0.7416893732970027,
+     "over_2": 0.06948228882833787,
+     "n": 3670
+    },
+    "baseline, adaptive thresholds consistency": {
+     "mean": 0.7392895221710205,
+     "median": 0.2241058349609375,
+     "within_1": 0.7676040237768633,
+     "over_2": 0.10737692424935223,
+     "n": 26244
     },
     "snapper consistency": {
      "mean": 0.5306812524795532,
@@ -900,6 +950,11 @@
      "n": 26244
     }
    },
+   "recto_prediction_hits": {
+    "original": 0.9840344459686023,
+    "snapped": 0.9719173906416705,
+    "snap to m7": 0.9963801249809481
+   },
    "original_mesh_moves": {
     "mean_abs": 1.4151043891906738,
     "frac_moved_1vox": 0.6475765889346137,
@@ -909,7 +964,7 @@
   },
   {
    "patch": "patch_2",
-   "seconds": 54.8,
+   "seconds": 8.5,
    "n_dense": 26244,
    "n_trusted": 3672,
    "factor": 7,
@@ -950,6 +1005,20 @@
      "within_1": 0.14188453159041395,
      "over_2": 0.7162309368191722,
      "n": 3672
+    },
+    "baseline, adaptive thresholds, offset-corrected": {
+     "mean": 1.0338759422302246,
+     "median": 0.7335482835769653,
+     "within_1": 0.650871459694989,
+     "over_2": 0.10675381263616558,
+     "n": 3672
+    },
+    "baseline, adaptive thresholds consistency": {
+     "mean": 0.6159360408782959,
+     "median": 0.11892484873533249,
+     "within_1": 0.791838134430727,
+     "over_2": 0.10196616369455876,
+     "n": 26244
     },
     "snapper consistency": {
      "mean": 0.4892461895942688,
@@ -1231,6 +1300,11 @@
      "n": 26244
     }
    },
+   "recto_prediction_hits": {
+    "original": 0.999961896052431,
+    "snapped": 0.9631153787532388,
+    "snap to m7": 1.0
+   },
    "original_mesh_moves": {
     "mean_abs": 1.330513596534729,
     "frac_moved_1vox": 0.654282883706752,
@@ -1240,7 +1314,7 @@
   },
   {
    "patch": "patch_3",
-   "seconds": 88.0,
+   "seconds": 13.1,
    "n_dense": 26150,
    "n_trusted": 1372,
    "factor": 7,
@@ -1281,6 +1355,20 @@
      "within_1": 0.06778425655976676,
      "over_2": 0.8564139941690962,
      "n": 1372
+    },
+    "baseline, adaptive thresholds, offset-corrected": {
+     "mean": 1.3666536808013916,
+     "median": 1.2096641063690186,
+     "within_1": 0.380466472303207,
+     "over_2": 0.20262390670553937,
+     "n": 1372
+    },
+    "baseline, adaptive thresholds consistency": {
+     "mean": 1.5447349548339844,
+     "median": 1.0379080772399902,
+     "within_1": 0.48921606118546845,
+     "over_2": 0.2855449330783939,
+     "n": 26150
     },
     "snapper consistency": {
      "mean": 1.1214923858642578,
@@ -1562,6 +1650,11 @@
      "n": 26149
     }
    },
+   "recto_prediction_hits": {
+    "original": 0.7488718929254302,
+    "snapped": 0.8648565965583174,
+    "snap to m7": 0.8024091778202677
+   },
    "original_mesh_moves": {
     "mean_abs": 2.1498470306396484,
     "frac_moved_1vox": 0.8098661567877629,
@@ -1571,7 +1664,7 @@
   },
   {
    "patch": "patch_4",
-   "seconds": 111.3,
+   "seconds": 14.2,
    "n_dense": 26244,
    "n_trusted": 3083,
    "factor": 7,
@@ -1612,6 +1705,20 @@
      "within_1": 0.25819007460265975,
      "over_2": 0.4216672072656503,
      "n": 3083
+    },
+    "baseline, adaptive thresholds, offset-corrected": {
+     "mean": 0.7495644688606262,
+     "median": 0.659498393535614,
+     "within_1": 0.7152124554005839,
+     "over_2": 0.031462860849821604,
+     "n": 3083
+    },
+    "baseline, adaptive thresholds consistency": {
+     "mean": 1.1154729127883911,
+     "median": 0.5004011988639832,
+     "within_1": 0.6491007468373724,
+     "over_2": 0.1679240969364426,
+     "n": 26244
     },
     "snapper consistency": {
      "mean": 0.7756100296974182,
@@ -1893,6 +2000,11 @@
      "n": 26244
     }
    },
+   "recto_prediction_hits": {
+    "original": 0.8571483005639384,
+    "snapped": 0.8991007468373724,
+    "snap to m7": 0.9816338972717573
+   },
    "original_mesh_moves": {
     "mean_abs": 1.796048641204834,
     "frac_moved_1vox": 0.7278616064624295,
@@ -1902,7 +2014,7 @@
   },
   {
    "patch": "patch_5",
-   "seconds": 70.7,
+   "seconds": 10.2,
    "n_dense": 26244,
    "n_trusted": 3627,
    "factor": 7,
@@ -1943,6 +2055,20 @@
      "within_1": 0.1452991452991453,
      "over_2": 0.6702508960573477,
      "n": 3627
+    },
+    "baseline, adaptive thresholds, offset-corrected": {
+     "mean": 0.6093769669532776,
+     "median": 0.5258172750473022,
+     "within_1": 0.8105872622001654,
+     "over_2": 0.009374138406396471,
+     "n": 3627
+    },
+    "baseline, adaptive thresholds consistency": {
+     "mean": 0.5027793645858765,
+     "median": 0.10108020901679993,
+     "within_1": 0.860006096631611,
+     "over_2": 0.07247370827617741,
+     "n": 26244
     },
     "snapper consistency": {
      "mean": 0.49686598777770996,
@@ -2224,6 +2350,11 @@
      "n": 26244
     }
    },
+   "recto_prediction_hits": {
+    "original": 0.998818777625362,
+    "snapped": 0.9812909617436366,
+    "snap to m7": 1.0
+   },
    "original_mesh_moves": {
     "mean_abs": 1.5450388193130493,
     "frac_moved_1vox": 0.6977594878829446,
@@ -2233,7 +2364,7 @@
   },
   {
    "patch": "patch_6",
-   "seconds": 52.5,
+   "seconds": 9.0,
    "n_dense": 26244,
    "n_trusted": 3384,
    "factor": 7,
@@ -2274,6 +2405,20 @@
      "within_1": 0.11761229314420804,
      "over_2": 0.7573877068557919,
      "n": 3384
+    },
+    "baseline, adaptive thresholds, offset-corrected": {
+     "mean": 0.6728540062904358,
+     "median": 0.5727173089981079,
+     "within_1": 0.7653664302600472,
+     "over_2": 0.027777777777777776,
+     "n": 3384
+    },
+    "baseline, adaptive thresholds consistency": {
+     "mean": 0.7629392743110657,
+     "median": 0.2933422923088074,
+     "within_1": 0.7258420972412742,
+     "over_2": 0.11716963877457705,
+     "n": 26244
     },
     "snapper consistency": {
      "mean": 0.6311567425727844,
@@ -2555,6 +2700,11 @@
      "n": 26244
     }
    },
+   "recto_prediction_hits": {
+    "original": 0.9847965249199817,
+    "snapped": 0.9870065538789818,
+    "snap to m7": 0.984415485444292
+   },
    "original_mesh_moves": {
     "mean_abs": 1.5961934328079224,
     "frac_moved_1vox": 0.7220698064319464,
@@ -2564,7 +2714,7 @@
   },
   {
    "patch": "patch_7",
-   "seconds": 51.3,
+   "seconds": 9.3,
    "n_dense": 26244,
    "n_trusted": 3330,
    "factor": 7,
@@ -2605,6 +2755,20 @@
      "within_1": 0.08078078078078078,
      "over_2": 0.8372372372372372,
      "n": 3330
+    },
+    "baseline, adaptive thresholds, offset-corrected": {
+     "mean": 1.05521559715271,
+     "median": 0.9470827579498291,
+     "within_1": 0.5252252252252252,
+     "over_2": 0.1003003003003003,
+     "n": 3330
+    },
+    "baseline, adaptive thresholds consistency": {
+     "mean": 0.7519505023956299,
+     "median": 0.29797303676605225,
+     "within_1": 0.7267184880353604,
+     "over_2": 0.11316872427983539,
+     "n": 26244
     },
     "snapper consistency": {
      "mean": 0.7628809213638306,
@@ -2885,6 +3049,11 @@
      "papyrus_side": 0.9249352232891328,
      "n": 26244
     }
+   },
+   "recto_prediction_hits": {
+    "original": 0.9894452065233958,
+    "snapped": 0.9756134735558604,
+    "snap to m7": 0.9945511354976375
    },
    "original_mesh_moves": {
     "mean_abs": 1.4201340675354004,

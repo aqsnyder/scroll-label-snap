@@ -143,6 +143,7 @@ It was developed on segment w035 of PHerc. 0139 at 9.362 µm, the one in the scr
 | Papyrus on the recto side of the face: original → snapped | 55% → 88% | 70% → 93% |
 | Drift test, within 1 voxel: no correction → snapper | 70% → **90%** | 69% → **94%** |
 | VC3D refiner, thresholds tuned on the same patches, offset removed | 61% | 68% |
+| VC3D refiner, thresholds from each patch's own gap and papyrus levels, offset removed | 57% | 70% |
 | Snapping onto the m7 surface prediction (the PHerc. 343 winner's method), offset removed | 41% | 63% |
 | Consistency: snapper / refiner / m7 snapping | 84% / 62% / 69% | 90% / 66% / 76% |
 | Fibre check, patches with the recto signature: snapped / original / m7 snapping | 8 / 5 / 7 of 8 | 8 / 6 / 6 of 8 |
