@@ -8,6 +8,8 @@ Writes, per cube:
   OUT_DIR/confidence/<name>.tif  per-voxel confidence of the snapped band (0-255)
   OUT_DIR/flags/<name>.tif       255 where the label sits on a face of the opposite polarity
   OUT_DIR/<name>.json            summary (samples, shift statistics, parameters)
+
+A cube that fails is reported and the rest still run; the exit code is non-zero if any failed.
 """
 import json
 import os
@@ -26,12 +28,18 @@ def main(out_dir, *paths):
     os.makedirs(os.path.join(out_dir, "confidence"), exist_ok=True)
     os.makedirs(os.path.join(out_dir, "flags"), exist_ok=True)
     p = Params()
+    failed = []
     for img_path, lab_path in zip(paths[0::2], paths[1::2]):
         name = os.path.basename(img_path).rsplit(".", 1)[0]
         t0 = time.time()
-        img = tifffile.imread(img_path)
-        lab = tifffile.imread(lab_path)
-        res = snap(img, lab, p)
+        try:
+            img = tifffile.imread(img_path)
+            lab = tifffile.imread(lab_path)
+            res = snap(img, lab, p)
+        except Exception as e:  # keep going; report at the end
+            failed.append(name)
+            print(f"{name}: FAILED: {type(e).__name__}: {e}", flush=True)
+            continue
         # 255 in flags on band voxels whose label sits on a face of the opposite polarity: worth a look
         conf, flags = shift_volumes(lab.shape, res.labels == 1, res.pts,
                                     [(res.confidence * 255).astype(np.uint8), (res.reversed_face * 255).astype(np.uint8)])
@@ -46,6 +54,10 @@ def main(out_dir, *paths):
         print(f"{name}: {info['n_samples']} samples, {info['n_sheets']} sheets, "
               f"mean |shift| {info['mean_abs_shift']:.2f} vox, moved >=1 vox "
               f"{info['frac_moved_1vox']:.0%}, flagged {info['frac_reversed_face']:.0%}, {info['seconds']} s")
+        if not info["n_movable"]:
+            print(f"{name}: no samples away from the cube's edge, so the labels are unchanged", flush=True)
+    if failed:
+        sys.exit(f"{len(failed)} cubes failed: {', '.join(failed)}")
 
 
 if __name__ == "__main__":

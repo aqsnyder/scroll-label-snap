@@ -55,7 +55,7 @@ def test_tiled_segment_matches_one_piece(tmp_path):
     ct, P, valid = make_scene(tmp_path, tmp_path)
     summary = run_tool(tmp_path / "out", str(tmp_path / "scan.zarr"))
     assert not summary["tiles_failed"]
-    one = snap_mesh(ct, P, valid, replace(Params(), convention_offset=summary["convention_offset"]), normal_sign=-1)
+    one = snap_mesh(ct, P, valid, replace(Params(), convention_offset=summary["convention_offset"], template_follows_offset=False), normal_sign=-1)
     D, vd, _ = read_tifxyz(str(tmp_path / "out" / "synth_snapped_dense.tifxyz"))
     both = vd & one.dense_valid
     diff = np.linalg.norm(D - one.dense_P, axis=-1)[both]

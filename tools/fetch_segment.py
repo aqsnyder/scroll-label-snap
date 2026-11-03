@@ -25,6 +25,8 @@ import argparse
 import json
 import os
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -33,15 +35,22 @@ import numpy as np
 import tifffile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from scroll_label_snap.mesh import axis_orientation  # noqa: E402
+from scroll_label_snap.mesh import axis_fit_is_meaningful, axis_orientation  # noqa: E402
 from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
 
 TIFXYZ_FILES = ("meta.json", "x.tif", "y.tif", "z.tif", "mask.tif")
 
 
-def http_get(url, timeout=120):
-    with urllib.request.urlopen(url, timeout=timeout) as r:
-        return r.read()
+def http_get(url, timeout=120, tries=3):
+    """GET with retries, since a server can fail for a moment. 403 and 404 mean no such file, and are final."""
+    for k in range(tries):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as r:
+                return r.read()
+        except OSError as e:
+            if k == tries - 1 or (isinstance(e, urllib.error.HTTPError) and e.code in (403, 404)):
+                raise
+            time.sleep(2 ** k)
 
 
 def list_s3_folder(url):
@@ -71,8 +80,8 @@ def download_tifxyz(url, out):
         if not os.path.exists(dst):
             try:
                 data = http_get(base + name)
-            except Exception:
-                if name == "mask.tif":
+            except urllib.error.HTTPError as e:
+                if name == "mask.tif" and e.code in (403, 404):      # no mask; any other failure must not pass as that
                     continue
                 raise
             with open(dst, "wb") as f:
@@ -140,7 +149,7 @@ def main():
     print(f"scroll axis near y {r_axis[0]:.0f}, x {r_axis[1]:.0f}: the recto side is "
           f"{'along' if r_sign > 0 else 'against'} the grid normal at {r_agree:.0%} of vertices", flush=True)
     orient = dict(recto_agree=r_agree, scroll_axis_yx=list(r_axis))
-    if r_agree >= 0.9:
+    if r_agree >= 0.9 and axis_fit_is_meaningful(P, valid, r_axis)[0]:
         orient["recto_sign"] = r_sign
 
     vol = open_level(a.volume, a.level)

@@ -13,12 +13,18 @@ Usage:
 Options:
   --target-offset T   put the mesh T voxels from the papyrus edge, measured along the normal
                       that points from papyrus toward the gap (0 = on the edge; negative =
-                      inside the papyrus). Default: keep the mesh's own typical offset.
-  --normals auto|grid|flipped
+                      inside the papyrus). Default: keep the mesh's own typical offset. Each sample
+                      still moves at most t_max voxels (--param), so a far target stops short:
+                      see snap_limit.
+  --normals auto|grid|flipped|ct
                       which way papyrus -> gap points at the recto face, relative to the grid's
                       own normal (cross product of the column and row directions). Default: from
                       the scroll geometry (the recto faces the scroll axis): from patch.json, or
-                      the whole segment saved next to the patches, or --axis; else from the CT.
+                      the whole segment saved next to the patches, or --axis, or for --tifxyz a
+                      circle fit to the mesh itself if it is long enough; a --tifxyz mesh that gives
+                      none of these stops with a message, and a patch folder uses the CT with a
+                      warning. ct: let the CT decide. That vote was wrong on 4 of 16 real patches,
+                      and then every sample is pulled toward the wrong faces.
   --axis Y X          scroll axis position in the volume, for --tifxyz meshes
 
 Writes, per input:
@@ -45,8 +51,9 @@ from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import Params  # noqa: E402
-from scroll_label_snap.mesh import axis_orientation, patch_orientation, snap_mesh  # noqa: E402
-from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
+from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, expand_paths,  # noqa: E402
+                                    patch_orientation, snap_mesh)
+from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
 
 def load_patch(d):
@@ -55,13 +62,12 @@ def load_patch(d):
             pj["offset_zyx"], pj.get("scale_to_level", 1.0))
 
 
-def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p):
+def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p, ct_ok=False):
     t0 = time.time()
     P, valid, meta = read_tifxyz(seg)
     ct = tifffile.imread(vol)
     res = snap_mesh(ct, P, valid, p, offset_zyx=offset, level_scale=level_scale, normal_sign=normal_sign)
     f = res.factor
-    scale = float(np.atleast_1d(meta.get("scale", [1.0]))[0])
     uuid = str(meta.get("uuid") or os.path.basename(os.path.normpath(seg))).replace(".tifxyz", "")
     src = dict(meta, snapped_from=uuid)
     conf_v = res.dense_confidence[::f, ::f]
@@ -73,7 +79,7 @@ def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p):
                                snap_review=(review_v * 255).astype(np.uint8)),
                  uuid=f"{uuid}_snapped")
     write_tifxyz(os.path.join(out_dir, name, "snapped_dense.tifxyz"), res.dense_P, res.dense_valid, src,
-                 scale=round(scale * f, 6), uuid=f"{uuid}_snapped_dense",
+                 scale=densified_scale(meta, f), uuid=f"{uuid}_snapped_dense",
                  channels=dict(snap_shift=res.dense_shift.astype(np.float32),
                                snap_confidence=(res.dense_confidence * 255).astype(np.uint8),
                                snap_flag=(res.dense_flag * 255).astype(np.uint8),
@@ -81,8 +87,8 @@ def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p):
     info = {k: v for k, v in res.info.items() if k != "params"}
     vs = res.dense_shift[res.dense_valid]
     info.update(name=name, seconds=round(time.time() - t0, 1),
-                dense_shift_percentiles={str(q): float(np.percentile(vs, q)) for q in (5, 25, 50, 75, 95)},
-                mean_confidence=float(res.dense_confidence[res.dense_valid].mean()),
+                dense_shift_percentiles={str(q): float(np.percentile(vs, q)) for q in (5, 25, 50, 75, 95)} if len(vs) else {},
+                mean_confidence=float(res.dense_confidence[res.dense_valid].mean()) if len(vs) else 0.0,
                 params=p.asdict())
     json.dump(info, open(os.path.join(out_dir, name, "snap.json"), "w"), indent=1)
     print(f"{name}: {info['n_vertices']} vertices, {info['n_dense']} samples (x{f}), "
@@ -92,6 +98,11 @@ def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p):
           f"normals {'as the grid' if info['normal_sign'] > 0 else 'flipped'}"
           f"{'' if np.isnan(info['orientation_agree']) else ' (from the CT, %.0f%% agree)' % (100 * info['orientation_agree'])}, "
           f"{info['seconds']} s", flush=True)
+    if normal_sign == 0 and not ct_ok:
+        print(f"{name}: warning: nothing in the scroll's geometry settled the recto side, so the CT vote did; it was wrong "
+              "on 4 of 16 real patches. Check it, or pass --normals grid or flipped", flush=True)
+    if not info["n_movable"]:
+        print(f"{name}: warning: no samples inside the volume crop, so the mesh is unchanged", flush=True)
     return info
 
 
@@ -104,7 +115,7 @@ def main():
     ap.add_argument("--offset", type=float, nargs=3, default=(0, 0, 0))
     ap.add_argument("--level-scale", type=float, default=1.0)
     ap.add_argument("--target-offset", type=float, default=None)
-    ap.add_argument("--normals", choices=("auto", "grid", "flipped"), default="auto")
+    ap.add_argument("--normals", choices=("auto", "grid", "flipped", "ct"), default="auto")
     ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE",
                     help="override a snapper parameter (see scroll_label_snap/core.py Params), e.g. t_max=6")
     ap.add_argument("--axis", type=float, nargs=2, metavar=("Y", "X"),
@@ -118,22 +129,30 @@ def main():
         cur = getattr(p, k)
         p = replace(p, **{k: (v.lower() in ("1", "true", "yes")) if isinstance(cur, bool) else type(cur or 0.0)(v)})
     if a.target_offset is not None:
-        p = replace(p, convention_offset=a.target_offset)
-    sign = {"auto": 0, "grid": 1, "flipped": -1}[a.normals]
-    jobs = [(os.path.basename(os.path.normpath(d)),) + load_patch(d) + (sign or patch_orientation(d),)
-            for d in a.patches]
+        p = replace(p, convention_offset=0.0 - a.target_offset)   # T is mesh minus edge; the offset is edge minus mesh
+    sign = {"auto": 0, "ct": 0, "grid": 1, "flipped": -1}[a.normals]
+    jobs = [(os.path.basename(os.path.normpath(d)),) + load_patch(d) + (sign or (0 if a.normals == "ct" else patch_orientation(d)),)
+            for d in expand_paths(a.patches)]
     if a.tifxyz:
         if not a.volume:
             sys.exit("--tifxyz needs --volume")
-        if not sign and a.axis:
+        if a.normals == "auto":
             P, valid, _ = read_tifxyz(a.tifxyz)
-            sign = axis_orientation(P, valid, tuple(a.axis))[0]
+            if a.axis:
+                sign = axis_orientation(P, valid, tuple(a.axis))[0]
+            else:
+                sign, agree, axis = axis_orientation(P, valid)
+                curved, radius, extent = axis_fit_is_meaningful(P, valid, axis)
+                if agree < 0.9 or not curved:
+                    sys.exit(f"this mesh's own curve does not settle which side is recto (agreement {agree:.0%}, fitted radius "
+                             f"{radius:.0f} voxels for a mesh {extent:.0f} voxels across); pass --axis Y X, or --normals grid "
+                             "or flipped, or --normals ct to let the CT vote decide")
         jobs.append((os.path.basename(os.path.normpath(a.tifxyz)).replace(".tifxyz", ""), a.tifxyz, a.volume,
                      list(a.offset), a.level_scale, sign))
     if not jobs:
         sys.exit("nothing to do: give PATCH_DIRs or --tifxyz and --volume")
     os.makedirs(a.out_dir, exist_ok=True)
-    infos = [run_one(a.out_dir, *job, p) for job in jobs]
+    infos = [run_one(a.out_dir, *job, p, ct_ok=a.normals == "ct") for job in jobs]
     json.dump(infos, open(os.path.join(a.out_dir, "summary.json"), "w"), indent=1)
 
 

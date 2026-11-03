@@ -33,7 +33,7 @@ from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import sample  # noqa: E402
-from scroll_label_snap.mesh import densify, mean_spacing, vertex_normals  # noqa: E402
+from scroll_label_snap.mesh import densify, expand_paths, mean_spacing, vertex_normals  # noqa: E402
 from scroll_label_snap.tifxyz import read_tifxyz  # noqa: E402
 
 DEPTHS = [-1.0, -2.0, -3.0, -4.0, -5.0, -6.0]
@@ -128,7 +128,7 @@ def main():
     runs = ([("snapped", a.snapped)] + ([("control", a.control)] if a.control else [])
             + [tuple(kv.split("=", 1)) for kv in a.compare])
     out, keep = [], None
-    for d in a.patches:
+    for d in expand_paths(a.patches):
         name = os.path.basename(os.path.normpath(d))
         off = np.asarray(json.load(open(os.path.join(d, "patch.json")))["offset_zyx"], np.float32)
         ct_s = ndi.gaussian_filter(tifffile.imread(os.path.join(d, "volume.tif")).astype(np.float32), 0.5)

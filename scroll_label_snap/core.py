@@ -54,7 +54,8 @@ class Params:
     tangential_tol: float = 1.0   # max offset along the normal for same-sheet neighbours
     normal_dot: float = 0.8       # min |n_p . n_q| for same-sheet neighbours
     border: int = 8               # samples this close to the cube edge are not moved
-    convention_offset: float | None = None  # label centre relative to the edge (None = estimate)
+    convention_offset: float | None = None  # the edge relative to the label centre, along +n (None = estimate)
+    template_follows_offset: bool = True  # read the learned profile at convention_offset too, not only the step edge
     convention_reach: float = 4.0  # how far from the label to look for the edge when estimating it
     batch_points: int = 60000     # no longer used: each sheet is solved on its own (kept so saved params compare)
     smooth_warp: bool = True      # blend displacements and resample linearly (False = v1 warp)
@@ -319,6 +320,8 @@ def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5, thr=None, rays=
     """True where candidate t puts the label inside papyrus: the mean CT over
     [t-reach, t-0.5] and over [t+0.5, t+reach] (around the expected edge, t + c_off) are
     both above the papyrus/gap mid level. At a real face one side is gap."""
+    if len(pts) == 0:
+        return np.zeros((0, len(ts)), bool), thr
     grid = np.arange(float(ts.min()) + c_off - reach, float(ts.max()) + c_off + reach + 1e-6, 0.5,
                      dtype=np.float32)
     prof = (rays or _rays(ct_s, pts, n))(grid)
@@ -339,8 +342,10 @@ def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5, thr=None, rays=
 
 
 def estimate_convention(ct_s, pts, n, p: Params, rays=None):
-    """Where the labels put the band centre relative to the steepest edge, and the
-    typical edge strength. Returns (offset, scale)."""
+    """Where the steepest edge sits relative to the band centre, along +n, and the
+    typical edge strength. Returns (offset, scale); (0, 1) if there are no samples to go on."""
+    if len(pts) == 0:
+        return 0.0, 1.0
     tf = np.arange(-p.convention_reach, p.convention_reach + 0.001, 0.25, dtype=np.float32)
     E = edge_strength(ct_s, pts, n, tf, p.edge_halfwidth, rays=rays)
     peak = E.max(1)
@@ -420,7 +425,8 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=200_000, comp=None, smooth=T
     hi = np.array(lab.shape) - 1
     vec = (np.asarray(shift, np.float32)[:, None] * n).astype(np.float32)
     if smooth:
-        sigma = float(sigma) if sigma is not None else _sample_spacing(pts)
+        # a thick flat band can give coincident samples, and a spacing near 0 would erase it
+        sigma = float(sigma) if sigma is not None else max(_sample_spacing(pts), 0.5)
         comp = np.zeros(len(pts), np.int64) if comp is None else np.asarray(comp)
         kk = min(k, len(pts))
     for z in range(0, near.shape[0], 16):      # a slab at a time: the voxel list is never held in full
@@ -505,8 +511,9 @@ def prepare(img, lab, p: Params):
     return ct_s, pts, n, i, j, comp
 
 
-def unary_costs(lab_shape, prepared, p: Params, rays=None):
-    """Edge-based cost of each candidate shift for each sample, plus bookkeeping."""
+def unary_costs(lab_shape, prepared, p: Params, rays=None, extras=None):
+    """Edge-based cost of each candidate shift for each sample, plus bookkeeping.
+    If `extras` is a dict, the samples' own offset (before p.convention_offset) is stored in it as 'own_offset'."""
     ct_s, pts, n, i, j, comp = prepared
     rays = rays or _rays(ct_s, pts, n)
     ts = np.arange(-p.t_max, p.t_max + 1e-6, p.t_step, dtype=np.float32)
@@ -514,6 +521,8 @@ def unary_costs(lab_shape, prepared, p: Params, rays=None):
     hi = np.array(lab_shape) - 1 - p.border
     movable = np.all((pts >= lo) & (pts <= hi), axis=1)
     c_off, scale = estimate_convention(ct_s, pts[movable], n[movable], p, rays=lambda g: rays(g)[movable])
+    if extras is not None:
+        extras["own_offset"] = c_off
     if p.convention_offset is not None:
         c_off = p.convention_offset
     E = edge_strength(ct_s, pts, n, ts + c_off, p.edge_halfwidth, rays=rays) / scale
@@ -537,16 +546,24 @@ def unary_scores(lab_shape, prepared, p: Params, extras=None):
 
     With p.face_polarity, samples found by reversed_faces() are scored along -n instead, so
     they settle on the face they are on. All scores stay indexed by the shift along +n.
-    If `extras` is a dict, the reversed-face mask is stored in it as 'reversed'."""
+    If `extras` is a dict, the reversed-face mask is stored in it as 'reversed'.
+
+    The template is the samples' own typical profile, so it puts the edge at their own offset.
+    With p.convention_offset, every candidate's window is read that much further along, so that
+    both terms put the edge at the requested offset (unless p.template_follows_offset is off)."""
+    extras = {} if extras is None else extras
     ct_s, pts, n = prepared[0], prepared[1], prepared[2]
     rays = _rays(ct_s, pts, n)
-    ts, E, movable, c_off, scale = unary_costs(lab_shape, prepared, p, rays=rays)
+    ts, E, movable, c_off, scale = unary_costs(lab_shape, prepared, p, rays=rays, extras=extras)
+    d_own = c_off - extras["own_offset"] if p.template_follows_offset else 0.0
     S = np.zeros_like(E)
     ref, tmpl = None, None
     if p.template_weight > 0 and movable.sum() > 100:
         peak = E.max(1)
         ref = movable & (peak >= np.percentile(peak[movable], 50))
         S, tmpl = template_scores(ct_s, pts, n, ts, ref, rays=rays)
+        if d_own != 0:
+            S, _ = template_scores(ct_s, pts, n, ts + d_own, None, tmpl=tmpl, rays=rays)
     rev = np.zeros(len(pts), bool)
     if len(pts):
         rev = reversed_faces(ct_s, pts, n, E, c_off, scale, p, rays=rays) & movable
@@ -554,10 +571,9 @@ def unary_scores(lab_shape, prepared, p: Params, extras=None):
             # ts is symmetric, so a shift t along -n is candidate -t along +n: reverse the axis
             E[rev] = (edge_strength(ct_s, pts[rev], -n[rev], ts + c_off, p.edge_halfwidth) / scale)[:, ::-1]
             if tmpl is not None:
-                S[rev] = template_scores(ct_s, pts[rev], -n[rev], ts, None, tmpl=tmpl)[0][:, ::-1]
-    if extras is not None:
-        extras["reversed"] = rev
-        extras["rays"] = rays
+                S[rev] = template_scores(ct_s, pts[rev], -n[rev], ts + d_own, None, tmpl=tmpl)[0][:, ::-1]
+    extras["reversed"] = rev
+    extras["rays"] = rays
     U = E + p.template_weight * S
 
     # Self-calibration: assume the annotators are right on average, so the median
@@ -569,7 +585,7 @@ def unary_scores(lab_shape, prepared, p: Params, extras=None):
         if abs(d_med) >= p.t_step:
             E = edge_strength(ct_s, pts, n, ts + c_off + d_med, p.edge_halfwidth, rays=rays) / scale
             if ref is not None:
-                S, _ = template_scores(ct_s, pts, n, ts + d_med, ref, rays=rays)
+                S, _ = template_scores(ct_s, pts, n, ts + d_own + d_med, ref, rays=rays)
             U = E + p.template_weight * S
             c_off += d_med
     return ts, U, E, S, movable, c_off, scale
@@ -598,6 +614,8 @@ def solve_all(D, i, j, comp, p: Params):
 
 def snap(img, lab, p: Params | None = None, prepared=None):
     p = p or Params()
+    if img.shape != lab.shape:
+        raise ValueError(f"the CT has shape {img.shape} but the labels have shape {lab.shape}")
     prepared = prepared if prepared is not None else prepare(img, lab, p)
     ct_s, pts, n, i, j, comp = prepared
     shift, conf, movable, rev, info = solve_surface(lab.shape, prepared, p)
@@ -640,8 +658,8 @@ def solve_surface(shape, prepared, p: Params):
     # confidence: how label-like the CT profile is at the chosen position (template
     # match), falling back to edge strength when the template is off
     conf = np.clip(S[rows, labels] if p.template_weight > 0 else E[rows, labels], 0, 1)
-    info = dict(n_samples=int(len(pts)), n_pairs=int(len(i)), n_sheets=int(comp.max() + 1) if len(comp) else 0,
-                convention_offset=float(c_off), edge_scale=float(scale),
+    info = dict(n_samples=int(len(pts)), n_movable=int(movable.sum()), n_pairs=int(len(i)),
+                n_sheets=int(comp.max() + 1) if len(comp) else 0, convention_offset=float(c_off), edge_scale=float(scale),
                 mean_abs_shift=float(np.mean(np.abs(shift[movable]))) if movable.any() else 0.0,
                 frac_moved_1vox=float(np.mean(np.abs(shift[movable]) >= 1.0)) if movable.any() else 0.0,
                 frac_reversed_face=float(np.mean(rev[movable])) if movable.any() else 0.0,

@@ -8,8 +8,8 @@ The same scoring and graph cut as label snapping (core.solve_surface), applied t
   2. The mesh is densified bilinearly to about p.spacing voxels between samples, so it is
      scored and solved at the same resolution as labels. Neighbours are the 4 grid neighbours.
   3. Each dense sample gets a shift along its normal. The mesh keeps its own convention: where
-     it sits relative to the papyrus edge is estimated from the mesh and kept, unless
-     p.convention_offset says where it should sit instead.
+     the papyrus edge sits relative to it is estimated from the mesh and kept, unless
+     p.convention_offset (the edge relative to the mesh, along the normal) says otherwise.
   4. Output: the snapped dense surface, and the input grid with each vertex moved so the
      bilinear mesh best matches the snapped dense surface (least squares).
 
@@ -18,6 +18,7 @@ Positions are (z, y, x). The CT is a crop: crop coordinates = volume coordinates
 """
 from __future__ import annotations
 
+import glob
 import json
 import os
 from dataclasses import dataclass
@@ -151,13 +152,31 @@ def axis_orientation(P, valid, axis_yx=None):
     return sign, max(frac, 1 - frac), (float(axis_yx[0]), float(axis_yx[1]))
 
 
+# Below this extent in (y, x), a sheet's local waves can outweigh the curve of its wrap, and a circle fit
+# then finds a tight false circle with a confident sign. On 4,400 random windows of w035 and w052 (9.362 um), 3,991
+# passed the other checks: none of the 1,882 at this extent or more had the wrong sign, and 20 of the 2,109 below it
+# did, the largest between 1,400 and 1,500 voxels. Measured on these two segments only.
+MIN_FIT_EXTENT = 1600.0
+
+
 def axis_fit_is_meaningful(P, valid, axis_yx):
-    """A circle fit only says where the scroll centre is if the segment curves noticeably: the
-    fitted radius should not dwarf the segment's own extent in (y, x)."""
+    """A circle fit only says where the scroll centre is if the segment curves noticeably and is long
+    enough for that curve to be its wrap's: the fitted radius should not dwarf the segment's own extent
+    in (y, x), and the extent should be at least MIN_FIT_EXTENT voxels."""
     q = P[valid].astype(np.float64)
+    if not len(q):
+        return False, 0.0, 0.0
     r = np.hypot(q[:, 1] - axis_yx[0], q[:, 2] - axis_yx[1])
     extent = max(np.ptp(q[:, 1]), np.ptp(q[:, 2]))
-    return bool(np.median(r) < 3 * extent), float(np.median(r)), float(extent)
+    return bool(np.median(r) < 3 * extent and extent >= MIN_FIT_EXTENT), float(np.median(r)), float(extent)
+
+
+def expand_paths(paths):
+    """Expand wildcards in a list of patch folders. PowerShell and cmd pass patch_* to the tool as it is."""
+    out = []
+    for d in paths:
+        out += [d] if os.path.exists(d) else sorted(glob.glob(d)) or [d]
+    return out
 
 
 _ORIENT = {}

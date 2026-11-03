@@ -15,10 +15,14 @@ Options:
                           neighbouring tiles and render_segment.py don't download them again
                           (recommended; a whole segment can need 10+ GB). Chunks a masked scan
                           leaves out are remembered as missing and read as empty.
-  --target-offset T       where the mesh should sit relative to the recto face (as in
-                          snap_tifxyz.py). Default: one offset for the whole segment, the median
-                          of the segment's own offsets in --sample-tiles tiles (12), so the result
-                          sits at one consistent depth.
+  --target-offset T       put the mesh T voxels from the recto face, along papyrus -> gap (as in
+                          snap_tifxyz.py: 0 = on the face, negative = inside the papyrus).
+                          Default: one edge offset for the whole segment, the median of the segment's
+                          own offsets in --sample-tiles tiles (12).
+  --recentre-template     the default offset above moves only the step-edge term: each tile's learned
+                          profile stays at the tile's own position, as in the published w035 run, so
+                          tiles land between their own depth and the segment's. This option moves the
+                          profile too (--target-offset always does). It changes the output.
   --normals auto|grid|flipped   recto side; default from the segment's curvature
   --param NAME=VALUE      override a snapper parameter
   --limit N               only the first N tiles (for a quick try)
@@ -30,7 +34,8 @@ Writes:
       with channels snap_shift, snap_confidence and (dense) snap_flag / snap_limit or
       (input grid) snap_review, as from snap_tifxyz.py
   OUT_DIR/snap_segment.json            summary
-  OUT_DIR/tiles/                       one file per finished tile; a rerun skips them
+  OUT_DIR/tiles/                       one file per finished tile; a rerun skips them, and refuses
+                                       to mix them with different settings
 """
 import argparse
 import json
@@ -47,7 +52,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from scroll_label_snap.core import Params, estimate_convention  # noqa: E402
 from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, densify,  # noqa: E402
                                     fit_vertex_shifts, mean_spacing, prepare_mesh, snap_mesh, vertex_normals)
-from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
+from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
 
 def _chunk_cache_class():
@@ -225,6 +230,8 @@ def tile_convention(win, p, level_scale, margin, factor, sign):
         Pw, vw = P[r0:r1, c0:c1], valid[r0:r1, c0:c1]
         ct, lo = read_crop(_STATE["vol"], Pw, vw, level_scale, margin)
         prep = prepare_mesh(ct, Pw, vw, p, lo, level_scale, factor=factor, normal_sign=sign)
+        if not prep.vd.any():                   # says nothing about the segment's offset
+            return None, "no samples in this tile"
         c_off, _ = estimate_convention(prep.ct_s, prep.Pd[prep.vd], prep.Nd[prep.vd], p)
         return float(c_off), None
     except Exception as e:
@@ -249,10 +256,14 @@ def run_tile(win, p, level_scale, margin, factor, sign, out_path):
                    flag=res.dense_flag, limit=res.dense_limit, valid=res.dense_valid)
         info.update(mean_abs_shift=res.info["mean_abs_shift"], frac_at_limit=res.info["frac_at_limit"],
                     frac_flagged=res.info["frac_reversed_face"])
+        if res.info["n_dense"] and not res.info["n_movable"]:
+            info.update(error="no samples inside the scan, away from its edge")
+            out["error"] = np.array(info["error"])
     except Exception as e:                      # e.g. a ragged edge tile with too few samples: leave it as it is
         out = dict(shift=np.zeros(shape, np.float32), conf=np.zeros(shape, np.float32), flag=np.zeros(shape, bool),
                    limit=np.zeros(shape, bool), valid=np.zeros(shape, bool))
         info.update(error=f"{type(e).__name__}: {e}")
+        out["error"] = np.array(info["error"])  # kept with the tile, so a rerun still reports it
     np.savez_compressed(out_path + ".tmp.npz", window=np.array([r0, r1, c0, c1]), **out)
     os.replace(out_path + ".tmp.npz", out_path)
     info["snap_s"] = round(time.time() - t1, 1)
@@ -283,6 +294,7 @@ def main():
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--cache")
     ap.add_argument("--target-offset", type=float)
+    ap.add_argument("--recentre-template", action="store_true")
     ap.add_argument("--sample-tiles", type=int, default=12)
     ap.add_argument("--normals", choices=("auto", "grid", "flipped"), default="auto")
     ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
@@ -310,6 +322,8 @@ def main():
     N, ok = vertex_normals(P.astype(np.float32), valid)
     spacing = mean_spacing(P.astype(np.float32), ok) * level_scale
     factor = max(1, int(round(spacing / p.spacing)))
+    if not ok.any():
+        sys.exit("the segment has no vertices with a normal")
     if a.normals == "auto":
         sign, agree, axis = axis_orientation(P, valid)
         print(f"{name}: grid {P.shape[0]} x {P.shape[1]}, {valid.mean():.0%} valid, vertices {spacing:.1f} voxels apart; "
@@ -347,7 +361,7 @@ def main():
     # one convention for the whole segment: the median of the segment's own offsets in sample tiles
     c_note = "given"
     if a.target_offset is not None:
-        c_off = a.target_offset
+        c_off = 0.0 - a.target_offset           # T is mesh minus face; the offset is face minus mesh
     else:
         conv_path = os.path.join(a.out_dir, "convention.json")
         if os.path.exists(conv_path):
@@ -361,20 +375,26 @@ def main():
             errs = [e for _, e in res if e]
             if errs:
                 print(f"{len(errs)} of {len(res)} sample tiles failed, e.g. {errs[0]}", flush=True)
-            if len(offs) < max(3, (len(res) + 1) // 2):
-                sys.exit(f"too few sample tiles worked to set the offset ({len(offs)} of {len(res)}); first error: {errs[0]}")
+            if len(offs) < max(1, min(3, len(res)), (len(res) + 1) // 2):
+                sys.exit(f"too few sample tiles worked to set the offset ({len(offs)} of {len(res)}); errors: {errs[:1]}")
             conv = dict(tiles=pick, offsets=[o for o, _ in res], errors=[e for _, e in res], median=float(np.median(offs)))
             json.dump(conv, open(conv_path, "w"), indent=1)
         c_off = conv["median"]
         got = [o for o in conv["offsets"] if o is not None]
         c_note = f"median of {len(got)} tiles (range {min(got):+.2f} to {max(got):+.2f})"
-    p = replace(p, convention_offset=float(c_off))
+    p = replace(p, convention_offset=float(c_off),
+                template_follows_offset=a.target_offset is not None or a.recentre_template)
     print(f"recto face at {c_off:+.2f} voxels from the mesh ({c_note})", flush=True)
     if a.target_offset is None and abs(c_off) >= p.convention_reach - 0.25:
         print("warning: the face sits at the edge of the search range; the recto side may be the other one "
               "(--normals), or the mesh is far off the surface", flush=True)
 
-    # snap every tile
+    # snap every tile; finished tiles can only be reused with the same settings
+    settings = dict(params=p.asdict(), level=a.level, tile=a.tile, overlap=a.overlap, margin=a.margin, factor=factor, sign=int(sign))
+    settings_path = os.path.join(a.out_dir, "tiles", "settings.json")
+    if os.path.exists(settings_path) and json.load(open(settings_path)) != settings:
+        sys.exit(f"{a.out_dir} holds tiles made with other settings; use a new folder (see {settings_path})")
+    json.dump(settings, open(settings_path, "w"), indent=1)
     todo = []
     for w in wins:
         path = os.path.join(a.out_dir, "tiles", f"r{w[0]:05d}_c{w[2]:05d}.npz")
@@ -410,10 +430,13 @@ def main():
     conf = np.zeros((Hd, Wd), np.float64)
     flag = np.zeros((Hd, Wd), np.float64)
     limit = np.zeros((Hd, Wd), np.float64)
+    failed = []
     for w in wins:
         path = os.path.join(a.out_dir, "tiles", f"r{w[0]:05d}_c{w[2]:05d}.npz")
         t = np.load(path)
         r0, r1, c0, c1 = t["window"]
+        if "error" in t:
+            failed.append(dict(window=[int(v) for v in t["window"]], error=str(t["error"])))
         cr0, cr1, cc0, cc1 = w[4]
         wr = blend_weights(t["shift"].shape[0], cr0 - r0, r1 - cr1, factor)
         wc = blend_weights(t["shift"].shape[1], cc0 - c0, c1 - cc1, factor)
@@ -439,14 +462,13 @@ def main():
     v_shift = fit_vertex_shifts(ok, factor, vd, shift_d)
     Pout = P.astype(np.float32) + v_shift[..., None] * Nn
     Pout[~ok] = -1
-    scale = float(np.atleast_1d(meta.get("scale", [1.0]))[0])
     src = dict(meta, snapped_from=name, snap_convention_offset=float(c_off))
     review_v = ndi.uniform_filter((flag_d | limit_d).astype(np.float32), size=factor)[::factor, ::factor] >= 0.5
     write_tifxyz(os.path.join(a.out_dir, f"{name}_snapped.tifxyz"), Pout, ok, src, uuid=f"{name}_snapped",
                  channels=dict(snap_shift=v_shift.astype(np.float32),
                                snap_confidence=(conf_d[::factor, ::factor] * 255).astype(np.uint8),
                                snap_review=(review_v * 255).astype(np.uint8)))
-    write_tifxyz(os.path.join(a.out_dir, f"{name}_snapped_dense.tifxyz"), dense, vd, src, scale=round(scale * factor, 6),
+    write_tifxyz(os.path.join(a.out_dir, f"{name}_snapped_dense.tifxyz"), dense, vd, src, scale=densified_scale(meta, factor),
                  uuid=f"{name}_snapped_dense",
                  channels=dict(snap_shift=shift_d, snap_confidence=(conf_d * 255).astype(np.uint8),
                                snap_flag=(flag_d * 255).astype(np.uint8), snap_limit=(limit_d * 255).astype(np.uint8)))
@@ -456,12 +478,16 @@ def main():
                    n_dense=int(vd.sum()), mean_abs_shift=float(np.abs(s).mean()), frac_moved_1vox=float(np.mean(np.abs(s) >= 1)),
                    frac_flagged=float(flag_d[vd].mean()), frac_at_limit=float(limit_d[vd].mean()),
                    frac_vertices_review=float(review_v[ok].mean()), minutes=round((time.time() - t_start) / 60, 1),
-                   tiles_failed=[lg for lg in logs if "error" in lg],
+                   tiles_failed=failed,
                    params=p.asdict(), tile_logs=logs)
     json.dump(summary, open(os.path.join(a.out_dir, "snap_segment.json"), "w"), indent=1)
     print(f"done: {summary['n_dense']:,} samples, mean |shift| {summary['mean_abs_shift']:.2f}, moved >= 1 voxel "
           f"{summary['frac_moved_1vox']:.0%}, review {summary['frac_vertices_review']:.0%} of vertices, "
           f"{summary['minutes']} min -> {a.out_dir}", flush=True)
+    if failed:
+        print(f"warning: {len(failed)} tiles failed and were left unsnapped, e.g. rows {failed[0]['window'][:2]}, columns "
+              f"{failed[0]['window'][2:]}: {failed[0]['error']}. They are listed in snap_segment.json; delete their files "
+              "in tiles/ to retry them.", flush=True)
 
 
 if __name__ == "__main__":

@@ -132,6 +132,7 @@ From the earlier development runs, [`results/eval_v1.md`](results/eval_v1.md) an
 ### Caveats
 
 - **Trusted points are the easy places.** In hazy regions the picture is less clear; the blind review below covers them.
+- **A cube's outer layer is not corrected, and these tables don't score it.** Samples within 8 voxels of a cube's face stay where they are, which is 10% of the band voxels on the development cubes (7-14% per cube). The tables score only samples at least 10 voxels from a face. The outermost 3 voxels of these cubes hold no labels at all (all label 2).
 - **The refiner rows come from our port** of `ObjAlphaCompRefinement`, run on the same samples, normals and drift as the snapper. The better-set-up versions are not how VC3D runs it today. They show how much of the gap to the snapper is down to setup.
 
 ### Known failure mode
@@ -205,12 +206,17 @@ So the snapper lands on recto faces. The effect is small but consistent. See [`r
 
 Whether a cleaner surface reads better is not yet measured. The PHerc. 306B winners found that snapping to CT density peaks, after snapping to m7, did not make their letters more legible.
 
+**Options.**
+- `--target-offset T`, on `snap_tifxyz.py` and `snap_segment.py`, puts the mesh T voxels from the face along papyrus → gap (0 = on the face, negative = inside the papyrus). No result here uses it.
+- With `--tifxyz`, the recto side comes from `--axis`, `--normals`, or the mesh's own curve if it is at least 1,600 voxels across. Shorter pieces of w035 and w052 can fit a tight false circle with a confident, wrong sign. Otherwise the tool stops and asks. `--normals ct` lets the CT vote decide; that vote is wrong on 4 of the 16 patches here.
+
 ### A whole segment
 
 `tools/snap_segment.py` snaps a whole segment tile by tile, reading the scan from the open-data bucket as it goes and caching what it downloads. All of w035 (291 × 262 vertices, 3.1 million samples) took 7 minutes with 8 workers. None of its 279 tiles failed, and the blended result has no seams at tile boundaries. Details are in [`results/w035_whole.md`](results/w035_whole.md).
 
 - **Papyrus on the recto side, read from the renders:** 54% for the original mesh, 86% for the snapped one. The 8 patches gave 55% → 88%.
 - **Review flags:** `snap_review` marks 17.7% of vertices.
+- **One offset, in the step-edge term only.** The tool uses one offset for the whole segment, the median of 12 sample tiles (+0.5 voxels for w035, range 0 to +1.5). Each tile's learned profile stays where that tile's mesh sits, so a tile whose own offset differs lands between its own depth and the segment's, not at one depth for the whole segment. `--recentre-template` moves the profile too. It changes the output, so neither this run nor the ink test's runs use it.
 
 ![w035, original and snapped, 1.5 voxels inside and outside the recto face](results/w035_whole_compare.png)
 

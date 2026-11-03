@@ -37,7 +37,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from scipy import ndimage as ndi  # noqa: E402
 from scroll_label_snap.baselines import snap_to_prediction  # noqa: E402
 from scroll_label_snap.core import Params, alphacomp_shifts, sample  # noqa: E402
-from scroll_label_snap.mesh import (densify, patch_orientation, prepare_mesh, snap_mesh,  # noqa: E402
+from scroll_label_snap.mesh import (densify, expand_paths, patch_orientation, prepare_mesh, snap_mesh,  # noqa: E402
                                     trusted_dense, vertex_normals)
 from scroll_label_snap.tifxyz import read_tifxyz  # noqa: E402
 from eval_snap import otsu_class_means  # noqa: E402
@@ -230,7 +230,7 @@ def main():
     a = ap.parse_args()
     p = Params()
     results = []
-    for k, d in enumerate(a.patches):
+    for k, d in enumerate(expand_paths(a.patches)):
         r = evaluate(d, p, a.seed + k, a.drift_std, a.drift_corr, a.prediction)
         results.append(r)
         t = r["drift_test"]

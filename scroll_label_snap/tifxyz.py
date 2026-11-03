@@ -55,11 +55,16 @@ def read_tifxyz(folder, use_mask=True):
     return P, valid, meta
 
 
+def densified_scale(meta, factor):
+    """meta's "scale" for a grid densified by `factor`, both components kept."""
+    return [round(float(s) * factor, 6) for s in np.resize(meta.get("scale", [1.0]), 2)]
+
+
 def write_tifxyz(folder, P, valid, meta=None, scale=None, channels=None, uuid=None):
     """Write a tifxyz folder. P (H, W, 3) in (z, y, x) order; invalid vertices are written as -1.
-    meta is copied, with scale (grid steps per voxel), bbox, uuid (default: the folder name),
-    format and type updated the way VC3D does on save. channels: extra per-vertex images,
-    name -> (H, W) array."""
+    meta is copied, with scale (grid steps per voxel: one value, or a pair as in meta.json), bbox,
+    uuid (default: the folder name), format and type updated the way VC3D does on save. channels:
+    extra per-vertex images, name -> (H, W) array."""
     os.makedirs(folder, exist_ok=True)
     P = np.asarray(P, np.float32).copy()
     P[~valid] = -1
@@ -67,7 +72,7 @@ def write_tifxyz(folder, P, valid, meta=None, scale=None, channels=None, uuid=No
         tifffile.imwrite(os.path.join(folder, f"{c}.tif"), np.ascontiguousarray(P[..., k]))
     m = dict(meta or {})
     if scale is not None:
-        m["scale"] = [float(scale), float(scale)]
+        m["scale"] = [float(s) for s in np.resize(scale, 2)]
     if valid.any():
         v = P[valid]
         m["bbox"] = [[float(v[:, 2].min()), float(v[:, 1].min()), float(v[:, 0].min())],
