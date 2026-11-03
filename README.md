@@ -25,52 +25,80 @@ For each labeled cube:
 
 `scroll_label_snap/core.py` also contains a port of the existing VC3D refiner (`ObjAlphaCompRefinement`) as a baseline. `tests/test_solver.py` checks the graph cut against brute force.
 
-## Results (v2, 20 cubes, ~2.5 million surface points)
+## Results on the label cubes
 
-These are the full results in [`results/eval_v2.md`](results/eval_v2.md), with per-cube numbers in [`results/eval_v2.json`](results/eval_v2.json). They come from `tools/eval_snap.py` with the default parameters. The v1 numbers are in [`results/eval_v1.md`](results/eval_v1.md).
+Two sets of cubes, evaluated the same way with the default parameters (`tools/eval_folder.py`):
+- **Development (20 cubes):** the cubes the method was built and tuned on. Full tables in [`results/eval_dev.md`](results/eval_dev.md).
+- **Held-out (100 cubes):** other cube pairs picked at random from the bucket. The seed was fixed and pushed before any of them were downloaded, and nothing was tuned on them. Full tables in [`results/eval_heldout.md`](results/eval_heldout.md).
 
-![per-cube results](results/eval_v2.png)
+Per-cube numbers are in the matching `.json` files. A before/after on cube sample_00005 is in [`results/labels_before_after_00005.png`](results/labels_before_after_00005.png). It shows the three largest changes and three random slices.
 
-A before/after on cube sample_00005, with the current version, is in [`results/labels_before_after_00005.png`](results/labels_before_after_00005.png). It shows the three largest changes and three random slices.
+### The existing refiner as a baseline
 
-**Drift test.** Each cube's labels were pushed off the surface by a known smooth random drift (std 1.5 voxels, correlation length 40 voxels). Each method was then run on the drifted labels, and we measured how far the result lands from the original label. This is scored only at **trusted points**: places where the original label sits on a strong, unambiguous edge, so it can serve as ground truth (258,394 points).
+`scroll_label_snap/core.py` contains a port of VC3D's alpha-composite refiner (`ObjAlphaCompRefinement`), the refinement step that exists today. With VC3D's default opacity thresholds (118 and 165 of 255), it does worse than leaving the labels alone here. In these cubes the gap is about 52 and papyrus about 127, so both thresholds sit at or above the papyrus level. To make it a fair baseline, it is also scored in three better-set-up versions:
+- **Offset removed.** The refiner works to its own convention: it puts the surface just past the first voxel above the threshold, not where these annotators draw it. Each version has its median shift on the clean labels removed.
+- **Thresholds from each cube's own levels**, offset removed: the mean brightness of gap and of papyrus (the two Otsu classes). This needs no tuning.
+- **The best fixed thresholds**, offset removed: the best of 13 threshold pairs on the development cubes (70 and 110). On the held-out cubes we report that pair, and also the pair that is best on the held-out cubes themselves, as the refiner's ceiling.
 
-| Method | Mean error (voxels) | Within 1 voxel | Over 2 voxels |
-|---|---|---|---|
-| No correction (drifted labels) | 1.10 | 58% | 14% |
-| Existing refiner (alpha-composite port) | 3.09 | 9% | 75% |
-| **Snapper** | **0.46** | **91%** | **1%** |
+The offset removal uses the clean labels, which a real user wouldn't have; the snapper takes its convention from the labels it is given. With these drift fields that difference is small: on the development cubes, each field's median is within 0.15 voxels of zero.
 
-**Consistency** is measured at all points. It asks whether correcting the drifted labels lands in the same place as correcting the clean labels. The snapper is within 1 voxel at 83% of points; the existing refiner at 61%.
+### Drift test
 
-**Clean labels.** This is the intensity step across each label, papyrus side minus gap side. Higher means the label sits more sharply on the papyrus edge.
+Each cube's labels were pushed off the surface by a known smooth random drift (std 1.5 voxels, correlation length 40 voxels). Each method was then run on the drifted labels, and we measured how far the result lands from the original label. This is scored only at **trusted points**: places where the original label sits on a strong, unambiguous edge, so it can serve as ground truth (258,394 points in development, 717,523 held out).
 
-| Labels | Step across label | Papyrus on the correct side |
+| Method | Within 1 voxel: development | Within 1 voxel: held-out | Mean error (voxels): development | Mean error: held-out |
+|---|---|---|---|---|
+| No correction (drifted labels) | 57% | 57% | 1.12 | 1.14 |
+| Existing refiner, VC3D default thresholds | 9% | 18% | 3.09 | 2.66 |
+| Existing refiner, default thresholds, offset removed | 20% | 33% | 2.67 | 2.20 |
+| Existing refiner, thresholds from each cube's own levels, offset removed | 80% | 78% | 0.68 | 0.73 |
+| Existing refiner, best thresholds on development (70-110), offset removed | 82% | 77% | 0.64 | 0.77 |
+| **Snapper** | **89%** | **88%** | **0.52** | **0.55** |
+
+The refiner's ceiling on the held-out cubes, the pair that is best there (50-110, picked after seeing them), reaches 80% within 1 voxel (mean error 0.69).
+
+**Consistency** is measured at all points. It asks whether correcting the drifted labels lands in the same place as correcting the clean labels.
+
+| Within 1 voxel | Development | Held-out |
 |---|---|---|
-| Original | 25.7 | 67% |
-| Existing refiner | −17.8 | 35% |
-| **Snapper** | **58.4** | **91%** |
+| Existing refiner, default thresholds | 61% | 63% |
+| Existing refiner, thresholds from each cube's own levels | 77% | 73% |
+| **Snapper** | **81%** | **75%** |
 
-### Held-out test: 100 cubes never used during development
+**Clean labels.** This is the intensity step across each label, papyrus side minus gap side. It is partly circular: the snapper optimizes edge strength, and the refiner also seeks an edge. The drift test is the stronger evidence.
 
-Everything above was measured on the 20 cubes the method was built and tuned on. To check that it generalizes:
-- **The cubes.** We picked 100 other cube pairs from the bucket at random. The seed was fixed and pushed before any of them were downloaded.
-- **The run.** We evaluated them with the same settings ([`results/eval_heldout.md`](results/eval_heldout.md)).
-
-| | Development (20 cubes) | Held-out (100 cubes) |
+| Papyrus on the correct side of the label | Development | Held-out |
 |---|---|---|
-| Drift test, within 1 voxel: no correction | 58% | 57% |
-| Drift test, within 1 voxel: existing refiner | 9% | 18% |
-| Drift test, within 1 voxel: **snapper** | **91%** | **88%** |
-| Drift test, mean error: snapper (voxels) | 0.46 | 0.55 |
-| Consistency, within 1 voxel: snapper | 83% | 75% |
-| Clean labels, papyrus on the correct side: original → snapper | 68% → 91% | 63% → 86% |
+| Original labels | 67% | 63% |
+| Existing refiner, default thresholds | 35% | 45% |
+| Existing refiner, thresholds from each cube's own levels, offset removed | 75% | pending |
+| **Snapper** | **91%** | **86%** |
 
-- **Overall.** On the new cubes the snapper beats no correction on 97 of 100. The median gain is 31 points of "within 1 voxel".
-- **Losses.** It is worse on three: sample_00184, sample_00186 and sample_00478.
-- **Drop from development.** Accuracy falls by 3 points and consistency by 8 points.
+![per-cube results, held-out cubes](results/eval_heldout.png)
 
-![held-out results per cube](results/eval_heldout.png)
+The same figure for the development cubes is [`results/eval_dev.png`](results/eval_dev.png).
+
+What this shows:
+- **Most of the refiner's poor default result is its thresholds.** Set from each cube's own levels, with its offset removed, it goes from 9% to 80% on the development cubes (18% to 78% held out). That fix is simple and needs no tuning; it may be worth having in VC3D on its own.
+- **The snapper is still ahead of the best-set-up refiner on accuracy.**
+  - Within 1 voxel: +9 points on the development cubes and +10 held out.
+  - Mean error: 0.52 vs 0.68 voxels in development, 0.55 vs 0.73 held out.
+  - Over 2 voxels: 3% vs 4% in development, 3% vs 6% held out.
+  - Cube by cube it does as well or better on 19 of 20 development cubes and 94 of 100 held-out cubes. The median held-out cube gains 10 points.
+- **On consistency the two are close.** The snapper is within 1 voxel of its own clean-label result more often (81% vs 77% in development, 75% vs 73% held out). Held out, it also has slightly more large differences (14% vs 12% over 2 voxels), so its mean difference is larger (1.04 vs 0.92 voxels).
+- **Against no correction**, the snapper is better on 97 of the 100 held-out cubes. It is worse on three: sample_00184, sample_00186 and sample_00478.
+- **Where the refiner wins.** The refiner with the cube's own levels scores higher on sample_00018 in development (72% vs 67%) and on six held-out cubes. Two of those gaps are large: sample_00478 (59% vs 49%) and sample_00639 (84% vs 79%). The other four are 2 points or less.
+
+### Drift draws, and an earlier number
+
+The drift is random, so per-cube numbers depend on the draw. Earlier versions of this README reported 91% within 1 voxel for the snapper on the development cubes. That run seeded cube k with k // 2 (it ran as two processes, each counting from 0); the current runs seed cube k with k, as the held-out run always did. The code is the same: with the old seeds, all 20 development cubes give exactly the old drifted labels, and sample_00002 and sample_00018 give exactly the old snapper results.
+
+Most cubes move by a few points between draws. sample_00018, a hazy cube, goes from 93% with the old draw to 67% with the new one:
+- **What happens.** With the new draw, 15% of its trusted points end more than 2 voxels off (8% for the refiner with the cube's own levels). Most of them are about 3 voxels toward the papyrus side, in many small patches, and not where the drift was largest.
+- **Why.** The learned profile is the main cause. It is learned from the labels being corrected, and with this draw it favours a position inside the sheet. With the profile term off, the share more than 2 voxels off falls to 6.5% (75% within 1 voxel).
+- **Next.** Learning the profile so it doesn't depend on where the input labels sit is a next step. A change like that needs a fresh held-out set, since this one has now been used.
+
+`tools/drift_draws.py` runs both checks: `seeds` rebuilds an older run's drifted labels with a given seed scheme, and `diagnose` describes one cube's large misses under one draw. The v1-to-v2 comparison below comes from the earlier runs. We haven't confirmed that v1 used the same draws.
 
 ### The whole dataset
 
@@ -87,6 +115,8 @@ The most-flagged cubes are also the lowest-confidence ones: samples 00798, 00256
 
 ### Changes since v1
 
+From the earlier development runs, [`results/eval_v1.md`](results/eval_v1.md) and [`results/eval_v2.md`](results/eval_v2.md), with the old drift seeds:
+
 | | v1 | v2 |
 |---|---|---|
 | Drift test: within 1 voxel | 87% | 91% |
@@ -101,9 +131,8 @@ The most-flagged cubes are also the lowest-confidence ones: samples 00798, 00256
 
 ### Caveats
 
-- **The clean-label table is partly circular**, because the snapper optimizes edge strength. The drift test is the stronger evidence.
 - **Trusted points are the easy places.** In hazy regions the picture is less clear; the blind review below covers them.
-- **The existing refiner's numbers depend on its fixed thresholds** (tuned for other volumes) and on its convention of moving 1 voxel past the first material hit. It is not a like-for-like competitor on this data. It is included because it is the refinement step that exists today.
+- **The refiner rows come from our port** of `ObjAlphaCompRefinement`, run on the same samples, normals and drift as the snapper. The better-set-up versions are not how VC3D runs it today. They show how much of the gap to the snapper is down to setup.
 
 ### Known failure mode
 
@@ -302,5 +331,6 @@ A second reviewer, who did not work on the tool and had never seen these scans, 
 
 1. **Decide flagged labels with more context.** Following each sheet over a larger area, or using the traced mesh's own history, could tell which face a flagged label belongs to. Until then, flagged labels are the place for human review.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
-3. **Meshes: check which layer is right.** Get expert review of the snapped w035 patches. Compare ink detection on renders of the original and snapped mesh.
-4. **Meshes: whole segments.** Snap a whole segment tile by tile, streaming the scan.
+3. **Make the learned profile independent of the input labels** (see "Drift draws" above), then test it on a fresh held-out set of cubes.
+4. **Meshes: check which layer is right.** Get expert review of the snapped w035 patches. Compare ink detection on renders of the original and snapped mesh.
+5. **Meshes: whole segments.** `tools/snap_segment.py` snaps a whole segment tile by tile, streaming the scan; the first full run, on w035, is next.
