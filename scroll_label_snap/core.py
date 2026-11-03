@@ -56,7 +56,7 @@ class Params:
     border: int = 8               # samples this close to the cube edge are not moved
     convention_offset: float | None = None  # label centre relative to the edge (None = estimate)
     convention_reach: float = 4.0  # how far from the label to look for the edge when estimating it
-    batch_points: int = 60000     # max samples per graph-cut problem
+    batch_points: int = 60000     # no longer used: each sheet is solved on its own (kept so saved params compare)
     smooth_warp: bool = True      # blend displacements and resample linearly (False = v1 warp)
     inside_penalty: float = 2.0   # cost of moving a label outward (+n) to a spot that has
                                   # papyrus on both sides, i.e. into a sheet (0 = v1)
@@ -367,14 +367,19 @@ def solve_shifts(D, i, j, w, K):
     g.add_nodes(N * (L - 1))
     ids = np.arange(N * (L - 1), dtype=np.int64).reshape(N, L - 1)
 
-    src = np.zeros((N, L - 1))
-    snk = np.zeros((N, L - 1))
-    src[:, 0] = Dn[:, 0]
-    snk[:, -1] = Dn[:, -1]
-    g.add_grid_tedges(ids, src, snk)
+    # Node l of a sample is on the source side when its level is above l, so cutting a chain at
+    # level l must cost Dn[l]. Dn splits into a V-shaped envelope f (the running minimum from
+    # either end) and a remainder. f goes on the terminal arcs and the remainder on the chain arcs:
+    # the cut function is the same as with all of Dn on the chain arcs, but where neighbours agree
+    # no flow is needed at all, so the same cut (the sink side is the nodes that can reach t) is found
+    # with much shorter paths. That holds while the flow arithmetic is exact, as it is for float32 costs
+    # and the default w = 1/8; with a w like 0.05, tied optima can come out one level apart.
+    f = np.maximum(np.minimum.accumulate(Dn, axis=1), np.minimum.accumulate(Dn[:, ::-1], axis=1)[:, ::-1])
+    df = f[:, 1:] - f[:, :-1]
+    g.add_grid_tedges(ids, np.maximum(-df, 0), np.maximum(df, 0))
     if L > 2:
         g.add_edges(ids[:, :-1].ravel(), ids[:, 1:].ravel(),
-                    Dn[:, 1:-1].ravel(), np.full((L - 2) * N, big))
+                    (Dn - f)[:, 1:-1].ravel(), np.full((L - 2) * N, big))
     if len(i):
         ii = ids[i].ravel()
         jj = ids[j].ravel()
@@ -389,22 +394,6 @@ def solve_shifts(D, i, j, w, K):
     g.maxflow()
     in_sink = g.get_grid_segments(ids)
     return (~in_sink).sum(1)
-
-
-def _batches(comp, size):
-    """Group connected components into batches of at most `size` samples."""
-    counts = np.bincount(comp)
-    order = np.argsort(-counts)
-    batches, cur, cur_n = [], [], 0
-    for c in order:
-        if cur and cur_n + counts[c] > size:
-            batches.append(cur)
-            cur, cur_n = [], 0
-        cur.append(c)
-        cur_n += counts[c]
-    if cur:
-        batches.append(cur)
-    return batches
 
 
 # --------------------------------------------------------------------------- 6. warp
@@ -587,17 +576,23 @@ def unary_scores(lab_shape, prepared, p: Params, extras=None):
 
 
 def solve_all(D, i, j, comp, p: Params):
-    """Run the graph cut per batch of sheets; returns the chosen level per sample."""
+    """Run the graph cut sheet by sheet; returns the chosen level per sample."""
     w_level = p.smooth_w * p.t_step
     K = None if p.max_step is None else int(round(p.max_step / p.t_step))
     labels = np.zeros(len(D), int)
-    for batch in _batches(comp, p.batch_points):
-        sel = np.isin(comp, batch)
-        idx = np.flatnonzero(sel)
-        remap = -np.ones(len(D), np.int64)
-        remap[idx] = np.arange(len(idx))
-        e_sel = sel[i] & sel[j]
-        labels[idx] = solve_shifts(D[idx], remap[i[e_sel]], remap[j[e_sel]], w_level, K)
+    if np.any(comp[i] != comp[j]):
+        raise ValueError("neighbour pairs must stay within a sheet")
+    # one graph per sheet: components don't interact, and the largest sheet sets the peak memory
+    by_comp = np.argsort(comp, kind="stable")
+    starts = np.concatenate(([0], np.cumsum(np.bincount(comp))))
+    pos = np.empty(len(D), np.int64)
+    pos[by_comp] = np.arange(len(D))
+    e_order = np.argsort(comp[i], kind="stable")
+    e_starts = np.concatenate(([0], np.cumsum(np.bincount(comp[i], minlength=len(starts) - 1))))
+    for c in range(len(starts) - 1):
+        idx = by_comp[starts[c]:starts[c + 1]]
+        e = e_order[e_starts[c]:e_starts[c + 1]]
+        labels[idx] = solve_shifts(D[idx], pos[i[e]] - starts[c], pos[j[e]] - starts[c], w_level, K)
     return labels
 
 
