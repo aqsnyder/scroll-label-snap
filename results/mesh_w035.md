@@ -120,6 +120,22 @@ At this resolution, the sheets in these patches are thin (about 8 voxels) and of
 
 The drift test only shows that the snapper keeps a mesh that already sits on a clear face, and brings a drifted one back to it. The fibre check adds that the faces it picks are recto faces. Neither can say which sheet's recto a wandering trace should follow where two lie within reach. That needs an expert eye, or a downstream check such as ink detection on renders of the original and the snapped mesh.
 
+## Next: a held-out segment (set before its data was downloaded)
+
+The mesh code was built and checked on these 8 w035 patches, so the next test uses a different wrap: segment **w052**, on the same 9.362 µm scan.
+- **Segment path:** `PHerc0139/segments/20260227000000-w052_2026022705/mesh/20260227000000-on-20250728140407-9.362um.tifxyz`.
+- **Patches:** 8 random patches of 24 × 24 vertices, seed 0.
+- **Settings:** the same defaults (±4-voxel search, orientation from the whole segment).
+
+We will report the same measures:
+- papyrus on the recto side;
+- both drift tests, with the refiner at default, offset-removed and tuned thresholds;
+- consistency;
+- the fibre check, with the opposite-face control;
+- review flags.
+
+Nothing will be tuned on it.
+
 ## Reproduce
 
 ```
