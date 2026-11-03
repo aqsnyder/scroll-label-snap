@@ -21,6 +21,7 @@ as a baseline.
 """
 from __future__ import annotations
 
+import os
 from collections import deque
 from dataclasses import dataclass, asdict
 
@@ -398,7 +399,7 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=1_000_000, comp=None, smooth
             src = np.clip(np.rint(x - vec[idx]).astype(np.int64), 0, hi)
             new_band[x[:, 0], x[:, 1], x[:, 2]] = band[src[:, 0], src[:, 1], src[:, 2]]
             continue
-        d, idx = tree.query(x, k=kk, workers=-1)
+        d, idx = tree.query(x, k=kk, workers=_kd_workers())
         if kk == 1:
             d, idx = d[:, None], idx[:, None]
         w = np.exp(-0.5 * (d / sigma) ** 2)
@@ -411,6 +412,15 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=1_000_000, comp=None, smooth
     out[band & annotated] = 0
     out[new_band & annotated] = SURF
     return out
+
+
+def _kd_workers():
+    """Threads for k-d tree queries: all cores by default; SNAP_THREADS=1 when the caller
+    already runs one process per core (tools/snap_folder.py, tools/eval_folder.py)."""
+    try:
+        return int(os.environ.get("SNAP_THREADS", "-1"))
+    except ValueError:
+        return -1
 
 
 def _sample_spacing(pts):

@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 
 def run_one(img_path, lab_path, out_dir):
+    os.environ["SNAP_THREADS"] = "1"          # one process per core already
     import numpy as np
     import tifffile
     from scroll_label_snap.core import Params, snap, shift_volume
