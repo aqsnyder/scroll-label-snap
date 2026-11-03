@@ -1,7 +1,9 @@
 """Snap the recto-surface labels of one or more cubes.
 
 Usage:
-  python tools/snap_cube.py OUT_DIR IMAGE_TIF LABEL_TIF [IMAGE_TIF LABEL_TIF ...]
+  python tools/snap_cube.py OUT_DIR IMAGE_TIF LABEL_TIF [IMAGE_TIF LABEL_TIF ...] [--param NAME=VALUE ...]
+
+--param overrides a snapper parameter (see scroll_label_snap/core.py Params), e.g. keep_topology=true.
 
 Writes, per cube:
   OUT_DIR/labels/<name>.tif      snapped labels (same values as the input: 0/1/2)
@@ -11,10 +13,12 @@ Writes, per cube:
 
 A cube that fails is reported and the rest still run; the exit code is non-zero if any failed.
 """
+import argparse
 import json
 import os
 import sys
 import time
+from dataclasses import replace
 
 import numpy as np
 import tifffile
@@ -23,11 +27,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from scroll_label_snap.core import Params, snap, shift_volumes  # noqa: E402
 
 
-def main(out_dir, *paths):
+def main(out_dir, *paths, p=None):
     os.makedirs(os.path.join(out_dir, "labels"), exist_ok=True)
     os.makedirs(os.path.join(out_dir, "confidence"), exist_ok=True)
     os.makedirs(os.path.join(out_dir, "flags"), exist_ok=True)
-    p = Params()
+    p = p or Params()
     failed = []
     for img_path, lab_path in zip(paths[0::2], paths[1::2]):
         name = os.path.basename(img_path).rsplit(".", 1)[0]
@@ -61,4 +65,17 @@ def main(out_dir, *paths):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], *sys.argv[2:])
+    ap = argparse.ArgumentParser()
+    ap.add_argument("out_dir")
+    ap.add_argument("paths", nargs="+", metavar="TIF", help="image and label TIFFs, in pairs")
+    ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE",
+                    help="override a snapper parameter (see scroll_label_snap/core.py Params), e.g. keep_topology=true")
+    a = ap.parse_args()
+    params = Params()
+    for kv in a.param:
+        k, v = kv.split("=", 1)
+        if not hasattr(params, k):
+            sys.exit(f"unknown parameter {k}")
+        cur = getattr(params, k)
+        params = replace(params, **{k: (v.lower() in ("1", "true", "yes")) if isinstance(cur, bool) else type(cur or 0.0)(v)})
+    main(a.out_dir, *a.paths, p=params)

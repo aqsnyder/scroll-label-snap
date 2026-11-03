@@ -6,12 +6,16 @@
      OUT_DIR/summary.csv
 
 Usage (Windows or Linux):
-  python tools/snap_folder.py IN_DIR OUT_DIR [--workers N] [--limit K]
+  python tools/snap_folder.py IN_DIR OUT_DIR [--workers N] [--limit K] [--param NAME=VALUE ...]
 
 Each worker needs about 3 GB of RAM. Cubes with all three outputs in OUT_DIR are skipped, so an
 interrupted run can be resumed: each file is written under a temporary name and renamed into place,
 and each finished cube leaves its summary row in OUT_DIR/rows/ before its labels appear. The exit
 code is non-zero if any cube failed.
+
+--param overrides a snapper parameter (see scroll_label_snap/core.py Params), e.g. keep_topology=true.
+The overrides are kept in OUT_DIR/params.json, and a rerun refuses to mix cubes made with other ones.
+A run without --param writes no such file.
 """
 import argparse
 import csv
@@ -34,7 +38,7 @@ def write_tif(path, data):
     os.replace(path + ".tmp", path)
 
 
-def run_one(img_path, lab_path, out_dir):
+def run_one(img_path, lab_path, out_dir, overrides=None):
     os.environ["SNAP_THREADS"] = "1"          # one process per core already
     import numpy as np
     import tifffile
@@ -44,7 +48,7 @@ def run_one(img_path, lab_path, out_dir):
     t0 = time.time()
     img = tifffile.imread(img_path)
     lab = tifffile.imread(lab_path)
-    res = snap(img, lab, Params())
+    res = snap(img, lab, Params(**(overrides or {})))
     conf, flags = shift_volumes(lab.shape, res.labels == 1, res.pts,
                                 [(res.confidence * 255).astype(np.uint8), (res.reversed_face * 255).astype(np.uint8)])
     write_tif(os.path.join(out_dir, "confidence", name + ".tif"), conf)
@@ -99,10 +103,27 @@ def main():
     ap.add_argument("out_dir")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) // 2))
     ap.add_argument("--limit", type=int, default=0, help="only the first K cubes")
+    ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE",
+                    help="override a snapper parameter (see scroll_label_snap/core.py Params), e.g. keep_topology=true")
     a = ap.parse_args()
+
+    from scroll_label_snap.core import Params
+    p, overrides = Params(), {}
+    for kv in a.param:
+        k, v = kv.split("=", 1)
+        if not hasattr(p, k):
+            sys.exit(f"unknown parameter {k}")
+        cur = getattr(p, k)
+        overrides[k] = (v.lower() in ("1", "true", "yes")) if isinstance(cur, bool) else type(cur or 0.0)(v)
 
     for sub in OUTPUTS + ("rows",):
         os.makedirs(os.path.join(a.out_dir, sub), exist_ok=True)
+    params_path = os.path.join(a.out_dir, "params.json")
+    given = json.load(open(params_path)) if os.path.exists(params_path) else {}
+    if given != overrides and (given or os.listdir(os.path.join(a.out_dir, "labels"))):
+        sys.exit(f"{a.out_dir} holds cubes made with other --param settings ({given}); use a new folder")
+    if overrides:
+        json.dump(overrides, open(params_path, "w"), indent=1)
     names = sorted(f for f in os.listdir(os.path.join(a.in_dir, "images")) if f.endswith(".tif"))
     names = [f for f in names if os.path.exists(os.path.join(a.in_dir, "labels", f))]
     todo = [f for f in names if not all(os.path.exists(os.path.join(a.out_dir, sub, f)) for sub in OUTPUTS)]
@@ -114,7 +135,7 @@ def main():
     failed = []
     with ProcessPoolExecutor(max_workers=a.workers) as ex:
         futs = {ex.submit(run_one, os.path.join(a.in_dir, "images", f),
-                          os.path.join(a.in_dir, "labels", f), a.out_dir): f for f in todo}
+                          os.path.join(a.in_dir, "labels", f), a.out_dir, overrides): f for f in todo}
         for k, fut in enumerate(as_completed(futs), 1):
             try:
                 r = fut.result()

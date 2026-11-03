@@ -70,6 +70,9 @@ class Params:
     face_polarity: bool = False
     reverse_min: float = 0.5      # own face at least this strong (normalised edge units)
     forward_max: float = 0.5      # and no candidate with a normal-polarity edge this strong
+    # Move the band only by flipping simple points, so it keeps the input's components, tunnels
+    # and cavities and separate sheets never touch. Off by default: changes the published output.
+    keep_topology: bool = False
 
     def asdict(self):
         return asdict(self)
@@ -404,7 +407,7 @@ def solve_shifts(D, i, j, w, K):
 # --------------------------------------------------------------------------- 6. warp
 
 def warp_labels(lab, pts, n, shift, radius=6, chunk=200_000, comp=None, smooth=True,
-                sigma=None, k=12):
+                sigma=None, k=12, keep_topology=False, stages=3):
     """Move the label-1 band so the surface near sample p shifts by shift[p] * n[p].
     Label-2 voxels are never changed.
 
@@ -413,7 +416,12 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=200_000, comp=None, smooth=T
     spacing), and the band is resampled with linear interpolation. The moved band then has
     clean edges like the original. smooth=False reproduces v1: each voxel takes its nearest
     sample's displacement and the band is resampled to the nearest voxel, which leaves
-    stair steps wherever neighbouring samples moved by different amounts."""
+    stair steps wherever neighbouring samples moved by different amounts.
+
+    keep_topology=True: the warped band is only a target. The input band walks to it through
+    `stages` intermediate targets (fractions of the shift, so each overlaps the band it starts
+    from), flipping only simple points, so components, tunnels and cavities stay as in the input
+    at both connectivity pairs and separate sheets never touch. Label-2 voxels count as background."""
     band = lab == SURF
     out = lab.copy()
     if len(pts) == 0:
@@ -421,7 +429,8 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=200_000, comp=None, smooth=T
     annotated = lab != UNK                  # voxels labelled 2 keep their label, whatever the warp says
     near = ndi.binary_dilation(band, iterations=radius) & annotated
     tree = cKDTree(pts)
-    new_band = np.zeros_like(band)
+    fractions = [(s + 1) / stages for s in range(stages)] if keep_topology else [1.0]
+    targets = np.zeros((len(fractions),) + band.shape, bool)
     hi = np.array(lab.shape) - 1
     vec = (np.asarray(shift, np.float32)[:, None] * n).astype(np.float32)
     if smooth:
@@ -436,8 +445,9 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=200_000, comp=None, smooth=T
             x = xs[a:a + chunk]
             if not smooth:
                 _, idx = tree.query(x, k=1)
-                src = np.clip(np.rint(x - vec[idx]).astype(np.int64), 0, hi)
-                new_band[x[:, 0], x[:, 1], x[:, 2]] = band[src[:, 0], src[:, 1], src[:, 2]]
+                for target, f in zip(targets, fractions):
+                    src = np.clip(np.rint(x - f * vec[idx]).astype(np.int64), 0, hi)
+                    target[x[:, 0], x[:, 1], x[:, 2]] = band[src[:, 0], src[:, 1], src[:, 2]]
                 continue
             d, idx = tree.query(x, k=kk, workers=_kd_workers())
             if kk == 1:
@@ -445,12 +455,110 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=200_000, comp=None, smooth=T
             w = np.exp(-0.5 * (d / sigma) ** 2)
             w *= comp[idx] == comp[idx[:, :1]]                 # same sheet as the nearest sample
             disp = np.einsum("ik,ikc->ic", w, vec[idx]) / w.sum(1, keepdims=True)
-            src = np.clip(x - disp, 0, hi).T
-            vals = ndi.map_coordinates(band, src, order=1, mode="nearest", output=np.float32)
-            new_band[x[:, 0], x[:, 1], x[:, 2]] = vals >= 0.5
+            for target, f in zip(targets, fractions):
+                src = np.clip(x - f * disp, 0, hi).T
+                vals = ndi.map_coordinates(band, src, order=1, mode="nearest", output=np.float32)
+                target[x[:, 0], x[:, 1], x[:, 2]] = vals >= 0.5
+    new_band = walk_to_targets(band, targets) if keep_topology else targets[0]
     out[band & annotated] = 0
     out[new_band & annotated] = SURF
     return out
+
+
+# A voxel is simple when flipping it changes no component, tunnel or cavity. That depends only on
+# its 26 neighbours, written as a 27-bit code (bit 9z + 3y + x for offsets z, y, x in 0..2; the
+# centre, bit 13, is always 0). The tests below run on arrays of codes, by flooding bit masks.
+_BITS = [(z, y, x) for z in (-1, 0, 1) for y in (-1, 0, 1) for x in (-1, 0, 1)]
+_ALL = (1 << 27) - 1
+_NEIGHBOURS = _ALL ^ (1 << 13)
+_FACES = sum(1 << b for b, o in enumerate(_BITS) if np.abs(o).sum() == 1)
+_N18 = sum(1 << b for b, o in enumerate(_BITS) if 1 <= np.abs(o).sum() <= 2)
+_X_UP = sum(1 << b for b, o in enumerate(_BITS) if o[2] < 1)     # voxels that can move +x, and so on
+_X_DOWN = sum(1 << b for b, o in enumerate(_BITS) if o[2] > -1)
+_Y_UP = sum(1 << b for b, o in enumerate(_BITS) if o[1] < 1)
+_Y_DOWN = sum(1 << b for b, o in enumerate(_BITS) if o[1] > -1)
+_simple_table = None                # per code: 0 not evaluated yet, 1 not simple, 2 simple
+
+
+def _grow(a, conn):
+    """Dilate each neighbourhood mask by one voxel, with 6- or 26-connectivity."""
+    x = ((a & _X_UP) << 1) | ((a & _X_DOWN) >> 1)
+    if conn == 6:
+        return a | x | ((a & _Y_UP) << 3) | ((a & _Y_DOWN) >> 3) | ((a << 9) & _ALL) | (a >> 9)
+    a = a | x
+    a = a | ((a & _Y_UP) << 3) | ((a & _Y_DOWN) >> 3)
+    return a | ((a << 9) & _ALL) | (a >> 9)
+
+
+def _one_component(m, conn):
+    """True where mask m has exactly one component around the centre: over all of N26 for
+    26-connectivity, over N18 and counting only components that touch a face for 6-connectivity."""
+    if conn == 6:
+        m = m & _N18
+    anchor = m & _FACES if conn == 6 else m
+    reach = anchor & -anchor                        # the lowest set bit
+    while True:
+        grown = _grow(reach, conn) & m
+        if np.array_equal(grown, reach):
+            return (anchor != 0) & (reach & anchor == anchor)
+        reach = grown
+
+
+def simple_codes(codes, pairs=((6, 26), (26, 6))):
+    """Which neighbourhood codes are simple under all the given (foreground, background)
+    connectivity pairs (Bertrand & Malandain 1994): one foreground and one background component."""
+    codes = np.asarray(codes, np.int64)
+    ok = np.ones(len(codes), bool)
+    for fg, bg in pairs:
+        ok &= _one_component(codes, fg) & _one_component(~codes & _NEIGHBOURS, bg)
+    return ok
+
+
+def _simple_lookup(codes):
+    """simple_codes under both pairs, remembering each distinct code; few occur in practice."""
+    global _simple_table
+    if _simple_table is None:
+        _simple_table = np.zeros(_ALL + 1, np.uint8)     # pages stay untouched until used
+    state = _simple_table[codes]
+    if not state.all():
+        new = np.unique(codes[state == 0])
+        _simple_table[new] = 1 + simple_codes(new)
+        state = _simple_table[codes]
+    return state == 2
+
+
+def flip_simple_points(X, T):
+    """Flip voxels of X (boolean, padded by at least 1 voxel of False) to match T while a simple
+    voxel remains, in place. Voxels of one 2x2x2 parity class are never neighbours, so each class
+    can flip at once without changing any test in that class. Returns the number of flips."""
+    Xf = X.ravel()                                       # a view
+    sy, sx = X.shape[1] * X.shape[2], X.shape[2]
+    steps = [(b, z * sy + y * sx + x) for b, (z, y, x) in enumerate(_BITS) if b != 13]
+    todo = np.flatnonzero(Xf != T.ravel())
+    parity = ((todo // sy) & 1) * 4 + (((todo % sy) // sx) & 1) * 2 + ((todo % sx) & 1)
+    classes = [todo[parity == c] for c in range(8)]
+    flips, last = 0, -1
+    while flips != last:
+        last = flips
+        for c in range(8):
+            if len(classes[c]) == 0:
+                continue
+            codes = np.zeros(len(classes[c]), np.int32)
+            for b, d in steps:
+                codes |= Xf[classes[c] + d].astype(np.int32) << b
+            ok = _simple_lookup(codes)
+            Xf[classes[c][ok]] ^= True
+            classes[c] = classes[c][~ok]
+            flips += int(ok.sum())
+    return flips
+
+
+def walk_to_targets(band, targets):
+    """Move a boolean band through a sequence of target bands by simple points only."""
+    X = np.pad(band, 1)
+    for T in targets:
+        flip_simple_points(X, np.pad(T, 1))
+    return X[1:-1, 1:-1, 1:-1]
 
 
 def _kd_workers():
@@ -620,7 +728,7 @@ def snap(img, lab, p: Params | None = None, prepared=None):
     ct_s, pts, n, i, j, comp = prepared
     shift, conf, movable, rev, info = solve_surface(lab.shape, prepared, p)
     del ct_s, prepared             # the warp doesn't need the smoothed CT (unless the caller keeps it)
-    out = warp_labels(lab, pts, n, shift, comp=comp, smooth=p.smooth_warp)
+    out = warp_labels(lab, pts, n, shift, comp=comp, smooth=p.smooth_warp, keep_topology=p.keep_topology)
     return SnapResult(out, pts, n, shift, conf, movable, info, rev)
 
 
