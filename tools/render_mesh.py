@@ -64,8 +64,8 @@ def section(ax, ct, P0, v0, P1, v1, sign, title, width=130, height=44):
     sa, sb = sel(a), sel(b)
     y0 = int(max(0, np.median(a[sa, rest[0]]) - height / 2)) if sa.any() else 0
     sl = img[y0:y0 + height, max(x0, 0):x0 + width]
-    ax.imshow(sl, cmap="gray", interpolation="nearest",
-              extent=(max(x0, 0) - 0.5, max(x0, 0) + sl.shape[1] - 0.5, y0 + sl.shape[0] - 0.5, y0 - 0.5))
+    ext = (max(x0, 0) - 0.5, max(x0, 0) + sl.shape[1] - 0.5, y0 + sl.shape[0] - 0.5, y0 - 0.5)
+    ax.imshow(sl, cmap="gray", interpolation="nearest", extent=ext)
     for q, s_, col, lab in ((a, sa, "red", "original"), (b, sb, "lime", "snapped")):
         o = np.argsort(q[s_, rest[1]])
         ax.plot(q[s_, rest[1]][o], q[s_, rest[0]][o], "-", color=col, lw=1.2, label=lab)
@@ -76,6 +76,8 @@ def section(ax, ct, P0, v0, P1, v1, sign, title, width=130, height=44):
         nn = n[k] * sign
         ax.annotate("", xy=(a[m, rest[1]] + 8 * nn[rest[1]], a[m, rest[0]] + 8 * nn[rest[0]]),
                     xytext=(a[m, rest[1]], a[m, rest[0]]), arrowprops=dict(color="cyan", arrowstyle="->", lw=1.5))
+    ax.set_xlim(ext[0], ext[1])
+    ax.set_ylim(ext[2], ext[3])
     ax.set_title(f"{title}: slice {'zyx'[cut]} = {ci} (crop); cyan = papyrus -> gap at the recto face", fontsize=9)
     ax.legend(loc="lower right", fontsize=7)
     ax.set_xticks([])
@@ -120,7 +122,7 @@ def main():
             section(fig.add_subplot(gs[r0 + 1, :]), ct, P0 - off, v0, P1 - off, v1, sign, name)
     fig.suptitle("CT through each mesh at the given depth from its recto face (voxels; - = inside the papyrus, "
                  "+ = toward the gap)", fontsize=10)
-    plt.tight_layout()
+    plt.tight_layout(rect=(0, 0, 1, 0.975))
     plt.savefig(a.out_png, dpi=90)
 
 

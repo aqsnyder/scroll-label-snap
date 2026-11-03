@@ -134,10 +134,21 @@ So flagging about 7% of labels points a human at half the losses. This matches t
 
 The same scores and graph cut also snap a traced VC3D surface. A tifxyz grid has vertices about 20 voxels apart. It is densified to about 3-voxel samples, which are snapped and then fit back onto the original grid. The normals come from the grid. Which side is recto comes from the scroll's geometry, because every wrap's recto faces the scroll centre. Each mesh keeps its own offset from the papyrus face. Details are in [`results/mesh_w035.md`](results/mesh_w035.md).
 
-First test: segment w035 of PHerc. 0139 at 9.362 µm, the one in the scrollprize.org ink tutorial. We used 8 random patches of 24 × 24 vertices.
+It was developed on segment w035 of PHerc. 0139 at 9.362 µm, the one in the scrollprize.org ink tutorial, using 8 random patches of 24 × 24 vertices. It was then tested on a held-out segment, w052, a different wrap on the same scan. That test was set out before the data was downloaded, and nothing was tuned on it ([`results/mesh_w052.md`](results/mesh_w052.md)).
+
+| | w035 (development) | w052 (held out) |
+|---|---|---|
+| Papyrus on the recto side of the face: original → snapped | 55% → 88% | 70% → 93% |
+| Drift test, within 1 voxel: no correction → snapper | 70% → **90%** | 69% → **94%** |
+| VC3D refiner, thresholds tuned on the same patches, offset removed | 61% | 68% |
+| Snapping onto the m7 surface prediction (the PHerc. 343 winner's method), offset removed | 41% | 63% |
+| Consistency: snapper / refiner / m7 snapping | 84% / 62% / 69% | 90% / 66% / 76% |
+| Fibre check, patches with the recto signature: snapped / original / m7 snapping | 8 / 5 / 7 of 8 | 8 / 6 / 6 of 8 |
+
+The w035 results are below.
 
 - **Where the original mesh sits.** Read at its own typical face position, the original mesh has papyrus on the recto side at only 55% of samples. After snapping, 88%.
-- **Drift test.** Known smooth drifts were applied to the mesh vertices. At 15,324 trusted samples, the share within 1 voxel of the original position went:
+- **Drift test on w035.** Known smooth drifts were applied to the mesh vertices. At 15,324 trusted samples, the share within 1 voxel of the original position went:
 
 | Method | Within 1 voxel (drift std 1.5, corr. 40) | Within 1 voxel (drift std 2.0, corr. 80) |
 |---|---|---|
@@ -160,6 +171,8 @@ So the snapper lands on recto faces. The effect is small but consistent. See [`r
 
 **Open question.** At this resolution, sheets are often thin layers packed into bundles. Where two recto faces lie within ±4 voxels of a wandering trace, neither the drift test nor the fibre check can say which sheet the tracer meant. That needs expert review, or a downstream check such as ink detection on renders of both meshes.
 
+Whether a cleaner surface reads better is not yet measured. The PHerc. 306B winners found that snapping to CT density peaks, after snapping to m7, did not make their letters more legible.
+
 ```bash
 pip install "zarr>=2.16,<3" fsspec aiohttp requests        # to read the scan from the open-data bucket
 python tools/fetch_segment.py segments/w035 --segment <tifxyz URL> --volume <OME-Zarr URL> --patches 8
@@ -167,6 +180,7 @@ python tools/snap_tifxyz.py snapped segments/w035/patch_*   # snapped.tifxyz (sa
 python tools/eval_mesh.py out/eval_mesh.json segments/w035/patch_*
 python tools/render_mesh.py out/render.png snapped segments/w035/patch_1 --sections
 python tools/fibre_check.py out/fibre.json segments/w035/patch_* --snapped snapped --png out/fibre.png
+python tools/snap_to_prediction.py snapped_m7 segments/w035/patch_*   # baseline: snap onto a surface prediction (fetch with --extra m7=URL)
 ```
 
 ## Setup

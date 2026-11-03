@@ -8,7 +8,7 @@ surface that wanders between layers blurs that pattern; one on a verso face reve
 
 Usage:
   python tools/fibre_check.py OUT_JSON PATCH_DIR [PATCH_DIR ...] --snapped SNAP_DIR
-         [--control SNAP_DIR] [--png OUT_PNG] [--show PATCH_NAME]
+         [--control SNAP_DIR] [--compare NAME=SNAP_DIR ...] [--png OUT_PNG] [--show PATCH_NAME]
 
   SNAP_DIR: output of tools/snap_tifxyz.py for these patches. --control: a second run to compare,
   e.g. one snapped onto the opposite faces (snap_tifxyz.py --normals with the other sign).
@@ -122,8 +122,11 @@ def main():
     ap.add_argument("--control")
     ap.add_argument("--png")
     ap.add_argument("--show", help="patch whose CT layers the figure shows (default: the first)")
+    ap.add_argument("--compare", action="append", default=[], metavar="NAME=SNAP_DIR",
+                    help="more snapped versions to compare, in the same layout (e.g. tools/snap_to_prediction.py)")
     a = ap.parse_args()
-    runs = [("snapped", a.snapped)] + ([("control", a.control)] if a.control else [])
+    runs = ([("snapped", a.snapped)] + ([("control", a.control)] if a.control else [])
+            + [tuple(kv.split("=", 1)) for kv in a.compare])
     out, keep = [], None
     for d in a.patches:
         name = os.path.basename(os.path.normpath(d))
@@ -144,7 +147,7 @@ def main():
         rec = dict(patch=name, otsu=thr, **{k: dict(profile=v[0], near_minus_deep=summary(v[0])) for k, v in res.items()})
         out.append(rec)
         print(f"{name}: " + " | ".join(f"{k} near-minus-deep {rec[k]['near_minus_deep']:+.3f}" for k in res), flush=True)
-    kinds = [k for k in ("original", "snapped", "control") if k in out[0]]
+    kinds = ["original"] + [k for k, _ in runs]
     pooled = {}
     for k in kinds:
         nd = np.array([r[k]["near_minus_deep"] for r in out])
@@ -163,6 +166,9 @@ def main():
         import matplotlib.pyplot as plt
         colours = dict(original="#c0392b", snapped="#1e8449", control="#7f8c8d")
         labels = dict(original="original mesh", snapped="snapped (recto faces)", control="control: snapped onto the opposite faces")
+        for i, (k, _) in enumerate(runs):
+            colours.setdefault(k, ["#2471a3", "#b9770e", "#7d3c98"][i % 3])
+            labels.setdefault(k, f"{k}")
         fig = plt.figure(figsize=(14, 7.6))
         gs = fig.add_gridspec(2, 4, height_ratios=[1, 1.05])
         ax = fig.add_subplot(gs[0, :2])

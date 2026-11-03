@@ -602,12 +602,13 @@ def solve_surface(shape, prepared, p: Params):
 # --------------------------------------------------------------------------- baseline
 
 def alphacomp_shifts(img, pts, n, start=-2.0, stop=30.0, step=2.0,
-                     low=118 / 255, high=165 / 255, border_off=1.0, sigma=1.4):
+                     low=118 / 255, high=165 / 255, border_off=1.0, sigma=1.4, vol=None):
     """Port of volume-cartographer ObjAlphaCompRefinement: march into the material,
     turn blurred intensity into opacity with fixed thresholds, and move to the expected
     first-hit depth plus `border_off`. VC's normal points into the sheet, which is -n
     here, so the returned shift is along +n (papyrus -> gap)."""
-    vol = ndi.gaussian_filter(img.astype(np.float32) / 255.0, sigma)
+    if vol is None:                     # the blurred volume can be passed in when calling repeatedly
+        vol = ndi.gaussian_filter(img.astype(np.float32) / 255.0, sigma)
     transparent = np.ones(len(pts), np.float32)
     integ = np.zeros(len(pts), np.float32)
     off = start

@@ -120,21 +120,11 @@ At this resolution, the sheets in these patches are thin (about 8 voxels) and of
 
 The drift test only shows that the snapper keeps a mesh that already sits on a clear face, and brings a drifted one back to it. The fibre check adds that the faces it picks are recto faces. Neither can say which sheet's recto a wandering trace should follow where two lie within reach. That needs an expert eye, or a downstream check such as ink detection on renders of the original and the snapped mesh.
 
-## Next: a held-out segment (set before its data was downloaded)
+## Held-out test and comparison with snapping onto the m7 prediction
 
-The mesh code was built and checked on these 8 w035 patches, so the next test uses a different wrap: segment **w052**, on the same 9.362 µm scan.
-- **Segment path:** `PHerc0139/segments/20260227000000-w052_2026022705/mesh/20260227000000-on-20250728140407-9.362um.tifxyz`.
-- **Patches:** 8 random patches of 24 × 24 vertices, seed 0.
-- **Settings:** the same defaults (±4-voxel search, orientation from the whole segment).
+A held-out segment was set out before download: w052, 8 patches, seed 0, default settings. Its results are in [`mesh_w052.md`](mesh_w052.md). It does at least as well as w035 on every measure. For example, the drift test within 1 voxel is 94% vs 90%, and the fibre check is 8 of 8 patches again.
 
-We will report the same measures:
-- papyrus on the recto side;
-- both drift tests, with the refiner at default, offset-removed and tuned thresholds;
-- consistency;
-- the fibre check, with the opposite-face control;
-- review flags.
-
-Nothing will be tuned on it.
+The same file compares the snapper with snapping onto the organisers' m7 surface prediction, the method of Erwin Nieuwlaar's PHerc. 343 First Letters meshes. That comparison was run on both segments. The w035 evaluation files here were regenerated with the extended tool. The numbers reported above are unchanged.
 
 ## Reproduce
 
@@ -148,8 +138,9 @@ python tools/eval_mesh.py results/eval_mesh_w035.json segments/w035/patch_*
 python tools/eval_mesh.py results/eval_mesh_w035_drift80.json segments/w035/patch_* --drift-std 2 --drift-corr 80
 python tools/render_mesh.py results/mesh_w035_render.png snapped segments/w035/patch_1 segments/w035/patch_3 segments/w035/patch_6 --sections
 python tools/snap_tifxyz.py snapped_opposite segments/w035/patch_* --normals grid      # control for the fibre check
+python tools/snap_to_prediction.py snapped_m7 segments/w035/patch_*                    # needs --extra m7=... in the fetch
 python tools/fibre_check.py results/fibre_w035.json segments/w035/patch_* --snapped snapped --control snapped_opposite \
-    --png results/fibre_w035.png --show patch_1
+    --compare "snap to m7 prediction=snapped_m7" --png results/fibre_w035.png --show patch_1
 ```
 
 The fetch needs `pip install "zarr>=2.16,<3" fsspec aiohttp requests`. The patches total about 400 MB.

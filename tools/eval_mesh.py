@@ -16,8 +16,13 @@ Per patch:
      patches (a grid search; its most generous setting).
   2. Consistency at all samples: does snapping the drifted mesh land where snapping the
      original lands?
+  If the patch has a surface prediction cropped next to the scan (patch_K/m7.tif, from
+  fetch_segment.py --extra), the same tests are run for snapping onto it with Erwin Nieuwlaar's
+  method (scroll_label_snap/baselines.py), raw and with its median offset removed.
   3. How much snapping moves the original mesh, and where each mesh puts the recto face: is
-     the CT brighter 2 voxels on the papyrus side than 2 voxels on the gap side?
+     the CT brighter 2 voxels on the papyrus side than 2 voxels on the gap side? If the patch has
+     the recto-surface prediction cropped (patch_K/recto.tif), also how often it is set within 2
+     voxels of each mesh.
 """
 import argparse
 import json
@@ -30,6 +35,7 @@ import tifffile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scipy import ndimage as ndi  # noqa: E402
+from scroll_label_snap.baselines import snap_to_prediction  # noqa: E402
 from scroll_label_snap.core import Params, alphacomp_shifts, sample  # noqa: E402
 from scroll_label_snap.mesh import (densify, patch_orientation, prepare_mesh, snap_mesh,  # noqa: E402
                                     trusted_dense, vertex_normals)
@@ -66,6 +72,18 @@ def face_alignment(ct_e, Q, valid, factor, c_off, sign):
     return dict(mean_step=float(step.mean()), papyrus_side=float(np.mean(step > 0)), n=int(len(step)))
 
 
+def recto_hit_rate(recto, X, N, reach=2.0):
+    """Fraction of samples with the recto-surface prediction set somewhere within +-reach voxels
+    of the mesh along its normal (an independent, model-based view of where the recto is)."""
+    hit = np.zeros(len(X), bool)
+    for t in np.arange(-reach, reach + 1e-6, 0.5):
+        q = np.rint(X + t * N).astype(np.int64)
+        inb = np.all((q >= 0) & (q < np.array(recto.shape)), axis=1)
+        qc = np.clip(q, 0, np.array(recto.shape) - 1)
+        hit |= inb & recto[qc[:, 0], qc[:, 1], qc[:, 2]]
+    return float(hit.mean()) if len(hit) else float("nan")
+
+
 def on_grid(prep, values):
     out = np.full(prep.vd.shape + np.shape(values)[1:], np.nan, np.float32)
     out[prep.vd] = values
@@ -76,7 +94,7 @@ BASELINE_GRID = [(118, 165)] + [(lo, hi) for lo in (50, 60, 70, 80, 90) for hi i
                                  if hi >= lo + 20]
 
 
-def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0):
+def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0, prediction="m7"):
     t0 = time.time()
     pj = json.load(open(os.path.join(patch_dir, "patch.json")))
     off, ls = np.asarray(pj["offset_zyx"], np.float32), float(pj.get("scale_to_level", 1.0))
@@ -99,8 +117,9 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0):
     res0 = snap_mesh(ct, P, valid, p, off, ls, prep=prep0)
     res_d = snap_mesh(ct, Pd, prep0.ok, p, off, ls, prep=prep_d)
     as_crop = lambda r: r.dense_P * ls - off                      # noqa: E731
-    base0 = alphacomp_shifts(ct, X0[prep0.vd], N0[prep0.vd])
-    base_d = alphacomp_shifts(ct, prep_d.Pd[prep_d.vd], prep_d.Nd[prep_d.vd])
+    ac_vol = ndi.gaussian_filter(ct.astype(np.float32) / 255.0, 1.4)        # the refiner's blur, once
+    base0 = alphacomp_shifts(ct, X0[prep0.vd], N0[prep0.vd], vol=ac_vol)
+    base_d = alphacomp_shifts(ct, prep_d.Pd[prep_d.vd], prep_d.Nd[prep_d.vd], vol=ac_vol)
     base_off = float(np.median(base0))
     pos = {
         "drifted": prep_d.Pd,
@@ -111,6 +130,23 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0):
         "baseline offset-corrected(drifted)": prep_d.Pd + (on_grid(prep_d, base_d) - base_off)[..., None] * prep_d.Nd,
     }
     both = prep0.vd & prep_d.vd
+    # snapping onto a surface prediction (Erwin Nieuwlaar's method), if the patch has one
+    pred_path = os.path.join(patch_dir, f"{prediction}.tif")
+    if os.path.exists(pred_path):
+        pred = tifffile.imread(pred_path)
+
+        def pred_dense(Qv):
+            S, _, _ = snap_to_prediction(pred, Qv, prep0.ok)
+            Ns, oks = vertex_normals(S, prep0.ok)
+            return densify(S, Ns, oks, prep0.factor)
+
+        S0, _, sv0 = pred_dense(P.astype(np.float32) * ls - off)
+        Sd_, _, svd = pred_dense(Pd.astype(np.float32) * ls - off)
+        e0 = np.einsum("...k,...k->...", S0 - X0, N0)
+        pred_off = float(np.nanmedian(np.where(prep0.vd & sv0, e0, np.nan)))
+        pos[f"{prediction} snap(original)"] = np.where((sv0 & prep0.vd)[..., None], S0, np.nan)
+        pos[f"{prediction} snap(drifted)"] = np.where((svd & prep0.vd)[..., None], Sd_, np.nan)
+        pos[f"{prediction} snap offset-corrected(drifted)"] = pos[f"{prediction} snap(drifted)"] - pred_off * N0
 
     def err(k, ref=X0):
         e = np.einsum("...k,...k->...", pos[k] - ref, N0)
@@ -124,8 +160,8 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0):
     grid = {}
     for lo, hi in BASELINE_GRID:
         kw = dict(low=lo / 255, high=hi / 255)
-        b0 = on_grid(prep0, alphacomp_shifts(ct, X0[prep0.vd], N0[prep0.vd], **kw))
-        bd = on_grid(prep_d, alphacomp_shifts(ct, prep_d.Pd[prep_d.vd], prep_d.Nd[prep_d.vd], **kw))
+        b0 = on_grid(prep0, alphacomp_shifts(ct, X0[prep0.vd], N0[prep0.vd], vol=ac_vol, **kw))
+        bd = on_grid(prep_d, alphacomp_shifts(ct, prep_d.Pd[prep_d.vd], prep_d.Nd[prep_d.vd], vol=ac_vol, **kw))
         m0 = float(np.nanmedian(b0[prep0.vd]))
         e = np.einsum("...k,...k->...", prep_d.Pd + (bd - m0)[..., None] * prep_d.Nd - X0, N0)
         grid[f"{lo}-{hi}"] = dict(offset_corrected=stats(e[tr]), median_offset=m0)
@@ -137,6 +173,21 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0):
         "snapper consistency": stats(err("snap(drifted)", pos["snap(original)"])[both]),
         "baseline consistency": stats(err("baseline(drifted)", pos["baseline(original)"])[both]),
     }
+    if f"{prediction} snap(drifted)" in pos:
+        drift_res[f"snap to {prediction} prediction"] = stats(err(f"{prediction} snap(drifted)")[tr])
+        drift_res[f"snap to {prediction} prediction, offset-corrected"] = stats(err(f"{prediction} snap offset-corrected(drifted)")[tr])
+        drift_res[f"snap to {prediction} prediction consistency"] = stats(
+            err(f"{prediction} snap(drifted)", pos[f"{prediction} snap(original)"])[both])
+    recto_hits = {}
+    rp = os.path.join(patch_dir, "recto.tif")
+    if os.path.exists(rp):
+        recto = tifffile.imread(rp) > 0
+        meshes = {"original": (X0, prep0.vd, N0), "snapped": (as_crop(res0), res0.dense_valid, N0)}
+        if f"{prediction} snap(original)" in pos:
+            s0 = pos[f"{prediction} snap(original)"]
+            meshes[f"snap to {prediction}"] = (s0, np.isfinite(s0).all(-1), N0)
+        for k, (X, vm, NN) in meshes.items():
+            recto_hits[k] = recto_hit_rate(recto, X[vm], NN[vm])
     ct_e = ndi.gaussian_filter(ct.astype(np.float32), 0.5)
     c0 = res0.info["convention_offset"]
     align = dict(original=face_alignment(ct_e, P.astype(np.float32) * ls - off, valid, prep0.factor, c0, prep0.normal_sign),
@@ -148,7 +199,7 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0):
                 convention_offset=res0.info["convention_offset"], normal_sign=prep0.normal_sign,
                 orientation_agree=prep0.orientation_agree, baseline_median_offset=base_off,
                 drift=dict(std=drift_std, corr=drift_corr), drift_test=drift_res, baseline_grid=grid,
-                face_alignment=align,
+                face_alignment=align, recto_prediction_hits=recto_hits,
                 original_mesh_moves=dict(mean_abs=float(np.abs(moved).mean()),
                                          frac_moved_1vox=float(np.mean(np.abs(moved) >= 1.0)),
                                          median_signed=float(np.median(moved)),
@@ -162,18 +213,20 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--drift-std", type=float, default=1.5)
     ap.add_argument("--drift-corr", type=float, default=40.0)
+    ap.add_argument("--prediction", default="m7",
+                    help="surface prediction crop (patch_K/NAME.tif) to compare with, if present")
     a = ap.parse_args()
     p = Params()
     results = []
     for k, d in enumerate(a.patches):
-        r = evaluate(d, p, a.seed + k, a.drift_std, a.drift_corr)
+        r = evaluate(d, p, a.seed + k, a.drift_std, a.drift_corr, a.prediction)
         results.append(r)
         t = r["drift_test"]
         print(f"{r['patch']}: {r['n_dense']} samples, {r['n_trusted']} trusted, edge at {r['convention_offset']:+.2f}, "
               f"{r['seconds']} s", flush=True)
         for m, s in t.items():
             print(f"   {m:28s} mean {s['mean']:.2f}  within 1: {s['within_1']:.0%}  over 2: {s['over_2']:.0%}", flush=True)
-    keys = list(results[0]["drift_test"])
+    keys = [m for m in results[0]["drift_test"] if all(m in r["drift_test"] for r in results)]
     pooled = {}
     for m in keys:
         rs = [r["drift_test"][m] for r in results if r["drift_test"][m]["n"] > 0]
@@ -196,8 +249,13 @@ def main():
           for k in ("original", "snapped")}
     print("papyrus on the recto side of the face: " + ", ".join(f"{k} {v['papyrus_side']:.0%} (step {v['mean_step']:.1f})"
                                                               for k, v in fa.items()))
+    rh = {}
+    if all(r["recto_prediction_hits"] for r in results):
+        for k in results[0]["recto_prediction_hits"]:
+            rh[k] = float(np.mean([r["recto_prediction_hits"][k] for r in results]))
+        print("recto prediction within 2 voxels: " + ", ".join(f"{k} {v:.0%}" for k, v in rh.items()))
     json.dump(dict(params=p.asdict(), seed=a.seed, drift=dict(std=a.drift_std, corr=a.drift_corr), pooled=pooled,
-                   face_alignment=fa,
+                   face_alignment=fa, recto_prediction_hits=rh,
                    baseline_grid_pooled=gp, baseline_best=best, patches=results),
               open(a.out_json, "w"), indent=1)
     print("pooled:")

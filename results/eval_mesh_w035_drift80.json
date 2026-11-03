@@ -68,12 +68,45 @@
    "over_2": 0.3151672763298278,
    "n": 209952
   },
+  "snap to m7 prediction": {
+   "mean": 1.719929942501895,
+   "within_1": 0.405507700339337,
+   "over_2": 0.32073871051944663,
+   "n": 15324
+  },
+  "snap to m7 prediction, offset-corrected": {
+   "mean": 1.672370060799919,
+   "within_1": 0.4008744453145393,
+   "over_2": 0.30794831636648395,
+   "n": 15324
+  },
+  "snap to m7 prediction consistency": {
+   "mean": 1.1402622759342194,
+   "within_1": 0.5988464029873495,
+   "over_2": 0.1497723289132754,
+   "n": 209952
+  },
   "baseline, thresholds 50-110 (best on these patches), offset-corrected": {
    "mean": 1.0138023034092092,
    "within_1": 0.5659749412685983,
    "over_2": 0.10003915426781519,
    "n": 15324
   }
+ },
+ "face_alignment": {
+  "original": {
+   "papyrus_side": 0.5497065996037189,
+   "mean_step": 8.418169103562832
+  },
+  "snapped": {
+   "papyrus_side": 0.8790437814357568,
+   "mean_step": 60.39212512969971
+  }
+ },
+ "recto_prediction_hits": {
+  "original": 0.856619608291419,
+  "snapped": 0.8985101356500533,
+  "snap to m7": 0.9388955570797135
  },
  "baseline_grid_pooled": {
   "118-165": {
@@ -219,7 +252,7 @@
  "patches": [
   {
    "patch": "patch_0",
-   "seconds": 49.9,
+   "seconds": 10.5,
    "n_dense": 26244,
    "n_trusted": 1764,
    "factor": 7,
@@ -273,6 +306,27 @@
      "median": 0.6975454092025757,
      "within_1": 0.5879820149367474,
      "over_2": 0.25792562109434536,
+     "n": 26244
+    },
+    "snap to m7 prediction": {
+     "mean": 2.0759329795837402,
+     "median": 1.4817183017730713,
+     "within_1": 0.37471655328798187,
+     "over_2": 0.3945578231292517,
+     "n": 1764
+    },
+    "snap to m7 prediction, offset-corrected": {
+     "mean": 2.0832395553588867,
+     "median": 1.4834281206130981,
+     "within_1": 0.37755102040816324,
+     "over_2": 0.3945578231292517,
+     "n": 1764
+    },
+    "snap to m7 prediction consistency": {
+     "mean": 1.357710361480713,
+     "median": 0.9083738327026367,
+     "within_1": 0.5363130620332266,
+     "over_2": 0.19905502210028958,
      "n": 26244
     }
    },
@@ -508,6 +562,23 @@
      "median_offset": -6.198284149169922
     }
    },
+   "face_alignment": {
+    "original": {
+     "mean_step": 4.145306587219238,
+     "papyrus_side": 0.5163084895595184,
+     "n": 26244
+    },
+    "snapped": {
+     "mean_step": 60.94768142700195,
+     "papyrus_side": 0.8725422953818015,
+     "n": 26244
+    }
+   },
+   "recto_prediction_hits": {
+    "original": 0.8268556622466088,
+    "snapped": 0.8932708428593202,
+    "snap to m7": 0.9506934918457552
+   },
    "original_mesh_moves": {
     "mean_abs": 2.1712772846221924,
     "frac_moved_1vox": 0.8041076055479348,
@@ -517,7 +588,7 @@
   },
   {
    "patch": "patch_1",
-   "seconds": 52.4,
+   "seconds": 8.2,
    "n_dense": 26244,
    "n_trusted": 2681,
    "factor": 7,
@@ -571,6 +642,27 @@
      "median": 1.066650152206421,
      "within_1": 0.4841487578113092,
      "over_2": 0.3477366255144033,
+     "n": 26244
+    },
+    "snap to m7 prediction": {
+     "mean": 1.159437656402588,
+     "median": 0.9603296518325806,
+     "within_1": 0.5188362551286834,
+     "over_2": 0.14994405072734054,
+     "n": 2681
+    },
+    "snap to m7 prediction, offset-corrected": {
+     "mean": 1.145881175994873,
+     "median": 0.9451329112052917,
+     "within_1": 0.5274151436031331,
+     "over_2": 0.1484520701230884,
+     "n": 2681
+    },
+    "snap to m7 prediction consistency": {
+     "mean": 1.0975501537322998,
+     "median": 0.8092679977416992,
+     "within_1": 0.590877914951989,
+     "over_2": 0.13256363359244017,
      "n": 26244
     }
    },
@@ -806,6 +898,23 @@
      "median_offset": -7.167454719543457
     }
    },
+   "face_alignment": {
+    "original": {
+     "mean_step": 16.48185920715332,
+     "papyrus_side": 0.6014708123761622,
+     "n": 26244
+    },
+    "snapped": {
+     "mean_step": 72.4758529663086,
+     "papyrus_side": 0.9035589087029416,
+     "n": 26244
+    }
+   },
+   "recto_prediction_hits": {
+    "original": 0.9734415485444292,
+    "snapped": 0.9887593354671544,
+    "snap to m7": 0.9860920591373267
+   },
    "original_mesh_moves": {
     "mean_abs": 1.8379820585250854,
     "frac_moved_1vox": 0.7591068434689834,
@@ -815,7 +924,7 @@
   },
   {
    "patch": "patch_2",
-   "seconds": 63.7,
+   "seconds": 10.9,
    "n_dense": 26244,
    "n_trusted": 2316,
    "factor": 7,
@@ -869,6 +978,27 @@
      "median": 1.1924715042114258,
      "within_1": 0.4554945892394452,
      "over_2": 0.3729995427526292,
+     "n": 26244
+    },
+    "snap to m7 prediction": {
+     "mean": 1.9530668258666992,
+     "median": 1.288334608078003,
+     "within_1": 0.40371329879101897,
+     "over_2": 0.33074265975820377,
+     "n": 2316
+    },
+    "snap to m7 prediction, offset-corrected": {
+     "mean": 1.9370547533035278,
+     "median": 1.2961726188659668,
+     "within_1": 0.40932642487046633,
+     "over_2": 0.3380829015544041,
+     "n": 2316
+    },
+    "snap to m7 prediction consistency": {
+     "mean": 1.8144643306732178,
+     "median": 1.117168664932251,
+     "within_1": 0.4619341563786008,
+     "over_2": 0.3084514555707971,
      "n": 26244
     }
    },
@@ -1104,6 +1234,23 @@
      "median_offset": -5.384394645690918
     }
    },
+   "face_alignment": {
+    "original": {
+     "mean_step": 16.94952392578125,
+     "papyrus_side": 0.6013183965858863,
+     "n": 26244
+    },
+    "snapped": {
+     "mean_step": 63.38717269897461,
+     "papyrus_side": 0.8910989178478891,
+     "n": 26244
+    }
+   },
+   "recto_prediction_hits": {
+    "original": 0.6662094192958391,
+    "snapped": 0.7671086724584667,
+    "snap to m7": 0.8462886755067826
+   },
    "original_mesh_moves": {
     "mean_abs": 1.8659312725067139,
     "frac_moved_1vox": 0.7647081237616217,
@@ -1113,7 +1260,7 @@
   },
   {
    "patch": "patch_3",
-   "seconds": 42.6,
+   "seconds": 9.1,
    "n_dense": 26244,
    "n_trusted": 1657,
    "factor": 7,
@@ -1167,6 +1314,27 @@
      "median": 1.1833447217941284,
      "within_1": 0.45850480109739367,
      "over_2": 0.3676268861454047,
+     "n": 26244
+    },
+    "snap to m7 prediction": {
+     "mean": 1.6472225189208984,
+     "median": 1.5144031047821045,
+     "within_1": 0.34701267350633674,
+     "over_2": 0.35063367531683765,
+     "n": 1657
+    },
+    "snap to m7 prediction, offset-corrected": {
+     "mean": 1.6300439834594727,
+     "median": 1.4895577430725098,
+     "within_1": 0.343995171997586,
+     "over_2": 0.34339167169583584,
+     "n": 1657
+    },
+    "snap to m7 prediction consistency": {
+     "mean": 1.1073106527328491,
+     "median": 0.8232666850090027,
+     "within_1": 0.5906873952141442,
+     "over_2": 0.13957475994513033,
      "n": 26244
     }
    },
@@ -1402,6 +1570,23 @@
      "median_offset": -3.5831613540649414
     }
    },
+   "face_alignment": {
+    "original": {
+     "mean_step": 4.5070295333862305,
+     "papyrus_side": 0.5073540618808109,
+     "n": 26244
+    },
+    "snapped": {
+     "mean_step": 61.87459945678711,
+     "papyrus_side": 0.87075140984606,
+     "n": 26244
+    }
+   },
+   "recto_prediction_hits": {
+    "original": 0.9261545496113397,
+    "snapped": 0.9621246761164457,
+    "snap to m7": 0.9629629629629629
+   },
    "original_mesh_moves": {
     "mean_abs": 2.041133165359497,
     "frac_moved_1vox": 0.797820454199055,
@@ -1411,7 +1596,7 @@
   },
   {
    "patch": "patch_4",
-   "seconds": 54.3,
+   "seconds": 9.4,
    "n_dense": 26244,
    "n_trusted": 1915,
    "factor": 7,
@@ -1465,6 +1650,27 @@
      "median": 0.8982367515563965,
      "within_1": 0.5302926383173296,
      "over_2": 0.29572473708276176,
+     "n": 26244
+    },
+    "snap to m7 prediction": {
+     "mean": 1.280844807624817,
+     "median": 1.0247288942337036,
+     "within_1": 0.49033942558746735,
+     "over_2": 0.19947780678851174,
+     "n": 1915
+    },
+    "snap to m7 prediction, offset-corrected": {
+     "mean": 1.2856718301773071,
+     "median": 1.0202338695526123,
+     "within_1": 0.4929503916449086,
+     "over_2": 0.21096605744125327,
+     "n": 1915
+    },
+    "snap to m7 prediction consistency": {
+     "mean": 0.8522493839263916,
+     "median": 0.6340639591217041,
+     "within_1": 0.6954732510288066,
+     "over_2": 0.07407407407407407,
      "n": 26244
     }
    },
@@ -1700,6 +1906,23 @@
      "median_offset": -4.227533340454102
     }
    },
+   "face_alignment": {
+    "original": {
+     "mean_step": 14.062649726867676,
+     "papyrus_side": 0.6010135650053345,
+     "n": 26244
+    },
+    "snapped": {
+     "mean_step": 59.06208038330078,
+     "papyrus_side": 0.8991007468373724,
+     "n": 26244
+    }
+   },
+   "recto_prediction_hits": {
+    "original": 0.9223060509068739,
+    "snapped": 0.9625819234872732,
+    "snap to m7": 0.9654016156073769
+   },
    "original_mesh_moves": {
     "mean_abs": 1.9550564289093018,
     "frac_moved_1vox": 0.7844459686023472,
@@ -1709,7 +1932,7 @@
   },
   {
    "patch": "patch_5",
-   "seconds": 66.4,
+   "seconds": 12.1,
    "n_dense": 26244,
    "n_trusted": 1922,
    "factor": 7,
@@ -1763,6 +1986,27 @@
      "median": 0.7767202258110046,
      "within_1": 0.570606614845298,
      "over_2": 0.2664990092973632,
+     "n": 26244
+    },
+    "snap to m7 prediction": {
+     "mean": 2.0754973888397217,
+     "median": 1.6561861038208008,
+     "within_1": 0.3470343392299688,
+     "over_2": 0.43340270551508847,
+     "n": 1922
+    },
+    "snap to m7 prediction, offset-corrected": {
+     "mean": 1.7259565591812134,
+     "median": 1.5211567878723145,
+     "within_1": 0.34027055150884494,
+     "over_2": 0.350156087408949,
+     "n": 1922
+    },
+    "snap to m7 prediction consistency": {
+     "mean": 0.8746315836906433,
+     "median": 0.6774638891220093,
+     "within_1": 0.6575979271452522,
+     "over_2": 0.08291418991007468,
      "n": 26244
     }
    },
@@ -1998,6 +2242,23 @@
      "median_offset": -8.35982894897461
     }
    },
+   "face_alignment": {
+    "original": {
+     "mean_step": 6.863369464874268,
+     "papyrus_side": 0.5369227251943302,
+     "n": 26244
+    },
+    "snapped": {
+     "mean_step": 63.773216247558594,
+     "papyrus_side": 0.8834400243865265,
+     "n": 26244
+    }
+   },
+   "recto_prediction_hits": {
+    "original": 0.9039399481786313,
+    "snapped": 0.9083600060966316,
+    "snap to m7": 0.9627724432251181
+   },
    "original_mesh_moves": {
     "mean_abs": 1.906169056892395,
     "frac_moved_1vox": 0.7671848803536047,
@@ -2007,7 +2268,7 @@
   },
   {
    "patch": "patch_6",
-   "seconds": 71.9,
+   "seconds": 12.8,
    "n_dense": 26244,
    "n_trusted": 1386,
    "factor": 7,
@@ -2061,6 +2322,27 @@
      "median": 0.8966960906982422,
      "within_1": 0.5326169791190367,
      "over_2": 0.2717573540618808,
+     "n": 26244
+    },
+    "snap to m7 prediction": {
+     "mean": 1.9280319213867188,
+     "median": 1.5199191570281982,
+     "within_1": 0.31385281385281383,
+     "over_2": 0.36075036075036077,
+     "n": 1386
+    },
+    "snap to m7 prediction, offset-corrected": {
+     "mean": 1.90084969997406,
+     "median": 1.4906010627746582,
+     "within_1": 0.3217893217893218,
+     "over_2": 0.36147186147186144,
+     "n": 1386
+    },
+    "snap to m7 prediction consistency": {
+     "mean": 1.1047638654708862,
+     "median": 0.8523727059364319,
+     "within_1": 0.5619951226947112,
+     "over_2": 0.15630239292790732,
      "n": 26244
     }
    },
@@ -2296,6 +2578,23 @@
      "median_offset": -5.443960189819336
     }
    },
+   "face_alignment": {
+    "original": {
+     "mean_step": -0.9743569493293762,
+     "papyrus_side": 0.49778997104099987,
+     "n": 26244
+    },
+    "snapped": {
+     "mean_step": 46.446014404296875,
+     "papyrus_side": 0.8271985977747295,
+     "n": 26244
+    }
+   },
+   "recto_prediction_hits": {
+    "original": 0.7670324645633287,
+    "snapped": 0.7736625514403292,
+    "snap to m7": 0.8728090230147844
+   },
    "original_mesh_moves": {
     "mean_abs": 1.9464068412780762,
     "frac_moved_1vox": 0.7853223593964335,
@@ -2305,7 +2604,7 @@
   },
   {
    "patch": "patch_7",
-   "seconds": 81.6,
+   "seconds": 11.5,
    "n_dense": 26244,
    "n_trusted": 1683,
    "factor": 7,
@@ -2359,6 +2658,27 @@
      "median": 1.0015640258789062,
      "within_1": 0.49958085657674134,
      "over_2": 0.3410684346898339,
+     "n": 26244
+    },
+    "snap to m7 prediction": {
+     "mean": 1.912585735321045,
+     "median": 1.7474802732467651,
+     "within_1": 0.3630421865715983,
+     "over_2": 0.44860368389780153,
+     "n": 1683
+    },
+    "snap to m7 prediction, offset-corrected": {
+     "mean": 1.9485011100769043,
+     "median": 1.6768279075622559,
+     "within_1": 0.2976827094474153,
+     "over_2": 0.41295306001188353,
+     "n": 1683
+    },
+    "snap to m7 prediction consistency": {
+     "mean": 0.9134178757667542,
+     "median": 0.6133756041526794,
+     "within_1": 0.6958923944520652,
+     "over_2": 0.10524310318549002,
      "n": 26244
     }
    },
@@ -2593,6 +2913,23 @@
      },
      "median_offset": -4.746695041656494
     }
+   },
+   "face_alignment": {
+    "original": {
+     "mean_step": 5.309971332550049,
+     "papyrus_side": 0.5354747751867094,
+     "n": 26244
+    },
+    "snapped": {
+     "mean_step": 55.17038345336914,
+     "papyrus_side": 0.8846593507087335,
+     "n": 26244
+    }
+   },
+   "recto_prediction_hits": {
+    "original": 0.8670172229843012,
+    "snapped": 0.9322130772748056,
+    "snap to m7": 0.9641441853376009
    },
    "original_mesh_moves": {
     "mean_abs": 1.935928225517273,
