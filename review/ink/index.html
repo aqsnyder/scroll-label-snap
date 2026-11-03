@@ -173,15 +173,31 @@ footer { color: var(--muted); font-size: 12px; }
   }
   function slug(s) { return s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32); }
 
-  // ---- drawing
+  // ---- drawing: the pictures are the page's own files, fetched and shown as blob: URLs
+  const blobs = new Map();
+  let drawToken = 0;
   function smoothMode() { document.body.classList.toggle("pixelated", $("smooth").checked); }
+  function blobUrl(path) {
+    if (!blobs.has(path)) {
+      const p = fetch(path).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.blob(); })
+        .then(b => URL.createObjectURL(b));
+      p.catch(() => blobs.delete(path));
+      blobs.set(path, p);
+    }
+    return blobs.get(path);
+  }
   function drawItem(it) {
-    $("iA").src = it.a;
-    $("iB").src = it.b;
+    const token = ++drawToken;
+    $("iA").removeAttribute("src"); $("iB").removeAttribute("src");
+    Promise.all([blobUrl(it.a), blobUrl(it.b)]).then(([a, b]) => {
+      if (token !== drawToken) return;
+      $("iA").src = a; $("iB").src = b;
+      shownAt = performance.now();      // time the answer from when the pictures appear
+    }).catch(() => { $("counter").textContent = "Couldn't load this item's pictures. Reload the page to try again."; });
   }
   function preload(i) {
     const L = list();
-    [i + 1, i + 2].forEach(j => { if (j < L.length) { new Image().src = L[j].a; new Image().src = L[j].b; } });
+    [i + 1, i + 2, i + 3].forEach(j => { if (j < L.length) { blobUrl(L[j].a); blobUrl(L[j].b); } });
   }
 
   // ---- progress
