@@ -79,4 +79,32 @@ All outcomes go into `results/ink_test.md`, the README and the write-up, whichev
 
 ## Amendments
 
-(None yet.)
+### 1. Details fixed before running (3 Nov 2026, before any surface volume was rendered or the ink model was run)
+
+None of these changes the outcomes or what counts as harm. They settle points the plan left open, and correct one fact.
+
+- **Training segments (a correction).** The list under Data came from the dataset README. The model's training config (`vesuvius/src/vesuvius/ink_detection/configs/aligned21_hybrid_3d2d.json` in villa) and its model card list, for PHerc. 0139:
+  - w016, w017, w029, w035, w039, w040, w041, w043 and w044 at 2.4 µm (`pherc0139-w028` there is physical segment w044);
+  - plus w035, w039, w040, w041 and w044 at 9.362 µm.
+  - w052 is in neither list. The run script also reads the list from each checkpoint's embedded config and stops if w052 appears.
+- **Software.**
+  - villa at commit `deb1b6953d6725966c57bfe40feddbcd14644858` (2 Nov 2026), using only `vesuvius/src`, on the Python path.
+  - Python 3.14, with the package versions from villa's own lock file (`tools/requirements-ink.txt`); torch 2.12.1, CPU build.
+  - `tools/ink_selfcheck.py` checks the setup first.
+  - The renderer, the snapper and the comparison tool run from a git worktree at c5ffa62, the commit that added this plan, so later commits can't change them.
+  - Each ink run is logged by `tools/ink_infer.py`: the command, the villa commit, versions and time.
+- **One more inference option:** `--loader-threads 4`. It reads patches with threads instead of worker processes, and changes nothing the model computes beyond rounding.
+- **Renderer check, made exact** (`tools/ink_plan.py render-check`):
+  - The check renders the whole original w035 mesh with default settings, and compares the 2048 × 2048 window at the centre (the tool's default).
+  - Layers are matched by the centre of the 17 the model reads: villa's centre crop takes the 17 around layer ⌊L/2⌋ of an L-layer volume.
+  - Reversed order means re-rendering with the other `--normals`. If the official volume's centre layer sits more than 0.5 voxel from ours, re-render with `--center` at its offset.
+  - Pass: a mean correlation of at least 0.9 at the best alignment, with the same order and centres within 0.5 voxel. A re-render gets one more check. If that fails, the test stops.
+- **Timing crop and projection** (`tools/ink_plan.py crop` and `choose`):
+  - The crop is centred on the median row and median column of the render's valid pixels (any layer non-zero). The 1024 × 1024 window is moved inside the image if needed.
+  - The projection takes the time per patch from the two crop runs (both directions, averaged). Start-up time is included, so it overestimates. That is multiplied by the number of patches the inference runs on the two w052 renders, counted with villa's scheduling rules.
+- **Layer direction for w035.** The same rule as for w052, on w035's own crop (same centre rule), with the original mesh and seed 42. The official w035 surface volume, in the sanity check, uses the direction chosen for w035, since our renders follow its layer order after the renderer check.
+- **Valid pixels**, for all scoring and crop rules: pixels where both renders have at least one non-zero layer.
+- **Display in the review.** The model was trained with label smoothing 0.5, so its probabilities stay between about 0.25 and 0.75 (model card). The review shows both maps with the model card's display scaling, (p − 0.25) / 0.5, clipped to 0–1, identical for both. The 0.5 threshold for crop centres is unchanged; it is 0.5 on both scales.
+- **seed 43.** It runs after all seed-42 outputs exist, with the same inputs and directions, on both segments. It is reported as a robustness check (AUC on w035, the tile changes on w052), and isn't part of the primary decision.
+- **Sanity check input.** The official inference reads the official w035 surface volume straight from the open-data server, as in the model card's example.
+- **Labels.** These come from the ink_9um dataset bucket on Hugging Face (`hf://buckets/scrollprize/datasets/ink_9um/labels/native9-scrollprizeorg-21slices/w035`).
