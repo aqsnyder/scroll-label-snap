@@ -70,6 +70,19 @@ Everything above was measured on the 20 cubes the method was built and tuned on.
 
 ![held-out results per cube](results/eval_heldout.png)
 
+### The whole dataset
+
+All 892 cube pairs in the bucket have been snapped with the v2 defaults (`tools/snap_folder.py`, 12 workers on a Ryzen AI Max+ 395). That is 116 million surface samples in 15.8 CPU-hours, about 1.3 hours of wall time. Per-cube numbers are in [`results/full_run_summary.csv`](results/full_run_summary.csv):
+
+| Per cube | Median | 5th-95th percentile |
+|---|---|---|
+| Surface samples | 121,680 | 49,634-234,488 |
+| Share moved by 1 voxel or more | 70% | 61-77% |
+| Share flagged (label on a reversed face) | 6.9% | 2.3-17.5% |
+| Mean confidence | 0.80 | 0.66-0.89 |
+
+The most-flagged cubes are also the lowest-confidence ones: samples 00798, 00256 and 00323 have 25-34% flagged. That makes them good places for a human to look first.
+
 ### Changes since v1
 
 | | v1 | v2 |
