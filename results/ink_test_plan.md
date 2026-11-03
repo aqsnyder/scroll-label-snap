@@ -135,3 +135,29 @@ The tools are `tools/make_ink_review.py`, `tools/score_ink_review.py` and `tools
   - Ties count half in the AUC.
   - The best F1 is taken over the thresholds p ≥ t on the maps' 256 levels.
 - **Sanity check.** The Pearson correlation is taken over pixels valid in our renders and non-zero in the official map.
+
+## Run log (facts recorded as the run went; nothing here compares the original and snapped ink maps)
+
+3 November 2026, on Lysander (Windows 11, Ryzen AI Max+ 395, CPU only), with `run_ink_test.ps1`.
+
+- **Self-check passed:** Python 3.14.0, torch 2.12.1+cpu (16 threads), villa `deb1b69`. Both checkpoints load with `weights_only=True`.
+- **Training segments.** Each checkpoint's own config lists 29 training segments. For PHerc. 0139, the physical segments are w016, w017, w028, w029, w035, w039, w040, w041, w043 and w044. This corrects amendment 1, which took `pherc0139-w028` to be w044 from the repository config. w052 is not among them.
+- **Renderer check 1.** The official w035 volume has 28 layers on a 5820 × 5240 grid; ours is 21 × 5801 × 5221. The in-plane shift is 0.
+  - The best alignment has reversed order, with a mean correlation of 0.933 (lowest 0.918).
+  - The official volume's centre layer sits 1 voxel from ours. The rule therefore gave a re-render with `--normals flipped --center 1`.
+- **Renderer check 2:** same order, centres aligned, mean correlation 0.932 (lowest 0.918). **Pass.** Every render uses those settings.
+- **w052 snapped** with the pre-registered snapper (c5ffa62): 711 tiles in 15 minutes, none failed.
+- **Timing crop (w052).** Rows 3405–4429 and columns 4486–5510, all valid. That is 324 patches, run in 11.7 s per direction.
+  - The projection for both meshes was 0.34 hours, so **scope: the whole segment**.
+- **Layer direction.** The 99th percentile on the original mesh's crop decided it.
+  - w052: **forward** (0.788 forward, 0.698 reverse).
+  - w035: **forward** (0.804 forward, 0.726 reverse).
+- **Seed-42 run times:**
+  - w052: 497 s (original), 483 s (snapped).
+  - w035: 194 s (original), 203 s (snapped), 200 s (official volume).
+- **Sanity check.** Our w035 map from the original mesh against the map from the official volume: Pearson r = 0.862 over 25.2 million pixels, mean absolute difference 0.039.
+- **Blind review set `8a9f1f2a81c9`.**
+  - Built with `tools/make_ink_review.py` at a1f3d91 (seed 2026): 60 comparisons, 10 controls, 8 catch items and 4 practice items.
+  - The pool was pixels where the higher map is ≥ 0.5 (7.3 million).
+  - The answer key was sealed before any answers came in. Its SHA-256 (as `json.dumps(key, sort_keys=True)`) is `8a9f1f2a81c9378939dabcdba41a45dfc3d49d3c042a2aae12f8841f768d59de`.
+  - An encrypted copy is `review/sealed_key_8a9f1f2a81c9.enc` (AES-256-CBC, `openssl enc -pbkdf2 -iter 200000`). The page is `review/ink/index.html`.
