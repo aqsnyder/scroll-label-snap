@@ -20,6 +20,7 @@ Options:
   --normals auto|grid|flipped   recto side; default from the segment's curvature
   --param NAME=VALUE      override a snapper parameter
   --limit N               only the first N tiles (for a quick try)
+  --name NAME             name for the outputs (default: the segment folder's name)
 
 Writes:
   OUT_DIR/<name>_snapped.tifxyz        the input grid, vertices moved (drop-in replacement)
@@ -159,6 +160,7 @@ def main():
     ap.add_argument("--normals", choices=("auto", "grid", "flipped"), default="auto")
     ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--name", help="name for the outputs (default: the segment folder's name)")
     a = ap.parse_args()
     t_start = time.time()
     os.makedirs(os.path.join(a.out_dir, "tiles"), exist_ok=True)
@@ -169,7 +171,7 @@ def main():
         seg_dir = os.path.join(a.out_dir, "segment.tifxyz")
         download_tifxyz(a.segment, seg_dir)
     P, valid, meta = read_tifxyz(seg_dir)
-    name = str(meta.get("uuid") or os.path.basename(os.path.normpath(a.segment))).replace(".tifxyz", "")
+    name = a.name or os.path.basename(os.path.normpath(a.segment.rstrip("/"))).replace(".tifxyz", "")
     level_scale = 1.0 / 2 ** a.level
 
     p = Params()
