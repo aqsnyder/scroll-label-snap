@@ -10,6 +10,25 @@ their neighbourhood are rejected, gaps are refilled by normalised convolution fr
 and the field is smoothed with a Gaussian of `sigma` grid cells. Vertices with no sheet anywhere
 in their neighbourhood keep their position. The port reads a crop of the prediction instead of
 the whole zarr; the rules and defaults are his.
+
+The ported part (snap_to_prediction and its helpers) is used under the MIT licence:
+
+  Copyright (c) 2026 Erwin Nieuwlaar
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+  and associated documentation files (the "Software"), to deal in the Software without
+  restriction, including without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+  Software is furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies or
+  substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+  BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 import numpy as np
 from scipy import ndimage as ndi
