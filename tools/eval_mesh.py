@@ -40,6 +40,7 @@ from scroll_label_snap.core import Params, alphacomp_shifts, sample  # noqa: E40
 from scroll_label_snap.mesh import (densify, patch_orientation, prepare_mesh, snap_mesh,  # noqa: E402
                                     trusted_dense, vertex_normals)
 from scroll_label_snap.tifxyz import read_tifxyz  # noqa: E402
+from eval_snap import otsu_class_means  # noqa: E402
 
 
 def drift_field(rng, amp=1.5, corr=40.0, n_modes=64):
@@ -156,6 +157,14 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0, prediction="m7"
     tr = np.zeros(prep0.vd.shape, bool)
     tr[prep0.vd] = trusted_dense(prep0, p)
     tr &= both
+    # the refiner with thresholds from this patch's own gap and papyrus levels (Otsu class means)
+    gap_level, pap_level = otsu_class_means(ct)
+    kw_ad = dict(low=gap_level / 255, high=pap_level / 255, vol=ac_vol)
+    b0a = on_grid(prep0, alphacomp_shifts(ct, X0[prep0.vd], N0[prep0.vd], **kw_ad))
+    bda = on_grid(prep_d, alphacomp_shifts(ct, prep_d.Pd[prep_d.vd], prep_d.Nd[prep_d.vd], **kw_ad))
+    m0a = float(np.nanmedian(b0a[prep0.vd]))
+    pos["baseline adaptive offset-corrected(drifted)"] = prep_d.Pd + (bda - m0a)[..., None] * prep_d.Nd
+    pos["baseline adaptive offset-corrected(original)"] = X0 + (b0a - m0a)[..., None] * N0
     # the refiner with other opacity thresholds (VC3D's defaults are 118 and 165 of 255)
     grid = {}
     for lo, hi in BASELINE_GRID:
@@ -170,6 +179,9 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0, prediction="m7"
         "snapper": stats(err("snap(drifted)")[tr]),
         "baseline": stats(err("baseline(drifted)")[tr]),
         "baseline, offset-corrected": stats(err("baseline offset-corrected(drifted)")[tr]),
+        "baseline, adaptive thresholds, offset-corrected": stats(err("baseline adaptive offset-corrected(drifted)")[tr]),
+        "baseline, adaptive thresholds consistency": stats(err("baseline adaptive offset-corrected(drifted)",
+                                                               pos["baseline adaptive offset-corrected(original)"])[both]),
         "snapper consistency": stats(err("snap(drifted)", pos["snap(original)"])[both]),
         "baseline consistency": stats(err("baseline(drifted)", pos["baseline(original)"])[both]),
     }

@@ -29,16 +29,33 @@ def main(out_prefix, *paths):
         return float(np.sum(v * w) / np.sum(w))
 
     rows = [("No correction (drifted labels)", "drifted (no correction)"),
-            ("Existing refiner (alpha-composite)", "baseline"),
-            ("Snapper", "snapper")]
+            ("Existing refiner (alpha-composite)", "baseline")]
+    if all("baseline, offset-corrected" in c["drift_test"] for c in cubes):
+        rows += [("Existing refiner, its median offset removed", "baseline, offset-corrected"),
+                 ("Existing refiner, thresholds from each cube's gap and papyrus levels, offset removed",
+                  "baseline, adaptive thresholds, offset-corrected")]
+    rows += [("Snapper", "snapper")]
     lines = ["| Method | Mean error (voxels) | Within 1 voxel | Over 2 voxels |",
              "|---|---|---|---|"]
     for label, m in rows:
         lines.append(f"| {label} | {wavg(m, 'mean'):.2f} | {wavg(m, 'within_1'):.0%} | "
                      f"{wavg(m, 'over_2'):.0%} |")
+    if all("baseline_grid" in c for c in cubes):
+        def gavg(key, stat):
+            v = np.array([c["baseline_grid"][key]["offset_corrected"][stat] for c in cubes])
+            w = np.array([c["baseline_grid"][key]["offset_corrected"]["n"] for c in cubes], float)
+            ok = w > 0
+            return float(np.sum(v[ok] * w[ok]) / np.sum(w[ok]))
+        keys = list(cubes[0]["baseline_grid"])
+        best = min(keys, key=lambda k: gavg(k, "mean"))
+        lines.insert(len(lines) - 1, f"| Existing refiner, thresholds {best} (best of {len(keys)} pairs on these cubes), "
+                     f"offset removed | {gavg(best, 'mean'):.2f} | {gavg(best, 'within_1'):.0%} | {gavg(best, 'over_2'):.0%} |")
     lines += ["", "| Consistency (drifted vs clean result) | Mean difference (voxels) | Within 1 voxel |",
               "|---|---|---|"]
-    for label, m in [("Existing refiner", "baseline consistency"), ("Snapper", "snapper consistency")]:
+    cons = [("Existing refiner", "baseline consistency")]
+    if all("baseline, adaptive thresholds consistency" in c["drift_test"] for c in cubes):
+        cons.append(("Existing refiner, thresholds from each cube's levels", "baseline, adaptive thresholds consistency"))
+    for label, m in cons + [("Snapper", "snapper consistency")]:
         lines.append(f"| {label} | {wavg(m, 'mean'):.2f} | {wavg(m, 'within_1'):.0%} |")
     al = {k: np.mean([c["edge_alignment"][k]["mean_step"] for c in cubes])
           for k in ("original", "snap(original)", "baseline(original)")}

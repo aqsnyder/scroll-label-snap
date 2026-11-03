@@ -7,6 +7,11 @@
 2. Edge alignment on the clean labels: intensity step across the label (papyrus side
    minus gap side) for original, snapped and baseline labels.
 
+The refiner works to its own convention, so it is also scored with its median offset on the clean
+labels removed: with VC3D's default thresholds, with thresholds from each cube's own gap and
+papyrus levels (Otsu class means), and with each pair in a grid (summarize_eval.py reports the
+pair that is best over all evaluated cubes, i.e. the refiner's most generous setting).
+
 Usage:
   python tools/eval_snap.py OUT_JSON IMAGE_TIF LABEL_TIF [IMAGE_TIF LABEL_TIF ...]
 """
@@ -47,6 +52,23 @@ def band_position(lab, pts, n, tmax=5.0):
 def baseline(img, lab, prep):
     _, pts, n, _, _, _ = prep
     return warp_labels(lab, pts, n, alphacomp_shifts(img, pts, n))
+
+
+# Opacity thresholds (of 255) tried for the refiner; VC3D's defaults are 118 and 165.
+BASELINE_GRID = [(lo, hi) for lo in (50, 70, 90, 118) for hi in (110, 140, 165, 200) if hi >= lo + 25]
+
+
+def otsu_class_means(img):
+    """Mean intensity below and above the Otsu threshold (gap and papyrus levels), ignoring 0."""
+    v = img[img > 0].astype(np.float64)
+    h, e = np.histogram(v, 256, (0, 256))
+    c = (e[:-1] + e[1:]) / 2
+    wb = np.cumsum(h)
+    wf = wb[-1] - wb
+    mb = np.cumsum(h * c) / np.maximum(wb, 1)
+    mf = (np.sum(h * c) - np.cumsum(h * c)) / np.maximum(wf, 1)
+    k = int(np.argmax(wb * wf * (mb - mf) ** 2))
+    return float(mb[k]), float(mf[k])
 
 
 def stats(err):
@@ -91,18 +113,44 @@ def evaluate(img_path, lab_path, p, seed):
         "baseline(original)": baseline(img, lab, prep0),
         "baseline(drifted)": baseline(img, lab_d, prep_d),
     }
+    # fairer versions of the refiner: its own convention offset removed (the median shift it
+    # applies to the clean labels), with thresholds from this cube's own gap and papyrus levels,
+    # and with each threshold pair of a grid (the best pair over all cubes is picked afterwards)
+    pts_d, n_d = prep_d[1], prep_d[2]
+    ac_vol = ndi.gaussian_filter(img.astype(np.float32) / 255.0, 1.4)
+
+    def refiner_corrected(low, high, also_clean=False):
+        s0 = alphacomp_shifts(img, pts0, n0, low=low, high=high, vol=ac_vol)
+        m0 = float(np.median(s0))
+        sd = alphacomp_shifts(img, pts_d, n_d, low=low, high=high, vol=ac_vol)
+        clean = warp_labels(lab, pts0, n0, s0 - m0) if also_clean else None
+        return warp_labels(lab_d, pts_d, n_d, sd - m0), m0, clean
+
+    versions["baseline offset-corrected(drifted)"], off_default, _ = refiner_corrected(118 / 255, 165 / 255)
+    gap_level, pap_level = otsu_class_means(img)
+    (versions["baseline adaptive(drifted)"], off_adaptive,
+     versions["baseline adaptive(original)"]) = refiner_corrected(gap_level / 255, pap_level / 255, also_clean=True)
     pos = {k: band_position(v, pts0[inner], n0[inner]) for k, v in versions.items()}
     o = pos["original"]
     tr = trusted_samples(lab, prep0, p)[inner]
+    grid = {}
+    for lo, hi in BASELINE_GRID:
+        lab_g, m0, _ = refiner_corrected(lo / 255, hi / 255)
+        e = np.abs(band_position(lab_g, pts0[inner], n0[inner]) - o)[tr]
+        grid[f"{lo}-{hi}"] = dict(offset_corrected=stats(e), median_offset=m0)
     drift_res = {
         # accuracy where the original label is trustworthy ground truth
         "drifted (no correction)": stats(np.abs(pos["drifted"] - o)[tr]),
         "snapper": stats(np.abs(pos["snap(drifted)"] - o)[tr]),
         "baseline": stats(np.abs(pos["baseline(drifted)"] - o)[tr]),
+        "baseline, offset-corrected": stats(np.abs(pos["baseline offset-corrected(drifted)"] - o)[tr]),
+        "baseline, adaptive thresholds, offset-corrected": stats(np.abs(pos["baseline adaptive(drifted)"] - o)[tr]),
         # consistency everywhere: does correcting drifted labels land where correcting
         # the clean labels lands?
         "snapper consistency": stats(np.abs(pos["snap(drifted)"] - pos["snap(original)"])),
         "baseline consistency": stats(np.abs(pos["baseline(drifted)"] - pos["baseline(original)"])),
+        "baseline, adaptive thresholds consistency": stats(np.abs(pos["baseline adaptive(drifted)"]
+                                                                   - pos["baseline adaptive(original)"])),
     }
     moved = pos["snap(original)"] - o
     clean_moves = dict(frac_moved_1vox=float(np.nanmean(np.abs(moved) >= 1.0)),
@@ -122,7 +170,9 @@ def evaluate(img_path, lab_path, p, seed):
     name = os.path.basename(img_path).rsplit(".", 1)[0]
     return dict(cube=name, seconds=round(time.time() - t0, 1), n_points=int(inner.sum()),
                 n_trusted=int(tr.sum()), drift_test=drift_res, edge_alignment=align,
-                clean_label_moves=clean_moves)
+                clean_label_moves=clean_moves, baseline_grid=grid,
+                baseline_offsets=dict(default=off_default, adaptive=off_adaptive,
+                                      adaptive_thresholds=[gap_level, pap_level]))
 
 
 def main(out_json, *paths):
