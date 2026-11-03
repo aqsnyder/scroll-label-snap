@@ -5,7 +5,8 @@
    how far the result ends up from where the labels were before drifting. Also measure
    consistency: does correcting drifted labels land where correcting the clean labels lands?
 2. Edge alignment on the clean labels: intensity step across the label (papyrus side
-   minus gap side) for original, snapped and baseline labels.
+   minus gap side) for original, snapped and baseline labels (the refiner with its default
+   thresholds, and with thresholds from the cube's own levels and its median offset removed).
 
 The refiner works to its own convention, so it is also scored with its median offset on the clean
 labels removed: with VC3D's default thresholds, with thresholds from each cube's own gap and
@@ -69,6 +70,16 @@ def otsu_class_means(img):
     mf = (np.sum(h * c) - np.cumsum(h * c)) / np.maximum(wf, 1)
     k = int(np.argmax(wb * wf * (mb - mf) ** 2))
     return float(mb[k]), float(mf[k])
+
+
+def step_alignment(ct_e, pts, n, q):
+    """CT step across a label at band positions q along the normals: papyrus side (2 voxels
+    toward -n) minus gap side (2 voxels toward +n). ct_e is the CT blurred with sigma 0.5."""
+    ok = np.isfinite(q)
+    c = pts[ok] + q[ok, None] * n[ok]
+    step = sample(ct_e, c - 2 * n[ok]) - sample(ct_e, c + 2 * n[ok])
+    return dict(mean_step=float(np.mean(step)), frac_positive=float(np.mean(step > 0)),
+                coverage=float(ok.mean()))
 
 
 def stats(err):
@@ -159,14 +170,8 @@ def evaluate(img_path, lab_path, p, seed):
     # edge alignment on the clean labels: CT step across the label along the normal
     ct_e = ndi.gaussian_filter(img.astype(np.float32), 0.5)
     pi, ni = pts0[inner], n0[inner]
-    align = {}
-    for k in ("original", "snap(original)", "baseline(original)"):
-        q = pos[k]
-        ok = np.isfinite(q)
-        c = pi[ok] + q[ok, None] * ni[ok]
-        step = sample(ct_e, c - 2 * ni[ok]) - sample(ct_e, c + 2 * ni[ok])
-        align[k] = dict(mean_step=float(np.mean(step)), frac_positive=float(np.mean(step > 0)),
-                        coverage=float(ok.mean()))
+    align = {k: step_alignment(ct_e, pi, ni, pos[k])
+             for k in ("original", "snap(original)", "baseline(original)", "baseline adaptive(original)")}
     name = os.path.basename(img_path).rsplit(".", 1)[0]
     return dict(cube=name, seconds=round(time.time() - t0, 1), n_points=int(inner.sum()),
                 n_trusted=int(tr.sum()), drift_test=drift_res, edge_alignment=align,
