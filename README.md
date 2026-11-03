@@ -31,6 +31,8 @@ These are the full results in [`results/eval_v2.md`](results/eval_v2.md), with p
 
 ![per-cube results](results/eval_v2.png)
 
+A before/after on cube sample_00005, with the current version, is in [`results/labels_before_after_00005.png`](results/labels_before_after_00005.png). It shows the three largest changes and three random slices.
+
 **Drift test.** Each cube's labels were pushed off the surface by a known smooth random drift (std 1.5 voxels, correlation length 40 voxels). Each method was then run on the drifted labels, and we measured how far the result lands from the original label. This is scored only at **trusted points**: places where the original label sits on a strong, unambiguous edge, so it can serve as ground truth (258,394 points).
 
 | Method | Mean error (voxels) | Within 1 voxel | Over 2 voxels |
