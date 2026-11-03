@@ -83,14 +83,17 @@ def download_tifxyz(url, out):
     return got
 
 
-def pick_windows(valid, size, count, rng):
-    """Top-left corners of fully valid size x size windows, spread apart."""
+def pick_windows(valid, size, count, rng, taken=()):
+    """Top-left corners of fully valid size x size windows, spread apart and clear of the windows
+    in `taken` ((row, col, size) each)."""
     c = np.pad(np.cumsum(np.cumsum(valid.astype(np.int64), 0), 1), ((1, 0), (1, 0)))
     full = (c[size:, size:] - c[:-size, size:] - c[size:, :-size] + c[:-size, :-size]) == size * size
     cand = np.argwhere(full)
     out = []
     for k in rng.permutation(len(cand)):
         i, j = cand[k]
+        if any(i < r + s and r < i + size and j < c + s and c < j + size for r, c, s in taken):
+            continue
         if all(max(abs(i - a), abs(j - b)) >= size for a, b in out):
             out.append((int(i), int(j)))
             if len(out) == count:
@@ -109,6 +112,8 @@ def main():
     ap.add_argument("--level", type=int, default=0, help="OME-Zarr level to crop (0 = full resolution)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--max-side", type=int, default=900, help="skip windows whose crop is longer than this")
+    ap.add_argument("--exclude", action="append", default=[],
+                    help="a previous OUT_DIR: never pick a window overlapping one of its patches (for held-out sets)")
     a = ap.parse_args()
     import fsspec
     import zarr
@@ -130,7 +135,16 @@ def main():
     print(f"volume level {a.level}: shape {vol.shape}, chunks {vol.chunks}, dtype {vol.dtype}", flush=True)
     f = 2 ** a.level
     rng = np.random.default_rng(a.seed)
-    windows = pick_windows(valid, a.patch, a.patches * 4, rng)
+    taken = []
+    for ex in a.exclude:
+        for d in sorted(os.listdir(ex)):
+            pj = os.path.join(ex, d, "patch.json")
+            if d.startswith("patch_") and os.path.exists(pj):
+                g = json.load(open(pj))["grid_window"]
+                taken.append((g["row"], g["col"], g["size"]))
+    if taken:
+        print(f"keeping clear of {len(taken)} patches in {', '.join(a.exclude)}", flush=True)
+    windows = pick_windows(valid, a.patch, a.patches * 4, rng, taken)
     done = 0
     for (i, j) in windows:
         sl = (slice(i, i + a.patch), slice(j, j + a.patch))

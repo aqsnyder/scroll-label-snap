@@ -69,6 +69,45 @@ The refiner is a Python port of VC3D's `ObjAlphaCompRefinement`. Its default opa
 
 Per-patch numbers are in [`eval_mesh_w035.json`](eval_mesh_w035.json) and [`eval_mesh_w035_drift80.json`](eval_mesh_w035_drift80.json).
 
+## Fibre check: does the snapper land on recto faces?
+
+A papyrus sheet is two fibre layers. The recto layer faces the scroll centre, and its fibres run horizontally, around the scroll. The verso layer's fibres run vertically, along the scroll's axis. This gives a test that the snapper's own scores never look at.
+
+Read the CT through a surface at increasing depth into the papyrus from its face:
+- **On a recto face,** fibres near the face should run across the scroll axis, then turn toward the axis deeper in.
+- **On a verso face,** the pattern should reverse.
+- **For a surface that wanders between layers,** it should blur out.
+
+`tools/fibre_check.py` measures texture direction in the surface, relative to the scan's z axis. It uses a structure tensor on papyrus pixels away from gaps. The anisotropy A is positive when fibres run across the axis (recto-like). Per mesh, the summary is A at 1–2 voxels in minus A at 5–6 voxels in. This difference is positive for the recto pattern, and it cancels any per-patch bias in A.
+
+For a control, the same patches were also snapped onto the opposite faces: `--normals grid`, which makes the snapper treat the outward side as the gap.
+
+| Surface | Near minus deep (mean over 8 patches) | Positive in |
+|---|---|---|
+| Original mesh | +0.010 | 5 of 8 |
+| Snapped onto recto-polarity faces (default) | **+0.147** | **8 of 8** |
+| Control: snapped onto the opposite faces | −0.009 | 4 of 8 |
+
+![fibre check](fibre_w035.png)
+
+The snapped surface shows the recto pattern in every patch. The original mesh and the control do not. The effect is consistent, but small in absolute terms: near the face, both fibre directions are visible.
+
+What this does and doesn't show:
+- **It shows** the snapper's faces are recto faces, not the inner faces of verso layers, which is the likely mix-up within ±4 voxels when sheets are about 8 voxels thick.
+- **It can't show** whether a recto face belongs to the sheet the tracer meant, or to the next sheet's recto.
+
+Per-patch numbers are in [`fibre_w035.json`](fibre_w035.json). The texture windows in the figure are from patch_1, the clearest of the 8. The curves cover all 8.
+
+## Review flags
+
+The snapper marks two kinds of place:
+- **At the search limit:** 15% of dense samples stop at ±4 voxels, so the face may be farther away. These are written to the `snap_limit` channel.
+- **Reversed face:** 10.5% sit on a face of the opposite polarity, as for labels. These are written to `snap_flag`.
+
+Together these cover 23% of the dense surface. On the input-size grid, `snap_review` marks the 17% of vertices where most of the surrounding surface is flagged. That points a reviewer at about a fifth of the mesh rather than all of it.
+
+A wider search range (`--param t_max=6`) cuts the samples at the limit to about 6%. But the fibre pattern gets slightly weaker (+0.138, positive in 7 of 8 patches), so ±4 stays the default.
+
 ## How much the original mesh moves, and the open question
 
 The snapper moves the original mesh a lot: a mean of 1.96 voxels, and 78% of samples by at least 1 voxel. The shifts are spread fairly evenly over the ±4-voxel search range:
@@ -79,7 +118,7 @@ The snapper moves the original mesh a lot: a mean of 1.96 voxels, and 78% of sam
 
 At this resolution, the sheets in these patches are thin (about 8 voxels) and often packed into bundles of thinner layers. The original trace often runs through the middle of a bundle. Where it does, there is more than one recto-polarity face within reach. The snapper takes the nearest one that fits smoothly with its neighbours, and that may be a neighbouring thin layer rather than the one the tracer meant.
 
-The drift test only shows that the snapper keeps a mesh that already sits on a clear face, and brings a drifted one back to it. It cannot say which layer a wandering trace should follow. That needs an expert eye, or a downstream check such as ink detection on renders of the original and the snapped mesh.
+The drift test only shows that the snapper keeps a mesh that already sits on a clear face, and brings a drifted one back to it. The fibre check adds that the faces it picks are recto faces. Neither can say which sheet's recto a wandering trace should follow where two lie within reach. That needs an expert eye, or a downstream check such as ink detection on renders of the original and the snapped mesh.
 
 ## Reproduce
 
@@ -92,6 +131,9 @@ python tools/snap_tifxyz.py snapped segments/w035/patch_*
 python tools/eval_mesh.py results/eval_mesh_w035.json segments/w035/patch_*
 python tools/eval_mesh.py results/eval_mesh_w035_drift80.json segments/w035/patch_* --drift-std 2 --drift-corr 80
 python tools/render_mesh.py results/mesh_w035_render.png snapped segments/w035/patch_1 segments/w035/patch_3 segments/w035/patch_6 --sections
+python tools/snap_tifxyz.py snapped_opposite segments/w035/patch_* --normals grid      # control for the fibre check
+python tools/fibre_check.py results/fibre_w035.json segments/w035/patch_* --snapped snapped --control snapped_opposite \
+    --png results/fibre_w035.png --show patch_1
 ```
 
 The fetch needs `pip install "zarr>=2.16,<3" fsspec aiohttp requests`. The patches total about 400 MB.

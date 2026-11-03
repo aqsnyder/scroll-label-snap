@@ -149,7 +149,16 @@ First test: segment w035 of PHerc. 0139 at 9.362 µm, the one in the scrollprize
 
 Each patch shows the CT read through the original and the snapped mesh, just inside and just outside the recto face, plus a cross-section.
 
-**Open question.** At this resolution, sheets are often thin layers packed into bundles. Where the original trace runs through the middle of a bundle, the snapper picks the nearest recto face within ±4 voxels. That may be a neighbouring layer rather than the one the tracer meant. The drift test cannot tell these apart. It needs expert review, or a downstream check such as ink detection on renders of both meshes.
+**Fibre check.** Recto fibres run around the scroll and verso fibres along its axis. So under a surface on a recto face, the fibre direction should turn from across the axis to along it, going deeper into the papyrus. `tools/fibre_check.py` measures this, independently of the snapper's scores.
+- **Snapped surface:** shows the pattern in 8 of 8 patches.
+- **Original mesh:** 5 of 8, with near-zero size.
+- **Control snapped onto the opposite faces:** 4 of 8.
+
+So the snapper lands on recto faces. The effect is small but consistent. See [`results/fibre_w035.png`](results/fibre_w035.png).
+
+**Review flags.** 15% of samples stop at the ±4-voxel search limit (`snap_limit`), and 10.5% sit on a reversed face (`snap_flag`). On the input grid, `snap_review` marks the 17% of vertices where most of the surrounding surface is flagged.
+
+**Open question.** At this resolution, sheets are often thin layers packed into bundles. Where two recto faces lie within ±4 voxels of a wandering trace, neither the drift test nor the fibre check can say which sheet the tracer meant. That needs expert review, or a downstream check such as ink detection on renders of both meshes.
 
 ```bash
 pip install "zarr>=2.16,<3" fsspec aiohttp requests        # to read the scan from the open-data bucket
@@ -157,6 +166,7 @@ python tools/fetch_segment.py segments/w035 --segment <tifxyz URL> --volume <OME
 python tools/snap_tifxyz.py snapped segments/w035/patch_*   # snapped.tifxyz (same grid) + snapped_dense.tifxyz
 python tools/eval_mesh.py out/eval_mesh.json segments/w035/patch_*
 python tools/render_mesh.py out/render.png snapped segments/w035/patch_1 --sections
+python tools/fibre_check.py out/fibre.json segments/w035/patch_* --snapped snapped --png out/fibre.png
 ```
 
 ## Setup

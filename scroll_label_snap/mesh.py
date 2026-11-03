@@ -258,6 +258,7 @@ class MeshSnapResult:
     dense_shift: np.ndarray  # shift along the normal per dense sample (volume voxels; 0 if invalid)
     dense_confidence: np.ndarray  # 0..1
     dense_flag: np.ndarray   # label-on-a-reversed-face flag, as for labels
+    dense_limit: np.ndarray  # shift stopped at the edge of the search range: the face may be farther
     factor: int
     info: dict
 
@@ -276,6 +277,8 @@ def snap_mesh(ct, P, valid, p: Params | None = None, offset_zyx=(0, 0, 0), level
     conf_d[vd] = conf
     flag_d = np.zeros(vd.shape, bool)
     flag_d[vd] = rev
+    limit_d = np.zeros(vd.shape, bool)
+    limit_d[vd] = np.abs(shift) >= p.t_max - 1e-6
     off = np.asarray(offset_zyx, np.float32)
     dense = (prep.Pd + shift_d[..., None] * prep.Nd + off) / level_scale
     v_shift = fit_vertex_shifts(prep.ok, prep.factor, vd, shift_d)
@@ -285,9 +288,10 @@ def snap_mesh(ct, P, valid, p: Params | None = None, offset_zyx=(0, 0, 0), level
     info.update(factor=prep.factor, vertex_spacing=prep.spacing / level_scale,
                 normal_sign=prep.normal_sign, orientation_agree=prep.orientation_agree,
                 n_vertices=int(prep.ok.sum()), n_dense=int(vd.sum()),
+                frac_at_limit=float(limit_d[vd].mean()) if vd.any() else 0.0,
                 mean_abs_vertex_shift=float(np.abs(v_shift[prep.ok]).mean()) if prep.ok.any() else 0.0)
     return MeshSnapResult(Pout, prep.ok, v_shift / level_scale, dense.astype(np.float32), vd,
-                          shift_d / level_scale, conf_d, flag_d, prep.factor, info)
+                          shift_d / level_scale, conf_d, flag_d, limit_d, prep.factor, info)
 
 
 def trusted_dense(prep: MeshPrep, p: Params):
