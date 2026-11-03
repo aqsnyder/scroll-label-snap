@@ -71,7 +71,7 @@ The refiner's ceiling on the held-out cubes, the pair that is best there (50-110
 |---|---|---|
 | Original labels | 67% | 63% |
 | Existing refiner, default thresholds | 35% | 45% |
-| Existing refiner, thresholds from each cube's own levels, offset removed | 75% | pending |
+| Existing refiner, thresholds from each cube's own levels, offset removed | 75% | 71% |
 | **Snapper** | **91%** | **86%** |
 
 ![per-cube results, held-out cubes](results/eval_heldout.png)

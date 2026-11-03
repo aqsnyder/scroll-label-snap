@@ -11,8 +11,10 @@ Options:
   --tile 24 --overlap 4   tiles of 24 x 24 vertices, overlapping neighbours by 4 vertices on each
                           side and blended there, so there are no seams
   --workers 4             tiles processed in parallel (each needs about 1-2 GB of memory)
-  --cache DIR             keep the downloaded scan chunks in DIR, so reruns and neighbouring tiles
-                          don't download them again (recommended; a whole segment can need 10+ GB)
+  --cache DIR             keep the downloaded scan chunks in DIR, one file per chunk, so reruns,
+                          neighbouring tiles and render_segment.py don't download them again
+                          (recommended; a whole segment can need 10+ GB). Chunks a masked scan
+                          leaves out are remembered as missing and read as empty.
   --target-offset T       where the mesh should sit relative to the recto face (as in
                           snap_tifxyz.py). Default: one offset for the whole segment, the median
                           of the segment's own offsets in --sample-tiles tiles (12), so the result
@@ -48,22 +50,134 @@ from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, de
 from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
 
 
+def _chunk_cache_class():
+    from zarr.storage import BaseStore
+
+    class ChunkCache(BaseStore):
+        """Read-only zarr store over an fsspec mapper that keeps every key it fetches as a file
+        under `cache_dir`, so reruns and the render step read the scan from disk.
+
+        - Chunks missing from the source read as missing, so zarr fills them (a masked scan
+          leaves its empty chunks out), and are remembered with a `.missing` marker. Any other
+          error (a network failure) is raised and nothing is cached for it.
+        - Many processes can share the folder: each file is written under a temporary name and
+          renamed into place; if that fails, the data is still returned.
+        (fsspec's filecache fails a whole read when one chunk is missing, which breaks masked scans.)"""
+        _writeable = False
+        _erasable = False
+        _listable = False
+
+        def __init__(self, source, cache_dir):
+            self.source = source
+            self.dir = cache_dir
+            os.makedirs(cache_dir, exist_ok=True)
+
+        def _file(self, key):
+            return os.path.join(self.dir, *key.split("/"))
+
+        def _cached(self, key):
+            """(known, data); data is None for a key known to be missing."""
+            f = self._file(key)
+            try:
+                with open(f, "rb") as fh:
+                    return True, fh.read()
+            except OSError:
+                pass
+            return (True, None) if os.path.exists(f + ".missing") else (False, None)
+
+        def _keep(self, key, data):
+            f = self._file(key) + (".missing" if data is None else "")
+            tmp = f"{f}.{os.getpid()}.tmp"
+            try:
+                os.makedirs(os.path.dirname(f), exist_ok=True)
+                with open(tmp, "wb") as fh:
+                    fh.write(b"" if data is None else data)
+                os.replace(tmp, f)
+            except OSError:          # another process is writing it, or the disk is full
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+
+        def __getitem__(self, key):
+            known, data = self._cached(key)
+            if not known:
+                try:
+                    data = self.source[key]
+                except KeyError:
+                    data = None
+                self._keep(key, data)
+            if data is None:
+                raise KeyError(key)
+            return data
+
+        def __contains__(self, key):
+            try:
+                self[key]
+                return True
+            except KeyError:
+                return False
+
+        def getitems(self, keys, *, contexts=None):
+            out, need = {}, []
+            for k in keys:
+                known, data = self._cached(k)
+                if not known:
+                    need.append(k)
+                elif data is not None:
+                    out[k] = data
+            if need:
+                got = self.source.getitems(need, on_error="return")   # fetched concurrently
+                for k in need:
+                    v = got.get(k, KeyError(k))
+                    if isinstance(v, KeyError):
+                        self._keep(k, None)
+                    elif isinstance(v, BaseException):
+                        raise v
+                    else:
+                        self._keep(k, v)
+                        out[k] = v
+            return out
+
+        def __setitem__(self, key, value):
+            raise PermissionError("read-only store")
+
+        def __delitem__(self, key):
+            raise PermissionError("read-only store")
+
+        def __iter__(self):
+            return iter(())
+
+        def __len__(self):
+            return 0
+
+    return ChunkCache
+
+
+def cache_dir_for(cache, path):
+    """A readable, short folder name for one array of one scan inside the cache folder."""
+    import hashlib
+    import re
+    tail = re.sub(r"[^A-Za-z0-9._-]+", "_", path.split("://", 1)[-1])[-72:].strip("_")
+    return os.path.join(cache, f"{tail}-{hashlib.sha1(path.encode()).hexdigest()[:8]}")
+
+
 def open_volume(url, level, cache=None):
     """A resolution level of an OME-Zarr (or the array itself if it has no levels), local or
-    over http(s); with `cache`, downloaded chunks are kept on disk."""
+    over http(s); with `cache`, downloaded chunks are kept on disk (see ChunkCache)."""
     import fsspec
     import zarr
     base = url.rstrip("/")
-    opts = {}
-    if cache and base.startswith(("http://", "https://")):
-        base = "filecache::" + base
-        opts = dict(filecache=dict(cache_storage=cache))
+    errors = []
     for path in (f"{base}/{level}", base):
         try:
-            return zarr.open_array(fsspec.get_mapper(path, **opts), mode="r")
-        except Exception:
-            continue
-    raise FileNotFoundError(f"no zarr array at {url} (level {level})")
+            store = fsspec.get_mapper(path)
+            if cache and path.startswith(("http://", "https://")):
+                store = _chunk_cache_class()(store, cache_dir_for(cache, path))
+            return zarr.open_array(store, mode="r")
+        except Exception as e:
+            errors.append(f"{path}: {type(e).__name__}: {e}")
+    raise FileNotFoundError(f"no zarr array at {url} (level {level}). Tried:\n  " + "\n  ".join(errors))
 
 
 def tile_windows(valid, tile, overlap):
@@ -81,11 +195,18 @@ def tile_windows(valid, tile, overlap):
     return out
 
 
-def read_crop(vol, P, valid, level_scale, margin):
+def read_crop(vol, P, valid, level_scale, margin, tries=4):
+    """The scan around a set of vertices; a failed read (e.g. a network hiccup) is retried."""
     Q = P[valid].astype(np.float64) * level_scale
     lo = np.maximum(np.floor(Q.min(0)).astype(int) - margin, 0)
     hi = np.minimum(np.ceil(Q.max(0)).astype(int) + margin + 1, np.array(vol.shape[-3:]))
-    return np.asarray(vol[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]]), lo
+    for k in range(tries):
+        try:
+            return np.asarray(vol[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]]), lo
+        except Exception:
+            if k == tries - 1:
+                raise
+            time.sleep(2 ** k)
 
 
 _STATE = {}
@@ -97,14 +218,17 @@ def _init(volume, level, cache, seg_dir):
 
 
 def tile_convention(win, p, level_scale, margin, factor, sign):
-    """The tile's own offset of the recto face from the mesh."""
-    P, valid, _ = _STATE["seg"]
-    r0, r1, c0, c1, _ = win
-    Pw, vw = P[r0:r1, c0:c1], valid[r0:r1, c0:c1]
-    ct, lo = read_crop(_STATE["vol"], Pw, vw, level_scale, margin)
-    prep = prepare_mesh(ct, Pw, vw, p, lo, level_scale, factor=factor, normal_sign=sign)
-    c_off, _ = estimate_convention(prep.ct_s, prep.Pd[prep.vd], prep.Nd[prep.vd], p)
-    return float(c_off)
+    """The tile's own offset of the recto face from the mesh: (offset, None), or (None, error)."""
+    try:
+        P, valid, _ = _STATE["seg"]
+        r0, r1, c0, c1, _ = win
+        Pw, vw = P[r0:r1, c0:c1], valid[r0:r1, c0:c1]
+        ct, lo = read_crop(_STATE["vol"], Pw, vw, level_scale, margin)
+        prep = prepare_mesh(ct, Pw, vw, p, lo, level_scale, factor=factor, normal_sign=sign)
+        c_off, _ = estimate_convention(prep.ct_s, prep.Pd[prep.vd], prep.Nd[prep.vd], p)
+        return float(c_off), None
+    except Exception as e:
+        return None, f"{type(e).__name__}: {e}"
 
 
 def run_tile(win, p, level_scale, margin, factor, sign, out_path):
@@ -112,7 +236,10 @@ def run_tile(win, p, level_scale, margin, factor, sign, out_path):
     r0, r1, c0, c1, _ = win
     t0 = time.time()
     Pw, vw = P[r0:r1, c0:c1], valid[r0:r1, c0:c1]
-    ct, lo = read_crop(_STATE["vol"], Pw, vw, level_scale, margin)
+    try:
+        ct, lo = read_crop(_STATE["vol"], Pw, vw, level_scale, margin)
+    except Exception as e:                      # nothing saved, so a rerun tries this tile again
+        return dict(window=[r0, r1, c0, c1], read_error=f"{type(e).__name__}: {e}")
     t1 = time.time()
     shape = ((r1 - r0 - 1) * factor + 1, (c1 - c0 - 1) * factor + 1)
     info = dict(window=[r0, r1, c0, c1], crop=list(ct.shape), read_s=round(t1 - t0, 1))
@@ -199,6 +326,22 @@ def main():
     if a.limit:
         wins = wins[:a.limit]
     print(f"{len(wins)} tiles of up to {a.tile} x {a.tile} vertices; dense factor {factor}", flush=True)
+
+    if not wins:
+        sys.exit("the segment has no tile with enough valid vertices")
+
+    # open the scan and read one tile here first, so a problem shows up once, with its cause
+    try:
+        vol = open_volume(a.volume, a.level, a.cache)
+        r0, r1, c0, c1, _ = wins[len(wins) // 2]
+        t0 = time.time()
+        crop, _ = read_crop(vol, P[r0:r1, c0:c1], valid[r0:r1, c0:c1], level_scale, a.margin)
+    except Exception as e:
+        sys.exit(f"cannot read the scan: {type(e).__name__}: {e}")
+    print(f"scan level {a.level}: shape {vol.shape}, chunks {vol.chunks}; one tile read in {time.time() - t0:.1f} s "
+          f"(crop {list(crop.shape)}, mean {crop.mean():.0f})" + (f"; chunks are kept in {a.cache}" if a.cache else ""),
+          flush=True)
+    del vol, crop
     ctx = dict(initializer=_init, initargs=(a.volume, a.level, a.cache, seg_dir))
 
     # one convention for the whole segment: the median of the segment's own offsets in sample tiles
@@ -213,11 +356,18 @@ def main():
             rng = np.random.default_rng(0)
             pick = sorted(rng.choice(len(wins), min(a.sample_tiles, len(wins)), replace=False).tolist())
             with ProcessPoolExecutor(max_workers=a.workers, **ctx) as ex:
-                offs = list(ex.map(tile_convention, [wins[k] for k in pick], *zip(*[(p, level_scale, a.margin, factor, sign)] * len(pick))))
-            conv = dict(tiles=pick, offsets=offs, median=float(np.median(offs)))
+                res = list(ex.map(tile_convention, [wins[k] for k in pick], *zip(*[(p, level_scale, a.margin, factor, sign)] * len(pick))))
+            offs = [o for o, _ in res if o is not None]
+            errs = [e for _, e in res if e]
+            if errs:
+                print(f"{len(errs)} of {len(res)} sample tiles failed, e.g. {errs[0]}", flush=True)
+            if len(offs) < max(3, (len(res) + 1) // 2):
+                sys.exit(f"too few sample tiles worked to set the offset ({len(offs)} of {len(res)}); first error: {errs[0]}")
+            conv = dict(tiles=pick, offsets=[o for o, _ in res], errors=[e for _, e in res], median=float(np.median(offs)))
             json.dump(conv, open(conv_path, "w"), indent=1)
         c_off = conv["median"]
-        c_note = f"median of {len(conv['offsets'])} tiles (range {min(conv['offsets']):+.2f} to {max(conv['offsets']):+.2f})"
+        got = [o for o in conv["offsets"] if o is not None]
+        c_note = f"median of {len(got)} tiles (range {min(got):+.2f} to {max(got):+.2f})"
     p = replace(p, convention_offset=float(c_off))
     print(f"recto face at {c_off:+.2f} voxels from the mesh ({c_note})", flush=True)
     if a.target_offset is None and abs(c_off) >= p.convention_reach - 0.25:
@@ -235,13 +385,22 @@ def main():
     if todo:
         with ProcessPoolExecutor(max_workers=a.workers, **ctx) as ex:
             futs = {ex.submit(run_tile, w, p, level_scale, a.margin, factor, sign, path): w for w, path in todo}
+            unread = []
             for k, fu in enumerate(as_completed(futs), 1):
                 info = fu.result()
-                logs.append(info)
+                if "read_error" in info:
+                    unread.append(info)
+                    print(f"  tile at rows {info['window'][0]}-{info['window'][1]}, columns {info['window'][2]}-"
+                          f"{info['window'][3]} could not be read: {info['read_error']}", flush=True)
+                else:
+                    logs.append(info)
                 if k % 10 == 0 or k == len(todo):
                     el = time.time() - t_start
-                    print(f"  {k}/{len(todo)} tiles, {el / 60:.1f} min; last: crop {info['crop']}, read {info['read_s']} s, "
-                          f"snap {info['snap_s']} s", flush=True)
+                    last = f"; last: crop {info['crop']}, read {info['read_s']} s, snap {info['snap_s']} s" if "crop" in info else ""
+                    print(f"  {k}/{len(todo)} tiles, {el / 60:.1f} min{last}", flush=True)
+        if unread:
+            sys.exit(f"{len(unread)} tiles could not be read; run the same command again to retry them "
+                     f"(the {len(todo) - len(unread)} finished tiles are kept)")
 
     # blend the tiles into one dense shift field
     H, W = valid.shape

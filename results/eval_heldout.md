@@ -3,7 +3,7 @@
 - **Which cubes.** `tools/fetch_cubes.py --count 100 --seed 2026 --exclude <the 20 development cubes>` picked 100 of the bucket's 892 cube pairs at random. That selection rule was pushed (commit 13ab04a) before the cubes were downloaded or evaluated. The names are in `heldout_selection.json`.
 - **Settings.** The snapper and evaluation ran with the v2 defaults. Nothing was tuned on these cubes.
 - **Run.** `tools/eval_folder.py` ran on Lysander (Ryzen AI Max+ 395) with 12 workers and took 47 minutes. Per-cube numbers are in `eval_heldout.json`.
-- **Rerun with fairer refiner baselines** (3 Nov, 100 minutes). It adds the refiner with its median offset removed, with thresholds from each cube's own gap and papyrus levels, and with each of 13 threshold pairs. The clean-label row for the second comes from `tools/clean_alignment.py` (pending). Every number of the first run reproduced exactly on all 100 cubes. The pair 70-110 was picked on the development cubes beforehand; 50-110 is the best pair on these cubes, picked after seeing them, so it is the refiner's ceiling here.
+- **Rerun with fairer refiner baselines** (3 Nov, 100 minutes). It adds the refiner with its median offset removed, with thresholds from each cube's own gap and papyrus levels, and with each of 13 threshold pairs. Its clean-label row comes from `tools/clean_alignment.py`, which first checked that the original and default-refiner rows recompute exactly (they did). Every number of the first run reproduced exactly on all 100 cubes. The pair 70-110 was picked on the development cubes beforehand; 50-110 is the best pair on these cubes, picked after seeing them, so it is the refiner's ceiling here.
 
 | Method | Mean error (voxels) | Within 1 voxel | Over 2 voxels |
 |---|---|---|---|
@@ -25,6 +25,7 @@
 |---|---|---|
 | Original | 19.0 | 63% |
 | Existing refiner | -6.2 | 45% |
+| Existing refiner, thresholds from each cube's levels, offset removed | 30.8 | 71% |
 | Snapper | 47.1 | 86% |
 
 100 cubes, 10,746,898 evaluated surface points, 717,523 trusted points. On clean labels the snapper moved 70% of points by 1 voxel or more (median signed shift +0.00 voxels).
@@ -45,6 +46,7 @@ Development numbers are from [`eval_dev.md`](eval_dev.md), with drift seed k for
 | Consistency: within 1 voxel, existing refiner, thresholds from each cube's levels | 77% | 73% |
 | Consistency: within 1 voxel, existing refiner, default thresholds | 61% | 63% |
 | Clean labels: papyrus on the correct side, original | 67% | 63% |
+| Clean labels: papyrus on the correct side, existing refiner, thresholds from each cube's levels, offset removed | 75% | 71% |
 | Clean labels: papyrus on the correct side, snapper | 91% | 86% |
 
 Held-out cubes: 100, 10,746,898 evaluated surface points, 717,523 trusted points.
