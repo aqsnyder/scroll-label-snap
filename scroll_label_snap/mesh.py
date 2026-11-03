@@ -151,6 +151,15 @@ def axis_orientation(P, valid, axis_yx=None):
     return sign, max(frac, 1 - frac), (float(axis_yx[0]), float(axis_yx[1]))
 
 
+def axis_fit_is_meaningful(P, valid, axis_yx):
+    """A circle fit only says where the scroll centre is if the segment curves noticeably: the
+    fitted radius should not dwarf the segment's own extent in (y, x)."""
+    q = P[valid].astype(np.float64)
+    r = np.hypot(q[:, 1] - axis_yx[0], q[:, 2] - axis_yx[1])
+    extent = max(np.ptp(q[:, 1]), np.ptp(q[:, 2]))
+    return bool(np.median(r) < 3 * extent), float(np.median(r)), float(extent)
+
+
 _ORIENT = {}
 
 
@@ -169,6 +178,8 @@ def patch_orientation(patch_dir, verbose=True):
     if whole not in _ORIENT:
         P, valid, _ = read_tifxyz(whole)
         sign, agree, axis = axis_orientation(P, valid)
+        if not axis_fit_is_meaningful(P, valid, axis)[0]:
+            agree = 0.0                      # nearly flat: the fit says nothing about the scroll centre
         if verbose:
             print(f"orientation from the whole segment: scroll axis near y {axis[0]:.0f}, x {axis[1]:.0f}; "
                   f"recto normal {'= grid normal' if sign > 0 else '= flipped grid normal'} at {agree:.0%} of vertices",
