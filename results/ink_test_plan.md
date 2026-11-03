@@ -136,7 +136,7 @@ The tools are `tools/make_ink_review.py`, `tools/score_ink_review.py` and `tools
   - The best F1 is taken over the thresholds p ≥ t on the maps' 256 levels.
 - **Sanity check.** The Pearson correlation is taken over pixels valid in our renders and non-zero in the official map.
 
-## Run log (facts recorded as the run went; nothing here compares the original and snapped ink maps)
+## Run log (facts recorded as the run went)
 
 3 November 2026, on Lysander (Windows 11, Ryzen AI Max+ 395, CPU only), with `run_ink_test.ps1`.
 
@@ -161,3 +161,10 @@ The tools are `tools/make_ink_review.py`, `tools/score_ink_review.py` and `tools
   - The pool was pixels where the higher map is ≥ 0.5 (7.3 million).
   - The answer key was sealed before any answers came in. Its SHA-256 (as `json.dumps(key, sort_keys=True)`) is `8a9f1f2a81c9378939dabcdba41a45dfc3d49d3c042a2aae12f8841f768d59de`.
   - An encrypted copy is `review/sealed_key_8a9f1f2a81c9.enc` (AES-256-CBC, `openssl enc -pbkdf2 -iter 200000`). The page is `review/ink/index.html`.
+- **Reviews.** Two reviewers answered on the page independently, each all 78 items: the repository owner, and someone who hadn't worked on the tool. Both got all 8 catch items right.
+- **Unsealed** after the second reviewer finished.
+  - The key is `results/ink_review_key.json`, and the passphrase is in `results/ink_review_key_passphrase.txt`.
+  - `openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in review/sealed_key_8a9f1f2a81c9.enc -pass file:results/ink_review_key_passphrase.txt` gives the key file byte for byte. Its key, hashed as above, gives the SHA-256 recorded before the answers.
+  - The answers are `results/ink_review_answers_reviewer1.json` and `results/ink_review_answers_reviewer2.json`.
+  - The scores, from `tools/score_ink_review.py` (unchanged since a1f3d91), are in `results/ink_review.md`.
+- **Primary outcome: snapping hurts.** Pooled, the snapped map was preferred 31 times and the original 75 times. That is 29% (95% CI 21–39%) of decisive answers, with a two-sided exact sign test p = 2.3 × 10⁻⁵. Each reviewer's result alone points the same way (p = 0.014 and p = 0.0006).

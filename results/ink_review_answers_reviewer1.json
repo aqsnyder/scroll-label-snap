@@ -1,0 +1,395 @@
+{
+ "reviewer": "reviewer 1 (the repository owner)",
+ "answers": {
+  "q001": {
+   "choice": "B",
+   "ms": 5808,
+   "set": "8a9f1f2a81c9"
+  },
+  "q002": {
+   "choice": "A",
+   "ms": 22301,
+   "set": "8a9f1f2a81c9"
+  },
+  "q003": {
+   "choice": "B",
+   "ms": 1339,
+   "set": "8a9f1f2a81c9"
+  },
+  "q004": {
+   "choice": "B",
+   "ms": 14574,
+   "set": "8a9f1f2a81c9"
+  },
+  "q005": {
+   "choice": "A",
+   "ms": 1775,
+   "set": "8a9f1f2a81c9"
+  },
+  "q006": {
+   "choice": "A",
+   "ms": 21439,
+   "set": "8a9f1f2a81c9"
+  },
+  "q007": {
+   "choice": "A",
+   "ms": 1384,
+   "set": "8a9f1f2a81c9"
+  },
+  "q008": {
+   "choice": "same",
+   "ms": 18418,
+   "set": "8a9f1f2a81c9"
+  },
+  "q009": {
+   "choice": "A",
+   "ms": 1450,
+   "set": "8a9f1f2a81c9"
+  },
+  "q010": {
+   "choice": "same",
+   "ms": 10175,
+   "set": "8a9f1f2a81c9"
+  },
+  "q011": {
+   "choice": "B",
+   "ms": 2638,
+   "set": "8a9f1f2a81c9"
+  },
+  "q012": {
+   "choice": "B",
+   "ms": 1393,
+   "set": "8a9f1f2a81c9"
+  },
+  "q013": {
+   "choice": "B",
+   "ms": 2930,
+   "set": "8a9f1f2a81c9"
+  },
+  "q014": {
+   "choice": "same",
+   "ms": 10434,
+   "set": "8a9f1f2a81c9"
+  },
+  "q015": {
+   "choice": "unsure",
+   "ms": 10295,
+   "set": "8a9f1f2a81c9"
+  },
+  "q016": {
+   "choice": "A",
+   "ms": 2755,
+   "set": "8a9f1f2a81c9"
+  },
+  "q017": {
+   "choice": "A",
+   "ms": 1330,
+   "set": "8a9f1f2a81c9"
+  },
+  "q018": {
+   "choice": "A",
+   "ms": 8129,
+   "set": "8a9f1f2a81c9"
+  },
+  "q019": {
+   "choice": "B",
+   "ms": 1506,
+   "set": "8a9f1f2a81c9"
+  },
+  "q020": {
+   "choice": "B",
+   "ms": 7943,
+   "set": "8a9f1f2a81c9"
+  },
+  "q021": {
+   "choice": "B",
+   "ms": 4405,
+   "set": "8a9f1f2a81c9"
+  },
+  "q022": {
+   "choice": "A",
+   "ms": 4006,
+   "set": "8a9f1f2a81c9"
+  },
+  "q023": {
+   "choice": "B",
+   "ms": 995,
+   "set": "8a9f1f2a81c9"
+  },
+  "q024": {
+   "choice": "B",
+   "ms": 1178,
+   "set": "8a9f1f2a81c9"
+  },
+  "q025": {
+   "choice": "A",
+   "ms": 4430,
+   "set": "8a9f1f2a81c9"
+  },
+  "q026": {
+   "choice": "B",
+   "ms": 2023,
+   "set": "8a9f1f2a81c9"
+  },
+  "q027": {
+   "choice": "B",
+   "ms": 1053,
+   "set": "8a9f1f2a81c9"
+  },
+  "q028": {
+   "choice": "A",
+   "ms": 2603,
+   "set": "8a9f1f2a81c9"
+  },
+  "q029": {
+   "choice": "B",
+   "ms": 1477,
+   "set": "8a9f1f2a81c9"
+  },
+  "q030": {
+   "choice": "B",
+   "ms": 16355,
+   "set": "8a9f1f2a81c9"
+  },
+  "q031": {
+   "choice": "A",
+   "ms": 1014,
+   "set": "8a9f1f2a81c9"
+  },
+  "q032": {
+   "choice": "B",
+   "ms": 1330,
+   "set": "8a9f1f2a81c9"
+  },
+  "q033": {
+   "choice": "B",
+   "ms": 1140,
+   "set": "8a9f1f2a81c9"
+  },
+  "q034": {
+   "choice": "B",
+   "ms": 2262,
+   "set": "8a9f1f2a81c9"
+  },
+  "q035": {
+   "choice": "same",
+   "ms": 4481,
+   "set": "8a9f1f2a81c9"
+  },
+  "q036": {
+   "choice": "A",
+   "ms": 1565,
+   "set": "8a9f1f2a81c9"
+  },
+  "q037": {
+   "choice": "B",
+   "ms": 8679,
+   "set": "8a9f1f2a81c9"
+  },
+  "q038": {
+   "choice": "same",
+   "ms": 3806,
+   "set": "8a9f1f2a81c9"
+  },
+  "q039": {
+   "choice": "B",
+   "ms": 1453,
+   "set": "8a9f1f2a81c9"
+  },
+  "q040": {
+   "choice": "B",
+   "ms": 1514,
+   "set": "8a9f1f2a81c9"
+  },
+  "q041": {
+   "choice": "same",
+   "ms": 5538,
+   "set": "8a9f1f2a81c9"
+  },
+  "q042": {
+   "choice": "A",
+   "ms": 3074,
+   "set": "8a9f1f2a81c9"
+  },
+  "q043": {
+   "choice": "B",
+   "ms": 1416,
+   "set": "8a9f1f2a81c9"
+  },
+  "q044": {
+   "choice": "B",
+   "ms": 2437,
+   "set": "8a9f1f2a81c9"
+  },
+  "q045": {
+   "choice": "A",
+   "ms": 1198,
+   "set": "8a9f1f2a81c9"
+  },
+  "q046": {
+   "choice": "B",
+   "ms": 1290,
+   "set": "8a9f1f2a81c9"
+  },
+  "q047": {
+   "choice": "B",
+   "ms": 993,
+   "set": "8a9f1f2a81c9"
+  },
+  "q048": {
+   "choice": "B",
+   "ms": 10078,
+   "set": "8a9f1f2a81c9"
+  },
+  "q049": {
+   "choice": "B",
+   "ms": 940,
+   "set": "8a9f1f2a81c9"
+  },
+  "q050": {
+   "choice": "A",
+   "ms": 1736,
+   "set": "8a9f1f2a81c9"
+  },
+  "q051": {
+   "choice": "B",
+   "ms": 1940,
+   "set": "8a9f1f2a81c9"
+  },
+  "q052": {
+   "choice": "B",
+   "ms": 1330,
+   "set": "8a9f1f2a81c9"
+  },
+  "q053": {
+   "choice": "B",
+   "ms": 4185,
+   "set": "8a9f1f2a81c9"
+  },
+  "q054": {
+   "choice": "B",
+   "ms": 906,
+   "set": "8a9f1f2a81c9"
+  },
+  "q055": {
+   "choice": "unsure",
+   "ms": 6170,
+   "set": "8a9f1f2a81c9"
+  },
+  "q056": {
+   "choice": "A",
+   "ms": 1152,
+   "set": "8a9f1f2a81c9"
+  },
+  "q057": {
+   "choice": "B",
+   "ms": 1261,
+   "set": "8a9f1f2a81c9"
+  },
+  "q058": {
+   "choice": "A",
+   "ms": 1310,
+   "set": "8a9f1f2a81c9"
+  },
+  "q059": {
+   "choice": "B",
+   "ms": 1738,
+   "set": "8a9f1f2a81c9"
+  },
+  "q060": {
+   "choice": "B",
+   "ms": 1273,
+   "set": "8a9f1f2a81c9"
+  },
+  "q061": {
+   "choice": "A",
+   "ms": 3975,
+   "set": "8a9f1f2a81c9"
+  },
+  "q062": {
+   "choice": "A",
+   "ms": 1332,
+   "set": "8a9f1f2a81c9"
+  },
+  "q063": {
+   "choice": "same",
+   "ms": 3353,
+   "set": "8a9f1f2a81c9"
+  },
+  "q064": {
+   "choice": "A",
+   "ms": 3962,
+   "set": "8a9f1f2a81c9"
+  },
+  "q065": {
+   "choice": "A",
+   "ms": 2230,
+   "set": "8a9f1f2a81c9"
+  },
+  "q066": {
+   "choice": "same",
+   "ms": 1512,
+   "set": "8a9f1f2a81c9"
+  },
+  "q067": {
+   "choice": "B",
+   "ms": 1529,
+   "set": "8a9f1f2a81c9"
+  },
+  "q068": {
+   "choice": "A",
+   "ms": 1004,
+   "set": "8a9f1f2a81c9"
+  },
+  "q069": {
+   "choice": "B",
+   "ms": 1179,
+   "set": "8a9f1f2a81c9"
+  },
+  "q070": {
+   "choice": "B",
+   "ms": 2238,
+   "set": "8a9f1f2a81c9"
+  },
+  "q071": {
+   "choice": "B",
+   "ms": 1279,
+   "set": "8a9f1f2a81c9"
+  },
+  "q072": {
+   "choice": "B",
+   "ms": 16406,
+   "set": "8a9f1f2a81c9"
+  },
+  "q073": {
+   "choice": "B",
+   "ms": 1822,
+   "set": "8a9f1f2a81c9"
+  },
+  "q074": {
+   "choice": "B",
+   "ms": 1788,
+   "set": "8a9f1f2a81c9"
+  },
+  "q075": {
+   "choice": "A",
+   "ms": 1897,
+   "set": "8a9f1f2a81c9"
+  },
+  "q076": {
+   "choice": "A",
+   "ms": 2922,
+   "set": "8a9f1f2a81c9"
+  },
+  "q077": {
+   "choice": "A",
+   "ms": 2186,
+   "set": "8a9f1f2a81c9"
+  },
+  "q078": {
+   "choice": "A",
+   "ms": 4855,
+   "set": "8a9f1f2a81c9"
+  }
+ }
+}

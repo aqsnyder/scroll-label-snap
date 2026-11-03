@@ -1,0 +1,73 @@
+{
+ "set": "8a9f1f2a81c9",
+ "reviewers": [
+  {
+   "name": "reviewer 1 (the repository owner)",
+   "answered": 78,
+   "comparisons": {
+    "original": 37,
+    "snapped": 18,
+    "same": 5
+   },
+   "controls": {
+    "original": 3,
+    "same": 3,
+    "unsure": 2,
+    "snapped": 2
+   },
+   "catch_right": 8,
+   "catch_total": 8,
+   "catch_flag": false,
+   "snapped_share": 0.32727272727272727,
+   "ci": [
+    0.21812895688825168,
+    0.45897023823900523
+   ],
+   "sign_p": 0.014453833533827731,
+   "share_A": 0.39705882352941174,
+   "median_seconds": 1.9185
+  },
+  {
+   "name": "reviewer 2 (hadn't worked on the tool)",
+   "answered": 78,
+   "comparisons": {
+    "same": 9,
+    "original": 38,
+    "snapped": 13
+   },
+   "controls": {
+    "original": 6,
+    "same": 2,
+    "snapped": 2
+   },
+   "catch_right": 8,
+   "catch_total": 8,
+   "catch_flag": false,
+   "snapped_share": 0.2549019607843137,
+   "ci": [
+    0.1554562324126639,
+    0.38868544106148706
+   ],
+   "sign_p": 0.0006210434562277101,
+   "share_A": 0.40298507462686567,
+   "median_seconds": 3.163
+  }
+ ],
+ "pooled": {
+  "comparisons": {
+   "original": 75,
+   "snapped": 31,
+   "same": 14
+  },
+  "decisive": 106,
+  "snapped_preferred": 31,
+  "original_preferred": 75,
+  "snapped_share": 0.29245283018867924,
+  "ci": [
+   0.21433210649260998,
+   0.38509106287127387
+  ],
+  "sign_p": 2.2954512916817195e-05,
+  "verdict": "snapping hurts"
+ }
+}
