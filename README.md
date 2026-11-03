@@ -205,6 +205,15 @@ So the snapper lands on recto faces. The effect is small but consistent. See [`r
 
 Whether a cleaner surface reads better is not yet measured. The PHerc. 306B winners found that snapping to CT density peaks, after snapping to m7, did not make their letters more legible.
 
+### A whole segment
+
+`tools/snap_segment.py` snaps a whole segment tile by tile, reading the scan from the open-data bucket as it goes and caching what it downloads. All of w035 (291 × 262 vertices, 3.1 million samples) took 7 minutes with 8 workers. None of its 279 tiles failed, and the blended result has no seams at tile boundaries. Details are in [`results/w035_whole.md`](results/w035_whole.md).
+
+- **Papyrus on the recto side, read from the renders:** 54% for the original mesh, 86% for the snapped one. The 8 patches gave 55% → 88%.
+- **Review flags:** `snap_review` marks 17.7% of vertices.
+
+![w035, original and snapped, 1.5 voxels inside and outside the recto face](results/w035_whole_compare.png)
+
 ```bash
 pip install "zarr>=2.16,<3" fsspec aiohttp requests        # to read the scan from the open-data bucket
 python tools/fetch_segment.py segments/w035 --segment <tifxyz URL> --volume <OME-Zarr URL> --patches 8
@@ -213,6 +222,8 @@ python tools/eval_mesh.py out/eval_mesh.json segments/w035/patch_*
 python tools/render_mesh.py out/render.png snapped segments/w035/patch_1 --sections
 python tools/fibre_check.py out/fibre.json segments/w035/patch_* --snapped snapped --png out/fibre.png
 python tools/snap_to_prediction.py snapped_m7 segments/w035/patch_*   # baseline: snap onto a surface prediction (fetch with --extra m7=URL)
+python tools/snap_segment.py out/w035_whole --segment <tifxyz URL> --volume <OME-Zarr URL> --cache zarr_cache --workers 8 --name w035
+python tools/render_segment.py out/w035_whole/w035 out/w035_whole --volume <OME-Zarr URL> --cache zarr_cache   # before/after renders
 ```
 
 ## Setup
@@ -333,4 +344,4 @@ A second reviewer, who did not work on the tool and had never seen these scans, 
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
 3. **Make the learned profile independent of the input labels** (see "Drift draws" above), then test it on a fresh held-out set of cubes.
 4. **Meshes: check which layer is right.** Get expert review of the snapped w035 patches. Compare ink detection on renders of the original and snapped mesh.
-5. **Meshes: whole segments.** `tools/snap_segment.py` snaps a whole segment tile by tile, streaming the scan; the first full run, on w035, is next.
+5. **Meshes: more whole segments.** w035 is done; a held-out segment such as w052, then one the ink models haven't seen, are next.
