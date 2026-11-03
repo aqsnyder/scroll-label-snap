@@ -170,9 +170,21 @@ Five of the eight losses put the label inside a thick sheet instead of on its fa
 - The snapped band's stair-step edge can give it away.
 - The controls and catch items were only clean at the centre point of each 48-voxel window.
 
+### Review v2 (set `af7d4c85d7f6`, in progress)
+
+Built with `tools/make_review_v2.py --seed 1` on the v2 output, for a reviewer who did not work on the tool:
+- **Fresh points.** No item is within 32 voxels of a v1 item.
+- **111 items:**
+  - 40 big moves and 40 moderate moves (2 of each per cube).
+  - 15 controls, where the two labels agree across the whole window (IoU 0.80 or more), not just at its centre.
+  - 16 catch items: the original label pushed 3 voxels into the gap or 2.5 voxels into the sheet, 8 each way. They are only used where both labels agree across the window and the scan confirms the push direction: a dark gap in front, or bright papyrus behind.
+- **A short tutorial first:** worked examples (good, too far out, too far in) and 4 practice items that show the right answer after each pick.
+- **Per-reviewer storage.** Answers are stored under each reviewer's name, so several people can take the same set.
+- **Sealed key.** The SHA-256 of the answer key is `af7d4c85d7f6f07106839d0af2de42655095ba677316cb9c3ae9ddec95dc08f6`, and an encrypted copy is `review/sealed_key_af7d4c85d7f6.enc`. The page is `review/v2/index.html`.
+
 ## Next steps
 
-1. **Review v2** on fresh items, with controls and catch items that are clean across the whole window, not just at its centre, and an independent reviewer.
+1. **Finish review v2** with an independent reviewer and score it.
 2. **Better orientation where a label sits on the far face of a sheet**, the cause of most of the remaining losses.
 3. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
 4. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.

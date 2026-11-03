@@ -8,3 +8,5 @@ data/
 *.zarr/
 review/items.json
 review/key*.json
+review/*/items.json
+review/*/key*.json

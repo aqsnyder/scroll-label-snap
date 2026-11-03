@@ -109,9 +109,12 @@ def main(key_path, answers_path, out_md=None):
     out = [table(rows, "Blind review: which label sits on the papyrus surface?"), ""]
 
     ctrl = Counter(by["no move"])
+    ctrl_iou = [rec["window_iou"] for rec in key.values() if rec["stratum"] == "no move" and "window_iou" in rec]
     if by["no move"]:
-        out.append(f"Controls (snapped and original agree within 0.25 voxel at the item's centre; the rest of "
-                   f"the window can differ): {ctrl['same']} of "
+        what = (f"the two labels agree across the whole window, IoU {min(ctrl_iou):.2f}-{max(ctrl_iou):.2f}"
+                if ctrl_iou else "snapped and original agree within 0.25 voxel at the item's centre; the rest of "
+                                 "the window can differ")
+        out.append(f"Controls ({what}): {ctrl['same']} of "
                    f"{len(by['no move'])} rated the same; {ctrl['snapped'] + ctrl['original']} got a preference "
                    f"({ctrl['snapped']} snapped, {ctrl['original']} original), {ctrl['unsure']} can't tell.")
     ok = sum(c[0] for c in catch.values())
