@@ -204,7 +204,7 @@ The tools run on the Vesuvius Challenge surface-label cubes ([Hugging Face bucke
 | 1 | recto surface |
 | 2 | not annotated |
 
-The data is licensed CC BY-NC 4.0 and is not included here. The example images in `results/` are crops of that data.
+The data is licensed CC BY-NC 4.0 and is not included here. The example images in `results/` are crops of that data. The mesh figures are renders of segment w035 and its scan from the [Vesuvius Challenge open data](https://scrollprize.org/data), also CC BY-NC 4.0.
 
 ## Blind human review
 
