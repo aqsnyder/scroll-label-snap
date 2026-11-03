@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scroll ink review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* One dark "viewer" world: the ink maps stay the brightest thing on screen. Single theme by choice. */
+  --bg: #121417;
+  --panel: #1b1e23;
+  --line: #2c3138;
+  --text: #e6e8eb;
+  --muted: #9aa3ad;
+  --accent: #5ab4e6;          /* UI accent */
+  --good: #6cc48a;
+  --warn: #e0a54a;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  --panel-size: min(44vw, 512px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 16px 20px 32px; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; justify-content: space-between; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; text-wrap: balance; }
+h2 { font-size: 17px; font-weight: 600; margin: 0 0 8px; }
+h3 { font-size: 15px; font-weight: 600; margin: 14px 0 6px; }
+p { margin: 0 0 10px; max-width: 72ch; }
+.counter { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.counter b { color: var(--text); font-weight: 500; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.chip.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.card ul { margin: 0 0 10px; padding-left: 18px; display: grid; gap: 5px; max-width: 76ch; }
+.who { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+input[type=text] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; min-width: 220px; }
+
+.viewer { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.pane { display: grid; gap: 6px; justify-items: start; }
+.pane .cap { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: baseline; }
+.pane .cap b { color: var(--text); font-size: 15px; font-weight: 600; }
+.pane img { width: var(--panel-size); height: var(--panel-size); border-radius: 6px; background: #000; outline: 1px solid var(--line); image-rendering: auto; }
+.pixelated .pane img { image-rendering: pixelated; }
+.mode { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+
+.answers { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; cursor: pointer; display: inline-flex; gap: 10px; align-items: center; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: default; }
+button .k { font-family: var(--font-mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+button.primary { background: color-mix(in srgb, var(--accent) 16%, var(--panel)); }
+button.chosen { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+button.ghost { background: transparent; }
+.feedback { margin-top: 14px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); max-width: 76ch; display: none; gap: 10px; }
+.feedback.show { display: grid; }
+.feedback .verdict { font-weight: 600; }
+.feedback.right .verdict { color: var(--good); }
+.feedback.wrong .verdict { color: var(--warn); }
+.tools { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; color: var(--muted); font-size: 13px; }
+.tools label { display: inline-flex; gap: 8px; align-items: center; }
+textarea { width: 100%; min-height: 120px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-mono); font-size: 12px; padding: 8px; }
+footer { color: var(--muted); font-size: 12px; }
+.hidden { display: none !important; }
+@media (max-width: 760px) { :root { --panel-size: 44vw; } }
+@media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Scroll ink review</h1>
+    <div class="counter" id="counter">Loading…</div>
+    <span class="chip" id="store">Connecting storage…</span>
+  </header>
+  <div class="bar" aria-hidden="true"><div id="bar"></div></div>
+
+  <section class="card" id="intro">
+    <h2>What you'll be looking at</h2>
+    <p>These pictures come from an X-ray scan of a papyrus scroll from Herculaneum. The eruption of Vesuvius carbonised it in 79 AD, and it is still rolled up. A computer has traced one sheet of the papyrus through the scan and laid it out flat. Then an ink model looked for traces of ink on it. <b>Bright means the model sees ink; dark means it doesn't.</b> The writing is Greek, so letters show up as bright strokes, about as tall as a quarter of the picture or less.</p>
+    <p>Each item shows the same patch of papyrus twice, as <b>A</b> and <b>B</b>, processed in two slightly different ways. <b>Your job is to pick the one that shows the ink more clearly: strokes or letter shapes that are easier to make out.</b></p>
+    <h3>Tips</h3>
+    <ul>
+      <li>Look over the whole picture, not just one spot, and pick the one that is clearer overall.</li>
+      <li>Clearer means crisper, more complete strokes against a quieter background. Brighter overall is not the same as clearer.</li>
+      <li>Many patches show only faint ink, or none. If you can't see a real difference, choose <b>About the same</b>. If neither shows anything you can judge, choose <b>Can't tell</b>. Both are good answers when they're true.</li>
+      <li>Black areas are outside the traced sheet, and are the same in A and B.</li>
+      <li>Most items take a few seconds. Go with your first impression.</li>
+    </ul>
+    <p id="plan">First come a few practice items that show you the right answer. Then the real items, which don't. A few of the real ones are checks with a known answer.</p>
+    <p>Your answers are saved under your name as you go, so you can stop and come back later.</p>
+    <div class="who">
+      <label for="who">Your first name</label>
+      <input type="text" id="who" autocomplete="given-name" maxlength="40">
+      <button class="primary" id="btnStart" disabled>Start practice</button>
+    </div>
+  </section>
+
+  <section id="work" class="hidden">
+    <div class="mode" id="mode">Practice</div>
+    <div class="viewer">
+      <div class="pane"><div class="cap"><b>A</b></div><img id="iA" alt="Ink map A" width="512" height="512"></div>
+      <div class="pane"><div class="cap"><b>B</b></div><img id="iB" alt="Ink map B" width="512" height="512"></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="answers">
+      <button class="primary" data-choice="A"><span class="k">1</span>A is clearer</button>
+      <button class="primary" data-choice="B"><span class="k">2</span>B is clearer</button>
+      <button data-choice="same"><span class="k">3</span>About the same</button>
+      <button data-choice="unsure"><span class="k">4</span>Can't tell</button>
+      <button class="ghost" id="btnBack"><span class="k">⌫</span>Previous</button>
+    </div>
+    <div class="feedback" id="feedback" role="status">
+      <div><span class="verdict" id="fbVerdict"></span> <span id="fbWhy"></span></div>
+      <div><button class="primary" id="btnNext"><span class="k">↵</span>Next</button></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="tools">
+      <label for="size">Picture size <input type="range" id="size" min="240" max="720" step="20" value="512"></label>
+      <label for="smooth"><input type="checkbox" id="smooth"> Show square pixels</label>
+      <span>Answers save as you go.</span>
+    </div>
+  </section>
+
+  <section class="card hidden" id="between">
+    <h2>Practice done</h2>
+    <p id="betweenText"></p>
+    <p>Now the real items. They don't tell you the answer, and A and B come from different processing, mixed at random. Keep looking for the one where the ink is easier to make out.</p>
+    <button class="primary" id="btnReal">Start the review</button>
+  </section>
+
+  <section class="card hidden" id="done">
+    <h2>All done. Thank you!</h2>
+    <p>Every item has an answer. You can close this page.</p>
+    <div id="fallback" class="hidden">
+      <p>This page couldn't save to its database, so your answers are only on this device. Copy them and send them on:</p>
+      <button id="btnCopy">Copy answers</button>
+      <div style="height:8px"></div>
+      <textarea id="dump" readonly></textarea>
+    </div>
+    <div style="height:8px"></div>
+    <button class="ghost" id="btnReview">Go back through my answers</button>
+  </section>
+
+  <footer>Scan data: Vesuvius Challenge open data, CC BY-NC 4.0. Ink model: scrollprize/ink_9um (MIT).</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  let data = null, items = [], practice = [], db = null, dbReady = false;
+  let rid = "", name = "", mode = "intro", pos = 0;
+  let state = { answers: {}, practice: {}, practiceDone: false };
+  let saving = Promise.resolve(), writeFailed = false, shownAt = performance.now(), feedbackOpen = false;
+  let dbPromise = Promise.resolve();
+  const $ = (id) => document.getElementById(id);
+
+  function setStore(text, cls) { const s = $("store"); s.textContent = text; s.className = "chip " + (cls || ""); }
+  function lsKey() { return "scroll-ink-review-" + (data && data.set || "ink") + "-" + rid; }
+  function saveLocal() { try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch (e) { /* ignore */ } }
+  function loadLocal() {
+    try { const s = JSON.parse(localStorage.getItem(lsKey()) || "null"); if (s && s.answers) return s; } catch (e) { /* ignore */ }
+    return { answers: {}, practice: {}, practiceDone: false };
+  }
+  function slug(s) { return s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32); }
+
+  // ---- drawing
+  function smoothMode() { document.body.classList.toggle("pixelated", $("smooth").checked); }
+  function drawItem(it) {
+    $("iA").src = it.a;
+    $("iB").src = it.b;
+  }
+  function preload(i) {
+    const L = list();
+    [i + 1, i + 2].forEach(j => { if (j < L.length) { new Image().src = L[j].a; new Image().src = L[j].b; } });
+  }
+
+  // ---- progress
+  function list() { return mode === "practice" ? practice : items; }
+  function store() { return mode === "practice" ? state.practice : state.answers; }
+  function updateCounter() {
+    const L = list(), n = L.filter(it => store()[it.id]).length;
+    if (mode === "practice") $("counter").innerHTML = `Practice <b>${Math.min(pos + 1, L.length)}</b> of ${L.length}`;
+    else if (mode === "review") $("counter").innerHTML = `Item <b>${Math.min(pos + 1, L.length)}</b> of ${L.length} · <b>${n}</b> answered`;
+    else $("counter").textContent = items.length ? `${practice.length} practice + ${items.length} items` : "";
+    const done = Object.keys(state.answers).filter(id => items.some(it => it.id === id)).length;
+    $("bar").style.width = items.length ? (100 * done / items.length) + "%" : "0";
+  }
+  function nextUnanswered(from) {
+    const L = list(), S = store();
+    for (let k = 0; k < L.length; k++) { const j = (from + k) % L.length; if (!S[L[j].id]) return j; }
+    return -1;
+  }
+  function show(i) {
+    const L = list();
+    pos = Math.max(0, Math.min(i, L.length - 1));
+    const it = L[pos];
+    drawItem(it);
+    preload(pos);
+    const a = store()[it.id];
+    document.querySelectorAll("[data-choice]").forEach(b => b.classList.toggle("chosen", !!a && a.choice === b.dataset.choice));
+    $("feedback").classList.remove("show", "right", "wrong");
+    feedbackOpen = false;
+    shownAt = performance.now();
+    updateCounter();
+  }
+  function showOnly(id) {
+    ["intro", "work", "between", "done"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+  }
+
+  // ---- saving: one write at a time; a transient failure is retried once
+  function put(path, rec, how) {
+    if (!db) return;
+    const once = () => (how === "update" ? db.doc(path).update(rec) : db.doc(path).set(rec));
+    saving = saving.then(() => once().catch((e) => {
+      if (e && e.code === "unavailable") return new Promise(r => setTimeout(r, 400 + Math.random() * 800)).then(once);
+      throw e;
+    })).then(
+      () => { if (!writeFailed) setStore("Saved", "ok"); },
+      (e) => {
+        writeFailed = true;
+        setStore(e && e.code === "quota_exceeded" ? "Storage full: answers kept on this device" :
+                 "Couldn't save to the page; answers kept on this device", "warn");
+      });
+  }
+
+  // ---- answering
+  function choose(choice) {
+    if (mode !== "practice" && mode !== "review") return;
+    if (mode === "practice" && feedbackOpen) return;
+    const it = list()[pos], S = store(), prev = S[it.id];
+    if (mode === "review" && prev && prev.choice === choice) { advance(); return; }
+    const rec = { choice, ms: Math.round(performance.now() - shownAt), at: new Date().toISOString(), set: data.set };
+    if (mode === "practice") {
+      rec.correct = choice === it.better;
+      S[it.id] = rec; saveLocal();
+      put(`reviews/${rid}/practice/${it.id}`, rec);
+      const fb = $("feedback");
+      fb.classList.add("show", rec.correct ? "right" : "wrong");
+      $("fbVerdict").textContent = rec.correct ? "Right." :
+        (choice === "same" || choice === "unsure" ? `The answer is ${it.better}.` : `Not quite: ${it.better} is clearer.`);
+      $("fbWhy").textContent = it.why;
+      document.querySelectorAll("[data-choice]").forEach(b => b.classList.toggle("chosen", b.dataset.choice === choice));
+      feedbackOpen = true;
+      $("btnNext").focus();
+      return;
+    }
+    S[it.id] = rec; saveLocal();
+    put(`reviews/${rid}/answers/${it.id}`, rec);
+    advance();
+  }
+  function advance() {
+    const j = nextUnanswered(pos + 1);
+    if (j < 0) { updateCounter(); finishPhase(); } else show(j);
+  }
+  function finishPhase() {
+    if (mode === "practice") {
+      state.practiceDone = true; saveLocal();
+      put(`reviews/${rid}`, { practiceDone: true }, "update");
+      const right = practice.filter(it => state.practice[it.id] && state.practice[it.id].correct).length;
+      $("betweenText").textContent = `You got ${right} of ${practice.length} right.` +
+        (right < practice.length ? " A blurred map smears the strokes; the sharp one shows their edges." : "");
+      mode = "between"; showOnly("between"); updateCounter();
+      return;
+    }
+    mode = "done"; showOnly("done");
+    put(`reviews/${rid}`, { finishedAt: new Date().toISOString() }, "update");
+    if (!db || writeFailed) {
+      $("fallback").classList.remove("hidden");
+      $("dump").value = JSON.stringify({ reviewer: name, set: data.set, answers: state.answers, practice: state.practice });
+    }
+    updateCounter();
+  }
+  function startPhase(m) {
+    mode = m;
+    $("mode").textContent = m === "practice" ? "Practice: you'll see the answer after each pick" : "Review";
+    $("btnBack").classList.toggle("hidden", m === "practice");
+    showOnly("work");
+    const j = nextUnanswered(0);
+    if (j < 0) { finishPhase(); return; }
+    show(j);
+  }
+
+  // ---- start: name, then resume from the database if this name has answers already
+  async function begin() {
+    name = $("who").value.trim();
+    $("who").blur();
+    rid = slug(name);
+    if (!rid) return;
+    $("btnStart").disabled = true;
+    $("btnStart").textContent = "Starting…";
+    await dbPromise;                 // the database may still be connecting; wait for it (10 s at most)
+    state = loadLocal();
+    if (db) {
+      try {
+        const t = setTimeout(() => setStore("Storage slow to answer; saving on this device too", "warn"), 10000);
+        const head = await db.doc(`reviews/${rid}`).get();
+        const ans = await db.collection(`reviews/${rid}/answers`).get();
+        const pr = await db.collection(`reviews/${rid}/practice`).get();
+        clearTimeout(t);
+        const keep = (v) => v && v.set === data.set;
+        ans.docs.forEach(d => { const v = d.exists ? d.data() : null; if (keep(v)) state.answers[d.id] = v; });
+        pr.docs.forEach(d => { const v = d.exists ? d.data() : null; if (keep(v)) state.practice[d.id] = v; });
+        const h = head.exists ? head.data() : null;
+        if (h && h.set === data.set && h.practiceDone) state.practiceDone = true;
+        if (!h || h.set !== data.set) put(`reviews/${rid}`, { name, set: data.set, started: new Date().toISOString(), practiceDone: state.practiceDone });
+        // anything answered on this device but not in the database goes up now
+        Object.keys(state.answers).forEach(id => { if (!ans.docs.some(d => d.id === id)) put(`reviews/${rid}/answers/${id}`, state.answers[id]); });
+        saveLocal();
+        setStore("Answers save to this page", "ok");
+      } catch (e) {
+        db = null;
+        setStore("Saving on this device only", "warn");
+      }
+    }
+    startPhase(state.practiceDone ? "review" : "practice");
+  }
+
+  function wire() {
+    document.querySelectorAll("[data-choice]").forEach(b => b.addEventListener("click", () => choose(b.dataset.choice)));
+    $("btnBack").addEventListener("click", () => { if (mode === "review") show(pos - 1); });
+    $("btnNext").addEventListener("click", () => { if (mode === "practice") advance(); });
+    $("btnReal").addEventListener("click", () => startPhase("review"));
+    $("btnReview").addEventListener("click", () => { mode = "review"; showOnly("work"); show(0); });
+    $("who").addEventListener("input", () => { $("btnStart").disabled = !slug($("who").value) || !data; });
+    $("who").addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("btnStart").disabled) begin(); });
+    $("btnStart").addEventListener("click", begin);
+    $("size").addEventListener("input", (e) => document.documentElement.style.setProperty("--panel-size", e.target.value + "px"));
+    $("smooth").addEventListener("change", smoothMode);
+    $("btnCopy").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText($("dump").value); $("btnCopy").textContent = "Copied"; }
+      catch (e) { $("dump").select(); $("btnCopy").textContent = "Select the text and copy it"; }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target && e.target.tagName === "INPUT" && e.target.type === "text") return;
+      if (mode === "practice" && feedbackOpen && (e.key === "Enter" || e.key === "ArrowRight")) { e.preventDefault(); advance(); return; }
+      if (mode !== "practice" && mode !== "review") return;
+      const map = { "1": "A", "2": "B", "3": "same", "4": "unsure" };
+      if (map[e.key]) { e.preventDefault(); choose(map[e.key]); }
+      else if (mode === "review" && (e.key === "Backspace" || e.key === "ArrowLeft")) { e.preventDefault(); show(pos - 1); }
+      else if (mode === "review" && e.key === "ArrowRight") { e.preventDefault(); show(pos + 1); }
+    });
+  }
+
+  async function connectDb() {
+    const api = window.claude;
+    if (!api || typeof api.use !== "function") { setStore("Saving on this device only", "warn"); return; }
+    const t = setTimeout(() => setStore("Storage not reachable yet; saving on this device", "warn"), 10000);
+    try { db = await api.use("db"); } catch (e) { db = null; }
+    clearTimeout(t);
+    setStore(db ? "Answers save to this page" : "Saving on this device only", db ? "ok" : "warn");
+  }
+
+  async function start() {
+    wire();
+    dbPromise = connectDb();
+    try {
+      const r = await fetch("items.json");
+      data = await r.json();
+      items = data.items || []; practice = data.practice || [];
+    } catch (e) {
+      $("counter").textContent = "Couldn't load the review items. Reload the page to try again.";
+      return;
+    }
+    $("plan").textContent = `First come ${practice.length} practice items that show you the right answer. ` +
+      `Then ${items.length} real items, which don't. A few of the real ones are checks with a known answer.`;
+    updateCounter();
+    $("btnStart").disabled = !slug($("who").value);
+  }
+  start();
+})();
+</script>
+</body>
+</html>

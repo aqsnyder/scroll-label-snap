@@ -108,3 +108,30 @@ None of these changes the outcomes or what counts as harm. They settle points th
 - **seed 43.** It runs after all seed-42 outputs exist, with the same inputs and directions, on both segments. It is reported as a robustness check (AUC on w035, the tile changes on w052), and isn't part of the primary decision.
 - **Sanity check input.** The official inference reads the official w035 surface volume straight from the open-data server, as in the model card's example.
 - **Labels.** These come from the ink_9um dataset bucket on Hugging Face (`hf://buckets/scrollprize/datasets/ink_9um/labels/native9-scrollprizeorg-21slices/w035`).
+
+### 2. Scoring details fixed before any ink map exists (3 Nov 2026, while the run script was still setting up)
+
+The tools are `tools/make_ink_review.py`, `tools/score_ink_review.py` and `tools/ink_scores.py`, with their tests. They settle these points:
+
+- **Review crops.**
+  - They lie wholly inside the map.
+  - "At least 512 pixels apart" means no two crops overlap: their centres are at least 512 pixels apart in rows or in columns.
+  - Centres are visited in a random order (seed 2026) and taken when they meet the rules, until 60 are found.
+- **Controls** follow the same rules and don't overlap the comparisons.
+- **Catch items.**
+  - They sit at further places, drawn like the comparisons and not overlapping the other items.
+  - Four use the original map and four the snapped one.
+  - The blur is a Gaussian (σ = 4) normalised over valid pixels.
+  - Both panels get the display scaling.
+- **Balance.** In exactly half of the comparisons, of the controls and of the catch items, the original (or the sharp map) is A.
+- **Off-mesh pixels** are black in both panels.
+- **Practice.** Before the real items, each reviewer sees 4 practice items with feedback: sharp against blurred, from w035's original map, so no w052 item is shown twice. They aren't scored.
+- **Descriptive tiles.**
+  - Only tiles with at least half their pixels valid are counted.
+  - "Flagged" samples are those of the dense snapped mesh marked reversed-face or at the search limit.
+  - The 6 largest drops and 6 largest gains are ranked by the change in the 99th percentile.
+- **Label scores.**
+  - Every map is scored on the same pixels: inside the supervision mask, valid in both renders, and non-zero in the official map.
+  - Ties count half in the AUC.
+  - The best F1 is taken over the thresholds p ≥ t on the maps' 256 levels.
+- **Sanity check.** The Pearson correlation is taken over pixels valid in our renders and non-zero in the official map.
