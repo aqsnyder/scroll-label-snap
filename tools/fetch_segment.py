@@ -12,6 +12,7 @@ Writes:
   OUT_DIR/segment.tifxyz/         the whole segment, as downloaded
   OUT_DIR/patch_K/volume.tif      a crop of the volume around patch K (z, y, x order)
   OUT_DIR/patch_K/segment.tifxyz/ the patch's grid window, in the segment's own coordinates
+  OUT_DIR/patch_K/NAME.tif        the same crop of each --extra NAME=URL volume (e.g. a surface prediction)
   OUT_DIR/patch_K/patch.json      crop offset (z, y, x) and size, grid window, level, sources, and
                                   which side of the mesh is recto (recto_sign: +1 along the grid's
                                   own normal, -1 against it), from the whole segment's curvature
@@ -83,6 +84,17 @@ def download_tifxyz(url, out):
     return got
 
 
+def open_level(url, level):
+    """An OME-Zarr resolution level (URL/level), or the array at URL itself if it has no levels."""
+    import fsspec
+    import zarr
+    base = url.rstrip("/")
+    try:
+        return zarr.open_array(fsspec.get_mapper(f"{base}/{level}"), mode="r")
+    except Exception:
+        return zarr.open_array(fsspec.get_mapper(base), mode="r")
+
+
 def pick_windows(valid, size, count, rng, taken=()):
     """Top-left corners of fully valid size x size windows, spread apart and clear of the windows
     in `taken` ((row, col, size) each)."""
@@ -112,12 +124,12 @@ def main():
     ap.add_argument("--level", type=int, default=0, help="OME-Zarr level to crop (0 = full resolution)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--max-side", type=int, default=900, help="skip windows whose crop is longer than this")
+    ap.add_argument("--extra", action="append", default=[], metavar="NAME=URL",
+                    help="also crop another volume on the same voxel grid (e.g. a surface prediction) "
+                         "into patch_K/NAME.tif")
     ap.add_argument("--exclude", action="append", default=[],
                     help="a previous OUT_DIR: never pick a window overlapping one of its patches (for held-out sets)")
     a = ap.parse_args()
-    import fsspec
-    import zarr
-
     seg_dir = os.path.join(a.out_dir, "segment.tifxyz")
     files = download_tifxyz(a.segment, seg_dir)
     print(f"segment: {', '.join(files)}", flush=True)
@@ -131,8 +143,24 @@ def main():
     if r_agree >= 0.9:
         orient["recto_sign"] = r_sign
 
-    vol = zarr.open_array(fsspec.get_mapper(a.volume.rstrip("/") + f"/{a.level}"), mode="r")
+    vol = open_level(a.volume, a.level)
     print(f"volume level {a.level}: shape {vol.shape}, chunks {vol.chunks}, dtype {vol.dtype}", flush=True)
+    extras = {}
+    for kv in a.extra:
+        name, url = kv.split("=", 1)
+        arr = open_level(url, a.level)
+        if tuple(arr.shape[-3:]) != tuple(vol.shape[-3:]):
+            print(f"extra {name}: shape {arr.shape} differs from the volume's {vol.shape}; skipped", flush=True)
+            continue
+        extras[name] = (arr, url)
+        print(f"extra {name}: shape {arr.shape}, chunks {arr.chunks}, dtype {arr.dtype}", flush=True)
+
+    def crop_extras(pdir, lo, hi):
+        for name, (arr, url) in extras.items():
+            dst = os.path.join(pdir, f"{name}.tif")
+            if not os.path.exists(dst):
+                tifffile.imwrite(dst, np.asarray(arr[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]]), compression="zlib")
+                print(f"   {os.path.basename(pdir)}/{name}.tif written", flush=True)
     f = 2 ** a.level
     rng = np.random.default_rng(a.seed)
     taken = []
@@ -161,6 +189,10 @@ def main():
             old = json.load(open(pj))
             if old.get("grid_window") == dict(row=i, col=j, size=a.patch) and old.get("offset_zyx") == lo.tolist():
                 print(f"patch_{done}: already downloaded", flush=True)
+                crop_extras(pdir, lo, hi)
+                if extras:
+                    old["extra_volumes"] = dict(old.get("extra_volumes", {}), **{k: u for k, (_, u) in extras.items()})
+                    json.dump(old, open(pj, "w"), indent=1)
                 done += 1
                 if done == a.patches:
                     break
@@ -170,6 +202,9 @@ def main():
             continue
         os.makedirs(pdir, exist_ok=True)
         tifffile.imwrite(os.path.join(pdir, "volume.tif"), crop, compression="zlib")
+        crop_extras(pdir, lo, hi)
+        if extras:
+            orient = dict(orient, extra_volumes={k: u for k, (_, u) in extras.items()})
         m = dict(meta, note=f"grid window rows {i}-{i + a.patch - 1}, cols {j}-{j + a.patch - 1} of {a.segment}")
         write_tifxyz(os.path.join(pdir, "segment.tifxyz"), P[sl], valid[sl], m,
                      uuid=f"{meta.get('uuid', 'segment')}_patch{done}")

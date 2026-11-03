@@ -16,7 +16,8 @@ Per patch:
      patches (a grid search; its most generous setting).
   2. Consistency at all samples: does snapping the drifted mesh land where snapping the
      original lands?
-  3. How much snapping moves the original mesh.
+  3. How much snapping moves the original mesh, and where each mesh puts the recto face: is
+     the CT brighter 2 voxels on the papyrus side than 2 voxels on the gap side?
 """
 import argparse
 import json
@@ -28,8 +29,10 @@ import numpy as np
 import tifffile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from scroll_label_snap.core import Params, alphacomp_shifts  # noqa: E402
-from scroll_label_snap.mesh import patch_orientation, prepare_mesh, snap_mesh, trusted_dense  # noqa: E402
+from scipy import ndimage as ndi  # noqa: E402
+from scroll_label_snap.core import Params, alphacomp_shifts, sample  # noqa: E402
+from scroll_label_snap.mesh import (densify, patch_orientation, prepare_mesh, snap_mesh,  # noqa: E402
+                                    trusted_dense, vertex_normals)
 from scroll_label_snap.tifxyz import read_tifxyz  # noqa: E402
 
 
@@ -49,6 +52,18 @@ def stats(err):
         return dict(mean=float("nan"), median=float("nan"), within_1=float("nan"), over_2=float("nan"), n=0)
     return dict(mean=float(err.mean()), median=float(np.median(err)), within_1=float(np.mean(err <= 1.0)),
                 over_2=float(np.mean(err > 2.0)), n=int(len(err)))
+
+
+def face_alignment(ct_e, Q, valid, factor, c_off, sign):
+    """Where a mesh puts the recto face (its convention offset along papyrus -> gap), is the CT
+    brighter 2 voxels on the papyrus side than 2 voxels on the gap side? Q in crop coordinates;
+    the mesh is densified by `factor` and its normals recomputed from its own grid."""
+    N, ok = vertex_normals(Q, valid)
+    Pd, Nd, vd = densify(Q, N, ok, factor)
+    p, n = Pd[vd], Nd[vd] * sign
+    e = p + c_off * n
+    step = sample(ct_e, e - 2 * n) - sample(ct_e, e + 2 * n)
+    return dict(mean_step=float(step.mean()), papyrus_side=float(np.mean(step > 0)), n=int(len(step)))
 
 
 def on_grid(prep, values):
@@ -122,6 +137,10 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0):
         "snapper consistency": stats(err("snap(drifted)", pos["snap(original)"])[both]),
         "baseline consistency": stats(err("baseline(drifted)", pos["baseline(original)"])[both]),
     }
+    ct_e = ndi.gaussian_filter(ct.astype(np.float32), 0.5)
+    c0 = res0.info["convention_offset"]
+    align = dict(original=face_alignment(ct_e, P.astype(np.float32) * ls - off, valid, prep0.factor, c0, prep0.normal_sign),
+                 snapped=face_alignment(ct_e, res0.dense_P * ls - off, res0.dense_valid, 1, c0, prep0.normal_sign))
     moved = res0.dense_shift[prep0.vd] * ls
     name = os.path.basename(os.path.normpath(patch_dir))
     return dict(patch=name, seconds=round(time.time() - t0, 1), n_dense=int(prep0.vd.sum()),
@@ -129,6 +148,7 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0):
                 convention_offset=res0.info["convention_offset"], normal_sign=prep0.normal_sign,
                 orientation_agree=prep0.orientation_agree, baseline_median_offset=base_off,
                 drift=dict(std=drift_std, corr=drift_corr), drift_test=drift_res, baseline_grid=grid,
+                face_alignment=align,
                 original_mesh_moves=dict(mean_abs=float(np.abs(moved).mean()),
                                          frac_moved_1vox=float(np.mean(np.abs(moved) >= 1.0)),
                                          median_signed=float(np.median(moved)),
@@ -169,7 +189,15 @@ def main():
     gp = {key: pooled_grid(key) for key in results[0]["baseline_grid"]}
     best = min(gp, key=lambda key: gp[key]["mean"])
     pooled[f"baseline, thresholds {best} (best on these patches), offset-corrected"] = gp[best]
+    fa = {k: dict(papyrus_side=float(np.average([r["face_alignment"][k]["papyrus_side"] for r in results],
+                                                weights=[r["face_alignment"][k]["n"] for r in results])),
+                  mean_step=float(np.average([r["face_alignment"][k]["mean_step"] for r in results],
+                                             weights=[r["face_alignment"][k]["n"] for r in results])))
+          for k in ("original", "snapped")}
+    print("papyrus on the recto side of the face: " + ", ".join(f"{k} {v['papyrus_side']:.0%} (step {v['mean_step']:.1f})"
+                                                              for k, v in fa.items()))
     json.dump(dict(params=p.asdict(), seed=a.seed, drift=dict(std=a.drift_std, corr=a.drift_corr), pooled=pooled,
+                   face_alignment=fa,
                    baseline_grid_pooled=gp, baseline_best=best, patches=results),
               open(a.out_json, "w"), indent=1)
     print("pooled:")
