@@ -2,6 +2,7 @@
 
   IN_DIR/images/sample_NNNNN.tif + IN_DIR/labels/sample_NNNNN.tif
   -> OUT_DIR/labels/sample_NNNNN.tif, OUT_DIR/confidence/sample_NNNNN.tif,
+     OUT_DIR/flags/sample_NNNNN.tif (labels on a face of the opposite polarity),
      OUT_DIR/summary.csv
 
 Usage (Windows or Linux):
@@ -33,10 +34,13 @@ def run_one(img_path, lab_path, out_dir):
     conf = shift_volume(lab.shape, res.labels == 1, res.pts, (res.confidence * 255).astype(np.uint8))
     tifffile.imwrite(os.path.join(out_dir, "labels", name + ".tif"), res.labels, compression="zlib")
     tifffile.imwrite(os.path.join(out_dir, "confidence", name + ".tif"), conf, compression="zlib")
+    flags = shift_volume(lab.shape, res.labels == 1, res.pts, (res.reversed_face * 255).astype(np.uint8))
+    tifffile.imwrite(os.path.join(out_dir, "flags", name + ".tif"), flags, compression="zlib")
     i = res.info
     return dict(cube=name, samples=i["n_samples"], sheets=i["n_sheets"],
                 mean_abs_shift=round(i["mean_abs_shift"], 3),
                 frac_moved_1vox=round(i["frac_moved_1vox"], 3),
+                frac_flagged=round(i["frac_reversed_face"], 3),
                 mean_confidence=round(float(np.mean(res.confidence[res.movable])), 3)
                 if res.movable.any() else 0.0,
                 seconds=round(time.time() - t0, 1))
@@ -52,6 +56,7 @@ def main():
 
     os.makedirs(os.path.join(a.out_dir, "labels"), exist_ok=True)
     os.makedirs(os.path.join(a.out_dir, "confidence"), exist_ok=True)
+    os.makedirs(os.path.join(a.out_dir, "flags"), exist_ok=True)
     names = sorted(f for f in os.listdir(os.path.join(a.in_dir, "images")) if f.endswith(".tif"))
     names = [f for f in names if os.path.exists(os.path.join(a.in_dir, "labels", f))]
     todo = [f for f in names if not os.path.exists(os.path.join(a.out_dir, "labels", f))]
@@ -76,7 +81,7 @@ def main():
     new = not os.path.exists(csv_path)
     with open(csv_path, "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["cube", "samples", "sheets", "mean_abs_shift",
-                                          "frac_moved_1vox", "mean_confidence", "seconds"])
+                                          "frac_moved_1vox", "frac_flagged", "mean_confidence", "seconds"])
         if new:
             w.writeheader()
         w.writerows(sorted(rows, key=lambda r: r["cube"]))

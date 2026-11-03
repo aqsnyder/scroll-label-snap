@@ -79,6 +79,23 @@ Of the two remaining losses, one is a small move. In the other, the snapper put 
 
 Compare [`results/compare_sample_00002.png`](results/compare_sample_00002.png) with [`results/compare_sample_00005.png`](results/compare_sample_00005.png) for what v1 does on a hazy and a clear cube.
 
+### Flagged labels: which face does the label belong to?
+
+The snapper flags a label when it sits on a clear face of the opposite polarity (papyrus on the +n side, gap on the −n side) and no face of the expected polarity is within ±4 voxels. That is 3–19% of samples per cube (median 7%); sample 2 is the highest. The flags are written to `OUT_DIR/flags/` next to the labels.
+
+The flag can't be turned into an automatic fix, because the scan alone can't say which face such a label belongs to. Two different situations look identical locally:
+- **Far face:** the label is on the far face of its own sheet. It should stay on the face it's on.
+- **Crossed gap:** the label has drifted across the gap onto the next sheet. It should move back.
+
+The blind reviews show both. Of the 196 moved items across the two reviews, the flag caught:
+- 7 of the 15 where the reviewer preferred the original
+- 7 of the 18 marked "can't tell"
+- only 11 of the 161 where they preferred the snapped label
+
+So flagging about 7% of labels points a human at half the losses. This matches the "humans correct only the uncertain regions" idea in the open problems.
+
+`Params(face_polarity=True)` snaps flagged labels onto the face they're on instead of searching along +n. At the reviewed points this keeps all 7 flagged losses within 1.5 voxels of the original. It also pulls back 10 of the 11 flagged wins, which the reviewers preferred moved, so it is off by default and the default output is unchanged from v2. The per-item positions are in [`results/reversed_face_check.json`](results/reversed_face_check.json).
+
 ## Setup
 
 ```bash
@@ -92,6 +109,7 @@ pip install -r requirements.txt
 python tools/snap_cube.py OUT_DIR images/sample_00001.tif labels/sample_00001.tif
 
 # a whole folder laid out like the dataset (images/ + labels/), in parallel; resumable
+# writes labels/, confidence/ and flags/ (labels that may be on the wrong face)
 python tools/snap_folder.py IN_DIR OUT_DIR --workers 12
 
 # evaluation, summary and before/after close-ups
@@ -192,6 +210,6 @@ A second reviewer, who did not work on the tool and had never seen these scans, 
 
 ## Next steps
 
-1. **Better orientation where a label sits on the far face of a sheet.** This causes most of the remaining losses in both reviews.
+1. **Decide flagged labels with more context.** Following each sheet over a larger area, or using the traced mesh's own history, could tell which face a flagged label belongs to. Until then, flagged labels are the place for human review.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
 3. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.

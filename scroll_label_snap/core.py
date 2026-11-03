@@ -60,6 +60,13 @@ class Params:
                                   # papyrus on both sides, i.e. into a sheet (0 = v1)
     inside_margin: float = 0.1    # 'papyrus' = brighter than the local mid level by this
                                   # fraction of the papyrus-gap contrast
+    # Reversed-face labels sit on a clear face of the opposite polarity (gap on the -n side)
+    # with no normal-polarity face in range. They are always flagged (SnapResult.reversed_face);
+    # face_polarity=True also snaps them onto their own face instead of searching along +n.
+    # Off by default: the blind reviews preferred the +n move about as often as not.
+    face_polarity: bool = False
+    reverse_min: float = 0.5      # own face at least this strong (normalised edge units)
+    forward_max: float = 0.5      # and no candidate with a normal-polarity edge this strong
 
     def asdict(self):
         return asdict(self)
@@ -227,7 +234,7 @@ def edge_strength(ct_s, pts, n, ts, h, wide=3.5):
     return E
 
 
-def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000):
+def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000, tmpl=None):
     """How well the CT profile around each candidate position matches this cube's own
     'typical label' profile (normalised cross-correlation, -1..1).
 
@@ -249,16 +256,17 @@ def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000):
         W = W - W.mean(-1, keepdims=True)
         return W / (np.linalg.norm(W, axis=-1, keepdims=True) + 1e-6)
 
-    ref_idx = np.flatnonzero(ref)
-    if len(ref_idx) > 20000:
-        ref_idx = np.random.default_rng(0).choice(ref_idx, 20000, replace=False)
-    Wr = windows(ref_idx)
-    tmpl = Wr[:, k0, :].mean(0)
-    tmpl /= np.linalg.norm(tmpl) + 1e-6
-    best = np.argmax(Wr @ tmpl, 1)
-    best = np.clip(best - int(np.median(best)) + k0, 0, len(ts) - 1)   # keep it anchored
-    tmpl = Wr[np.arange(len(Wr)), best, :].mean(0)
-    tmpl /= np.linalg.norm(tmpl) + 1e-6
+    if tmpl is None:
+        ref_idx = np.flatnonzero(ref)
+        if len(ref_idx) > 20000:
+            ref_idx = np.random.default_rng(0).choice(ref_idx, 20000, replace=False)
+        Wr = windows(ref_idx)
+        tmpl = Wr[:, k0, :].mean(0)
+        tmpl /= np.linalg.norm(tmpl) + 1e-6
+        best = np.argmax(Wr @ tmpl, 1)
+        best = np.clip(best - int(np.median(best)) + k0, 0, len(ts) - 1)   # keep it anchored
+        tmpl = Wr[np.arange(len(Wr)), best, :].mean(0)
+        tmpl /= np.linalg.norm(tmpl) + 1e-6
 
     S = np.empty((len(pts), len(ts)), np.float32)
     for a in range(0, len(pts), chunk):
@@ -266,16 +274,16 @@ def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000):
     return S, tmpl
 
 
-def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5):
+def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5, thr=None):
     """True where candidate t puts the label inside papyrus: the mean CT over
     [t-reach, t-0.5] and over [t+0.5, t+reach] (around the expected edge, t + c_off) are
     both above the papyrus/gap mid level. At a real face one side is gap."""
     grid = np.arange(float(ts.min()) + c_off - reach, float(ts.max()) + c_off + reach + 1e-6, 0.5,
                      dtype=np.float32)
     prof = np.stack([sample(ct_s, pts + g * n) for g in grid], 1)
-    near = prof[:, np.abs(grid - c_off) <= 3.0]
-    mid = float(np.median(near))
-    thr = mid + margin * float(np.percentile(near, 90) - np.percentile(near, 10))
+    if thr is None:
+        near = prof[:, np.abs(grid - c_off) <= 3.0]
+        thr = float(np.median(near)) + margin * float(np.percentile(near, 90) - np.percentile(near, 10))
     offs = np.arange(0.5, reach + 1e-6, 0.5, dtype=np.float32)
 
     def mean_at(x):
@@ -286,7 +294,7 @@ def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5):
     for k, t in enumerate(ts):
         e = t + c_off
         out[:, k] = (mean_at(e - offs) > thr) & (mean_at(e + offs) > thr)
-    return out
+    return out, thr
 
 
 def estimate_convention(ct_s, pts, n, p: Params):
@@ -436,6 +444,7 @@ class SnapResult:
     confidence: np.ndarray       # 0..1 per sample
     movable: np.ndarray          # samples that were optimised (not at the border)
     info: dict
+    reversed_face: np.ndarray = None   # label on a face of the opposite polarity: flag for review
 
 
 def prepare(img, lab, p: Params):
@@ -461,17 +470,41 @@ def unary_costs(lab_shape, prepared, p: Params):
     return ts, E, movable, c_off, scale
 
 
-def unary_scores(lab_shape, prepared, p: Params):
+def reversed_faces(ct_s, pts, n, E, c_off, scale, p: Params):
+    """Samples whose label sits on a clear face of the opposite polarity (papyrus on the +n
+    side, gap on the -n side) while no candidate along the normal shows a face of the
+    expected polarity. There the label is probably on the far face of its sheet, or the
+    normal is flipped; searching along +n would only push it into the papyrus."""
+    near = np.arange(-1.5, 1.501, 0.5, dtype=np.float32)
+    e_rev = edge_strength(ct_s, pts, -n, near + c_off, p.edge_halfwidth).max(1) / scale
+    return (e_rev >= p.reverse_min) & (E.max(1) < p.forward_max)
+
+
+def unary_scores(lab_shape, prepared, p: Params, extras=None):
     """Score of each candidate shift (higher = more like a correctly placed label):
-    normalised step-edge strength + template_weight * learned-profile match."""
+    normalised step-edge strength + template_weight * learned-profile match.
+
+    With p.face_polarity, samples found by reversed_faces() are scored along -n instead, so
+    they settle on the face they are on. All scores stay indexed by the shift along +n.
+    If `extras` is a dict, the reversed-face mask is stored in it as 'reversed'."""
     ts, E, movable, c_off, scale = unary_costs(lab_shape, prepared, p)
     ct_s, pts, n = prepared[0], prepared[1], prepared[2]
     S = np.zeros_like(E)
-    ref = None
+    ref, tmpl = None, None
     if p.template_weight > 0 and movable.sum() > 100:
         peak = E.max(1)
         ref = movable & (peak >= np.percentile(peak[movable], 50))
-        S, _ = template_scores(ct_s, pts, n, ts, ref)
+        S, tmpl = template_scores(ct_s, pts, n, ts, ref)
+    rev = np.zeros(len(pts), bool)
+    if len(pts):
+        rev = reversed_faces(ct_s, pts, n, E, c_off, scale, p) & movable
+        if p.face_polarity and rev.any():
+            # ts is symmetric, so a shift t along -n is candidate -t along +n: reverse the axis
+            E[rev] = (edge_strength(ct_s, pts[rev], -n[rev], ts + c_off, p.edge_halfwidth) / scale)[:, ::-1]
+            if tmpl is not None:
+                S[rev] = template_scores(ct_s, pts[rev], -n[rev], ts, None, tmpl=tmpl)[0][:, ::-1]
+    if extras is not None:
+        extras["reversed"] = rev
     U = E + p.template_weight * S
 
     # Self-calibration: assume the annotators are right on average, so the median
@@ -508,7 +541,9 @@ def snap(img, lab, p: Params | None = None, prepared=None):
     p = p or Params()
     prepared = prepared if prepared is not None else prepare(img, lab, p)
     ct_s, pts, n, i, j, comp = prepared
-    ts, U, E, S, movable, c_off, scale = unary_scores(lab.shape, prepared, p)
+    extras = {}
+    ts, U, E, S, movable, c_off, scale = unary_scores(lab.shape, prepared, p, extras)
+    rev = extras["reversed"]
     D = -U + p.prior_mu * np.abs(ts)[None, :]
     k0 = int(np.argmin(np.abs(ts)))
     D[:, k0] -= p.stay_bonus
@@ -516,8 +551,13 @@ def snap(img, lab, p: Params | None = None, prepared=None):
         # +n points from papyrus toward the gap, so moving a label outward should never
         # end with papyrus on both sides of it. When it would, the normal is probably
         # flipped there or the label sits on the far face of a sheet; don't push it in.
-        inside = inside_sheet(ct_s, pts, n, ts, c_off, p.inside_margin)
+        inside, thr = inside_sheet(ct_s, pts, n, ts, c_off, p.inside_margin)
         inside[:, ts <= 0] = False
+        if p.face_polarity and rev.any():
+            # for reversed-face samples "outward" is -n: same test in their own frame
+            inside_r, _ = inside_sheet(ct_s, pts[rev], -n[rev], ts, c_off, p.inside_margin, thr=thr)
+            inside_r[:, ts <= 0] = False
+            inside[rev] = inside_r[:, ::-1]
         D = D + p.inside_penalty * inside
     # border samples: forced to stay put
     D[~movable] = 1e3
@@ -534,8 +574,9 @@ def snap(img, lab, p: Params | None = None, prepared=None):
                 convention_offset=float(c_off), edge_scale=float(scale),
                 mean_abs_shift=float(np.mean(np.abs(shift[movable]))) if movable.any() else 0.0,
                 frac_moved_1vox=float(np.mean(np.abs(shift[movable]) >= 1.0)) if movable.any() else 0.0,
+                frac_reversed_face=float(np.mean(rev[movable])) if movable.any() else 0.0,
                 params=p.asdict())
-    return SnapResult(out, pts, n, shift, conf, movable, info)
+    return SnapResult(out, pts, n, shift, conf, movable, info, rev)
 
 
 # --------------------------------------------------------------------------- baseline
