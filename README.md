@@ -4,6 +4,32 @@ Moves approximate recto-surface labels in Herculaneum scroll CT back onto the re
 
 This is work in progress toward a [Vesuvius Challenge](https://scrollprize.org/prizes) progress-prize submission. It targets the "label quality" open problem in the [2026 open problems](https://scrollprize.org/2026_open_problems). Surface models are trained on hand-traced labels, and those labels drift off the surface. The organizers name this one of the main unwrapping bottlenecks and suggest "label snapping" as a fix.
 
+## Status, 3 November 2026: the ink tests went against snapping
+
+Three tests of the mesh snapper came in this week. Two were pre-registered.
+
+- **Ink legibility on a held-out segment** (pre-registered).
+  - Two blind reviewers compared ink maps from the original and the snapped w052 mesh. They preferred the original 75 times and the snapped mesh 31 times (p = 2 × 10⁻⁵).
+  - The loss is spread over the whole segment, not concentrated where the mesh moved most.
+  - Details: [`results/ink_test.md`](results/ink_test.md).
+- **Ink labels on a scroll the model hasn't seen** (pre-registered, suggested by KLAVIS).
+  - On three traced PHerc. 0841 segments, snapping made no detectable difference to agreement with the ink labels.
+  - On KLAVIS's spiral-fit windings, the drop-in output was about even, and the dense output lost up to 0.22 AUC.
+  - Details: [`results/ink_test_0841.md`](results/ink_test_0841.md).
+- **Face placement against an independent reference** (by Chase).
+  - The test used fresh PHerc. 0139 sites: 173 vertices of model-output surfaces at 28 sites. Chase compared them with the recto face found in two higher-resolution scans.
+  - At default settings, 18% of vertices ended within 1 voxel of that face, against 17% before snapping. By design, the snapper keeps each mesh's own offset from the face.
+  - With `--target-offset 0` and the learned profile off, the share was 43%. His tool, snap_labels, reached 80%.
+
+So, for now:
+- **Don't use snapped meshes for ink detection.**
+- **Read the drift tests below as consistency** (does the snapper put a drifted label back where it was?), not as accuracy against the true face.
+- **The label-cube results** and their blind reviews below still stand for what they measured. None of these three tests looked at the cubes.
+
+![Chase's real drift test: snap_labels and four scroll-label-snap settings against a two-scan recto face on PHerc. 0139](results/independent_drift_test_chase.png)
+
+*Chart by Chase, shared in the Vesuvius Challenge Discord and used with his permission. In his test, scroll-label-snap ran on 13 × 13-vertex crops. That gives its offset estimate and learned profile fewer samples than a whole segment would.*
+
 ## How it works
 
 For each labeled cube:
@@ -203,7 +229,7 @@ So the snapper lands on recto faces. The effect is small but consistent. See [`r
 
 **Open question.** At this resolution, sheets are often thin layers packed into bundles. Where two recto faces lie within ±4 voxels of a wandering trace, neither the drift test nor the fibre check can say which sheet the tracer meant. That needs expert review, or a downstream check such as ink detection on renders of both meshes.
 
-Whether a cleaner surface reads better is not yet measured. The PHerc. 306B winners found that snapping to CT density peaks, after snapping to m7, did not make their letters more legible.
+**Ink detection.** A pre-registered test has now measured whether a snapped surface reads better, and it reads worse: blind reviewers preferred the ink maps from the original w052 mesh, 75 to 31 ([`results/ink_test.md`](results/ink_test.md)). This matches the PHerc. 306B winners, who found that snapping to CT density peaks, after snapping to m7, did not make their letters more legible.
 
 ### A whole segment
 
@@ -211,6 +237,8 @@ Whether a cleaner surface reads better is not yet measured. The PHerc. 306B winn
 
 - **Papyrus on the recto side, read from the renders:** 54% for the original mesh, 86% for the snapped one. The 8 patches gave 55% → 88%.
 - **Review flags:** `snap_review` marks 17.7% of vertices.
+- **w052, whole, for the ink test:** 711 tiles in 15 minutes, none failed. The mean |shift| was 1.69 voxels, and `snap_review` marks 13% of vertices ([`results/w052_whole_snap_segment.json`](results/w052_whole_snap_segment.json)).
+- **One voxel either side of the face** (a check suggested by Sean in the Discord, added after the fact): gap outside and papyrus inside at 21% → 42% of pixels on w035, and 22% → 42% on w052. This is close to what the snapper optimises. See [`results/ink_test.md`](results/ink_test.md), which also has two voxels.
 
 ![w035, original and snapped, 1.5 voxels inside and outside the recto face](results/w035_whole_compare.png)
 
@@ -271,7 +299,7 @@ The tools run on the Vesuvius Challenge surface-label cubes ([Hugging Face bucke
 | 1 | recto surface |
 | 2 | not annotated |
 
-The data is licensed CC BY-NC 4.0 and is not included here. The example images in `results/` are crops of that data. The mesh figures are renders of segment w035 and its scan from the [Vesuvius Challenge open data](https://scrollprize.org/data), also CC BY-NC 4.0.
+The data is licensed CC BY-NC 4.0 and is not included here. The example images in `results/` are crops of that data. The mesh figures are renders of PHerc. 0139 segments w035 and w052 and their scan, and the ink-map figures are made from those renders. They come from the [Vesuvius Challenge open data](https://scrollprize.org/data), also CC BY-NC 4.0. The PHerc. 0841 results use that scroll's open data, under the same licence.
 
 ## Blind human review
 
@@ -342,6 +370,6 @@ A second reviewer, who did not work on the tool and had never seen these scans, 
 
 1. **Decide flagged labels with more context.** Following each sheet over a larger area, or using the traced mesh's own history, could tell which face a flagged label belongs to. Until then, flagged labels are the place for human review.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
-3. **Make the learned profile independent of the input labels** (see "Drift draws" above), then test it on a fresh held-out set of cubes.
-4. **Meshes: check which layer is right.** Get expert review of the snapped w035 patches. Compare ink detection on renders of the original and snapped mesh.
-5. **Meshes: more whole segments.** w035 is done; a held-out segment such as w052, then one the ink models haven't seen, are next.
+3. **Make the learned profile independent of the input labels** (see "Drift draws" above; in Chase's test, turning it off helped). Then test it on a fresh held-out set.
+4. **Meshes: find out why snapping hurts ink detection.** Render the original mesh at uniform offsets of a few voxels either way, and see how strongly the ink signal depends on depth.
+5. **Meshes: face placement.** Find out why `--target-offset 0` still sits about a voxel inside the two-scan face in Chase's test. Compare with snap_labels in the blind ink test.

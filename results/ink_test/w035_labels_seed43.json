@@ -1,0 +1,42 @@
+{
+ "labels": "D:\\vesuvius\\ink\\labels\\w035\\w035_inklabels.zarr",
+ "mask": "D:\\vesuvius\\ink\\labels\\w035\\w035_supervision_mask.zarr",
+ "labels_shape": [
+  5820,
+  5240
+ ],
+ "map_shape": [
+  5801,
+  5221
+ ],
+ "inplane_shift_yx": [
+  0,
+  0
+ ],
+ "pixels": 1071121,
+ "ink_fraction": 0.31185552332556266,
+ "scores": {
+  "original": {
+   "path": "D:\\vesuvius\\ink\\w035\\original_seed43.tif",
+   "auc": 0.9973130101564326,
+   "best_f1": 0.9635814574276915,
+   "threshold": 125,
+   "threshold_probability": 0.4902,
+   "positives": 334035,
+   "negatives": 737086
+  },
+  "snapped": {
+   "path": "D:\\vesuvius\\ink\\w035\\snapped_seed43.tif",
+   "auc": 0.9926389652800583,
+   "best_f1": 0.9387253914613313,
+   "threshold": 121,
+   "threshold_probability": 0.4745,
+   "positives": 334035,
+   "negatives": 737086
+  }
+ },
+ "snapped_minus_original": {
+  "auc": -0.004674044876374239,
+  "best_f1": -0.024856065966360252
+ }
+}

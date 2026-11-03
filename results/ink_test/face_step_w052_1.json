@@ -1,0 +1,41 @@
+{
+ "face": 1.25,
+ "step": 1.0,
+ "normal_sign": -1,
+ "threshold": 90.0,
+ "shape": [
+  21,
+  7681,
+  9741
+ ],
+ "renders": {
+  "original": {
+   "path": "D:\\vesuvius\\ink\\w052\\original_flipped_c1.zarr",
+   "pixels": 66393425,
+   "gap_outside": 0.5292648782616652,
+   "papyrus_inside": 0.5925132496177145,
+   "both": 0.22394304857747585,
+   "brighter_inside": 0.5949710381713249,
+   "mean_outside": 86.00548909775328,
+   "mean_inside": 97.15839484105543,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  },
+  "snapped": {
+   "path": "D:\\vesuvius\\ink\\w052\\snapped_flipped_c1.zarr",
+   "pixels": 66393425,
+   "gap_outside": 0.6751446999458154,
+   "papyrus_inside": 0.7001821942458911,
+   "both": 0.4202658471076014,
+   "brighter_inside": 0.8084555210097988,
+   "mean_outside": 73.60051110859246,
+   "mean_inside": 106.72043643252326,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  }
+ }
+}

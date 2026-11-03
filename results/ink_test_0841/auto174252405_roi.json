@@ -1,0 +1,11 @@
+{
+ "roi": [
+  242,
+  2360,
+  1102,
+  3367
+ ],
+ "corr": "D:\\vesuvius\\f0841\\s022814\\corr.json",
+ "supervision": "D:\\vesuvius\\data\\0841\\PHerc0841\\segments\\20260221022814-auto_grown_20260220174252405\\ink-labels\\2.403um-volume-20260319124803\\20260918\\supervision.zarr.level0.tif",
+ "margin": 128
+}

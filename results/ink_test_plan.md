@@ -168,3 +168,9 @@ The tools are `tools/make_ink_review.py`, `tools/score_ink_review.py` and `tools
   - The answers are `results/ink_review_answers_reviewer1.json` and `results/ink_review_answers_reviewer2.json`.
   - The scores, from `tools/score_ink_review.py` (unchanged since a1f3d91), are in `results/ink_review.md`.
 - **Primary outcome: snapping hurts.** Pooled, the snapped map was preferred 31 times and the original 75 times. That is 29% (95% CI 21–39%) of decisive answers, with a two-sided exact sign test p = 2.3 × 10⁻⁵. Each reviewer's result alone points the same way (p = 0.014 and p = 0.0006).
+- **Analysis**, with `run_ink_analysis.ps1` after both reviews were in. It used the scoring code at a1f3d91:
+  - the tile changes on both segments, with seeds 42 and 43;
+  - w035 against its labels, with seeds 42 and 43;
+  - the face-step check at 1 and 2 voxels, which is not part of the plan.
+
+  All outcomes are in `results/ink_test.md`.
