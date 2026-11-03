@@ -35,7 +35,7 @@ Per-cube numbers are in the matching `.json` files. A before/after on cube sampl
 
 ### The existing refiner as a baseline
 
-`scroll_label_snap/core.py` contains a port of VC3D's alpha-composite refiner (`ObjAlphaCompRefinement`), the refinement step that exists today. With VC3D's default opacity thresholds (118 and 165 of 255), it does worse than leaving the labels alone here. In these cubes the gap is about 52 and papyrus about 127, so both thresholds sit at or above the papyrus level. To make it a fair baseline, it is also scored in three better-set-up versions:
+`scroll_label_snap/core.py` contains a port of VC3D's alpha-composite refiner (`ObjAlphaCompRefinement`), the refinement step that exists today. With VC3D's default opacity thresholds (118 and 165 of 255), it does worse than leaving the labels alone here. In these cubes the gap is about 50 and papyrus about 125, so the lower threshold sits just below the papyrus level and the upper one well above it. To make it a fair baseline, it is also scored in three better-set-up versions:
 - **Offset removed.** The refiner works to its own convention: it puts the surface just past the first voxel above the threshold, not where these annotators draw it. Each version has its median shift on the clean labels removed.
 - **Thresholds from each cube's own levels**, offset removed: the mean brightness of gap and of papyrus (the two Otsu classes). This needs no tuning.
 - **The best fixed thresholds**, offset removed: the best of 13 threshold pairs on the development cubes (70 and 110). On the held-out cubes we report that pair, and also the pair that is best on the held-out cubes themselves, as the refiner's ceiling.
@@ -126,7 +126,7 @@ From the earlier development runs, [`results/eval_v1.md`](results/eval_v1.md) an
 
 - **Smooth warp.** Roughness is the number of exposed voxel faces per band voxel, over all 20 cubes (`tools/roughness.py`). Moving a band by a perfectly smooth shift still adds 2-4% from resampling, so +6% is close to that floor. See [`results/warp_v1_vs_v2.png`](results/warp_v1_vs_v2.png).
 - **Inside-the-sheet guard.** On the 120 moves in the blind review, v2 puts 3 of the 8 losses back on the original label (q057, q070, q107). It leaves 90 of the 98 wins within 0.5 voxel of where v1 put them; 2 went back to the original. See [`results/review_v1_losses_v2.png`](results/review_v1_losses_v2.png); `tools/recheck_review.py` produced the per-item numbers in [`results/review_v1_items_under_v2.json`](results/review_v1_items_under_v2.json).
-  - The guard only blocks outward moves. We chose that after seeing that blocking inward moves as well also undid 2 wins, so these review numbers are optimistic. A fresh review is the real test.
+  - The guard only penalizes outward moves. We chose that after seeing that penalizing inward moves as well also undid 2 wins, so these review numbers are optimistic. A fresh review is the real test.
 - **Drift-test inputs.** The drifted labels and the existing refiner's output now go through the smooth warp too, so their rows moved slightly from v1.
 
 ### Caveats
@@ -174,7 +174,7 @@ It was developed on segment w035 of PHerc. 0139 at 9.362 µm, the one in the scr
 | VC3D refiner, thresholds tuned on the same patches, offset removed | 61% | 68% |
 | VC3D refiner, thresholds from each patch's own gap and papyrus levels, offset removed | 57% | 70% |
 | Snapping onto the m7 surface prediction (the PHerc. 343 winner's method), offset removed | 41% | 63% |
-| Consistency: snapper / refiner / m7 snapping | 84% / 62% / 69% | 90% / 66% / 76% |
+| Consistency: snapper / refiner with each patch's own levels / m7 snapping | 84% / 75% / 69% | 90% / 84% / 76% |
 | Fibre check, patches with the recto signature: snapped / original / m7 snapping | 8 / 5 / 7 of 8 | 8 / 6 / 6 of 8 |
 
 The w035 results are below.
