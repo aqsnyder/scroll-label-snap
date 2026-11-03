@@ -81,35 +81,60 @@ def sample(vol, pts, order=1):
 
 # --------------------------------------------------------------------------- 1. points
 
+def _filter_x_at(vol, z, y, x, sigma, order):
+    """gaussian_filter1d(vol, sigma, axis=2, order=order)[z, y, x], without filtering the rest of
+    the volume: the same filter runs on just the line segments around those voxels."""
+    r = int(4.0 * float(sigma) + 0.5)                      # scipy's default radius (truncate=4)
+    q = (x[:, None] + np.arange(-r, r + 1)) % (2 * vol.shape[2])
+    q = np.where(q >= vol.shape[2], 2 * vol.shape[2] - 1 - q, q)     # mode="reflect"
+    return ndi.gaussian_filter1d(vol[z[:, None], y[:, None], q], sigma, axis=1, order=order)[:, r]
+
+
 def surface_points(lab, p: Params):
     """Band-centred samples of the label-1 surface with (unoriented) unit normals."""
-    m = (lab == SURF).astype(np.float32)
-    s = ndi.gaussian_filter(m, p.sigma_band)
-    zz, yy, xx = np.nonzero(lab == SURF)
+    sb = p.sigma_band
+    band = lab == SURF
+    m = band.astype(np.float32)
+    gz = ndi.gaussian_filter1d(m, sb, axis=0)              # smoothing passes, axis by axis
+    gzy = ndi.gaussian_filter1d(gz, sb, axis=1)            # as ndi.gaussian_filter applies them
+    s = ndi.gaussian_filter1d(gzy, sb, axis=2)
+    zz, yy, xx = np.nonzero(band)
     if len(zz) == 0:
         return np.zeros((0, 3), np.float32), np.zeros((0, 3), np.float32), s
-    coords = np.stack([zz, yy, xx], 1)
     sval = s[zz, yy, xx]
 
     # keep the voxel nearest the band centre (largest smoothed value) in each grid cell
-    cell = (coords // p.spacing).astype(np.int64)
-    key = (cell[:, 0] * 4096 + cell[:, 1]) * 4096 + cell[:, 2]
+    key = ((zz // p.spacing).astype(np.int64) * 4096 + (yy // p.spacing).astype(np.int64)) * 4096
+    key += (xx // p.spacing).astype(np.int64)
     order = np.lexsort((-sval, key))
     ks = key[order]
     first = np.ones(len(ks), bool)
     first[1:] = ks[1:] != ks[:-1]
     sel = order[first]
-    pts = coords[sel].astype(np.float32)
+    z, y, x = zz[sel], yy[sel], xx[sel]
+    pts = np.stack([z, y, x], 1).astype(np.float32)
+    del zz, yy, xx, sval, key, order, ks, first
 
-    # normals: eigenvector of the most negative Hessian eigenvalue of the smoothed band
-    orders = {(0, 0): (2, 0, 0), (1, 1): (0, 2, 0), (2, 2): (0, 0, 2),
-              (0, 1): (1, 1, 0), (0, 2): (1, 0, 1), (1, 2): (0, 1, 1)}
+    # normals: eigenvector of the most negative Hessian eigenvalue of the smoothed band. The six
+    # second-derivative filters share their first passes, and the last pass runs only at the samples.
     H = np.empty((len(sel), 3, 3), np.float32)
-    z, y, x = coords[sel].T
-    for (a, b), o in orders.items():
-        v = ndi.gaussian_filter(m, p.sigma_band, order=o)[z, y, x]
+
+    def put(a, b, vol, order):
+        v = _filter_x_at(vol, z, y, x, sb, order)
         H[:, a, b] = v
         H[:, b, a] = v
+
+    put(2, 2, gzy, 2)                                                # orders (0, 0, 2)
+    del gzy
+    put(1, 1, ndi.gaussian_filter1d(gz, sb, axis=1, order=2), 0)     # (0, 2, 0)
+    put(1, 2, ndi.gaussian_filter1d(gz, sb, axis=1, order=1), 1)     # (0, 1, 1)
+    del gz
+    d = ndi.gaussian_filter1d(m, sb, axis=0, order=1)
+    put(0, 1, ndi.gaussian_filter1d(d, sb, axis=1, order=1), 0)      # (1, 1, 0)
+    put(0, 2, ndi.gaussian_filter1d(d, sb, axis=1), 1)               # (1, 0, 1)
+    d = ndi.gaussian_filter1d(m, sb, axis=0, order=2)
+    put(0, 0, ndi.gaussian_filter1d(d, sb, axis=1), 0)               # (2, 0, 0)
+    del d, m
     _, V = np.linalg.eigh(H)
     n = V[:, :, 0].astype(np.float32)
     n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
@@ -205,7 +230,21 @@ def orient_normals(pts, n, i, j, ct_s):
 
 # --------------------------------------------------------------------------- 4. costs
 
-def edge_strength(ct_s, pts, n, ts, h, wide=3.5):
+def _rays(ct_s, pts, n):
+    """profile(grid) = np.stack([sample(ct_s, pts + g * n) for g in grid], 1), each offset sampled once:
+    the scoring steps ask for heavily overlapping offsets (161 columns, on 40 to 74 distinct offsets).
+    A subset of the samples is profile(grid)[rows], and looking along -n is profile(-grid)."""
+    cols = {}
+
+    def profile(grid):
+        for g in grid:
+            if float(g) not in cols:
+                cols[float(g)] = sample(ct_s, pts + g * n)
+        return np.stack([cols[float(g)] for g in grid], 1)
+    return profile
+
+
+def edge_strength(ct_s, pts, n, ts, h, wide=3.5, rays=None):
     """Papyrus-to-gap step at each candidate position t_k along the normal.
 
     Two measurements must agree (the smaller is used):
@@ -217,7 +256,7 @@ def edge_strength(ct_s, pts, n, ts, h, wide=3.5):
     offs = np.arange(-wide - h, wide + h + 1e-6, 0.5, dtype=np.float32)
     lo_t, hi_t = float(ts.min()), float(ts.max())
     grid = np.arange(lo_t + offs[0], hi_t + offs[-1] + 1e-6, 0.5, dtype=np.float32)
-    prof = np.stack([sample(ct_s, pts + g * n) for g in grid], 1)
+    prof = (rays or _rays(ct_s, pts, n))(grid)
 
     def at(x):
         """profile value at offset(s) x (0.5-voxel grid, linear interpolation)."""
@@ -236,7 +275,7 @@ def edge_strength(ct_s, pts, n, ts, h, wide=3.5):
     return E
 
 
-def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000, tmpl=None):
+def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000, tmpl=None, rays=None):
     """How well the CT profile around each candidate position matches this cube's own
     'typical label' profile (normalised cross-correlation, -1..1).
 
@@ -251,10 +290,10 @@ def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000, tmpl
     grid = (t0 - half + step * np.arange(n_g)).astype(np.float32)
     k_t = np.rint((ts - t0) / step).astype(int)           # window start index per candidate
     k0 = int(np.argmin(np.abs(ts)))
+    prof = (rays or _rays(ct_s, pts, n))(grid)
 
     def windows(sel):
-        P = np.stack([sample(ct_s, pts[sel] + g * n[sel]) for g in grid], 1)
-        W = np.lib.stride_tricks.sliding_window_view(P, n_u, axis=1)[:, k_t, :]
+        W = np.lib.stride_tricks.sliding_window_view(prof[sel], n_u, axis=1)[:, k_t, :]
         W = W - W.mean(-1, keepdims=True)
         return W / (np.linalg.norm(W, axis=-1, keepdims=True) + 1e-6)
 
@@ -276,13 +315,13 @@ def template_scores(ct_s, pts, n, ts, ref, half=4.0, step=0.5, chunk=50000, tmpl
     return S, tmpl
 
 
-def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5, thr=None):
+def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5, thr=None, rays=None):
     """True where candidate t puts the label inside papyrus: the mean CT over
     [t-reach, t-0.5] and over [t+0.5, t+reach] (around the expected edge, t + c_off) are
     both above the papyrus/gap mid level. At a real face one side is gap."""
     grid = np.arange(float(ts.min()) + c_off - reach, float(ts.max()) + c_off + reach + 1e-6, 0.5,
                      dtype=np.float32)
-    prof = np.stack([sample(ct_s, pts + g * n) for g in grid], 1)
+    prof = (rays or _rays(ct_s, pts, n))(grid)
     if thr is None:
         near = prof[:, np.abs(grid - c_off) <= 3.0]
         thr = float(np.median(near)) + margin * float(np.percentile(near, 90) - np.percentile(near, 10))
@@ -299,11 +338,11 @@ def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5, thr=None):
     return out, thr
 
 
-def estimate_convention(ct_s, pts, n, p: Params):
+def estimate_convention(ct_s, pts, n, p: Params, rays=None):
     """Where the labels put the band centre relative to the steepest edge, and the
     typical edge strength. Returns (offset, scale)."""
     tf = np.arange(-p.convention_reach, p.convention_reach + 0.001, 0.25, dtype=np.float32)
-    E = edge_strength(ct_s, pts, n, tf, p.edge_halfwidth)
+    E = edge_strength(ct_s, pts, n, tf, p.edge_halfwidth, rays=rays)
     peak = E.max(1)
     strong = peak > np.percentile(peak, 50)
     offset = float(np.median(tf[np.argmax(E[strong], 1)])) if strong.any() else 0.0
@@ -321,7 +360,10 @@ def solve_shifts(D, i, j, w, K):
         return np.zeros(0, int)
     Dn = (D - D.min(1, keepdims=True)).astype(np.float64)
     big = float(Dn.max() * N + w * len(i) * L + 1.0)
-    g = maxflow.Graph[float]()
+    n_edges = (L - 2) * N + len(i) * (L - 1)
+    if K is not None and K < L - 1:
+        n_edges += 2 * len(i) * (L - 1 - K)
+    g = maxflow.Graph[float](N * (L - 1), n_edges)          # no regrowing (and copying) of the arc array
     g.add_nodes(N * (L - 1))
     ids = np.arange(N * (L - 1), dtype=np.int64).reshape(N, L - 1)
 
@@ -367,7 +409,7 @@ def _batches(comp, size):
 
 # --------------------------------------------------------------------------- 6. warp
 
-def warp_labels(lab, pts, n, shift, radius=6, chunk=1_000_000, comp=None, smooth=True,
+def warp_labels(lab, pts, n, shift, radius=6, chunk=200_000, comp=None, smooth=True,
                 sigma=None, k=12):
     """Move the label-1 band so the surface near sample p shifts by shift[p] * n[p].
     Label-2 voxels are never changed.
@@ -382,34 +424,35 @@ def warp_labels(lab, pts, n, shift, radius=6, chunk=1_000_000, comp=None, smooth
     out = lab.copy()
     if len(pts) == 0:
         return out
-    near = ndi.binary_dilation(band, iterations=radius)
-    xs = np.argwhere(near)
+    annotated = lab != UNK                  # voxels labelled 2 keep their label, whatever the warp says
+    near = ndi.binary_dilation(band, iterations=radius) & annotated
     tree = cKDTree(pts)
     new_band = np.zeros_like(band)
     hi = np.array(lab.shape) - 1
     vec = (np.asarray(shift, np.float32)[:, None] * n).astype(np.float32)
     if smooth:
         sigma = float(sigma) if sigma is not None else _sample_spacing(pts)
-        bandf = band.astype(np.float32)
         comp = np.zeros(len(pts), np.int64) if comp is None else np.asarray(comp)
         kk = min(k, len(pts))
-    for a in range(0, len(xs), chunk):
-        x = xs[a:a + chunk]
-        if not smooth:
-            _, idx = tree.query(x, k=1)
-            src = np.clip(np.rint(x - vec[idx]).astype(np.int64), 0, hi)
-            new_band[x[:, 0], x[:, 1], x[:, 2]] = band[src[:, 0], src[:, 1], src[:, 2]]
-            continue
-        d, idx = tree.query(x, k=kk, workers=_kd_workers())
-        if kk == 1:
-            d, idx = d[:, None], idx[:, None]
-        w = np.exp(-0.5 * (d / sigma) ** 2)
-        w *= comp[idx] == comp[idx[:, :1]]                 # same sheet as the nearest sample
-        disp = np.einsum("ik,ikc->ic", w, vec[idx]) / w.sum(1, keepdims=True)
-        src = np.clip(x - disp, 0, hi).T
-        vals = ndi.map_coordinates(bandf, src, order=1, mode="nearest")
-        new_band[x[:, 0], x[:, 1], x[:, 2]] = vals >= 0.5
-    annotated = lab != UNK
+    for z in range(0, near.shape[0], 16):      # a slab at a time: the voxel list is never held in full
+        xs = np.argwhere(near[z:z + 16])
+        xs[:, 0] += z
+        for a in range(0, len(xs), chunk):
+            x = xs[a:a + chunk]
+            if not smooth:
+                _, idx = tree.query(x, k=1)
+                src = np.clip(np.rint(x - vec[idx]).astype(np.int64), 0, hi)
+                new_band[x[:, 0], x[:, 1], x[:, 2]] = band[src[:, 0], src[:, 1], src[:, 2]]
+                continue
+            d, idx = tree.query(x, k=kk, workers=_kd_workers())
+            if kk == 1:
+                d, idx = d[:, None], idx[:, None]
+            w = np.exp(-0.5 * (d / sigma) ** 2)
+            w *= comp[idx] == comp[idx[:, :1]]                 # same sheet as the nearest sample
+            disp = np.einsum("ik,ikc->ic", w, vec[idx]) / w.sum(1, keepdims=True)
+            src = np.clip(x - disp, 0, hi).T
+            vals = ndi.map_coordinates(band, src, order=1, mode="nearest", output=np.float32)
+            new_band[x[:, 0], x[:, 1], x[:, 2]] = vals >= 0.5
     out[band & annotated] = 0
     out[new_band & annotated] = SURF
     return out
@@ -435,13 +478,19 @@ def _sample_spacing(pts):
 
 def shift_volume(lab_shape, mask, pts, values, fill=0):
     """Paint per-sample values onto the voxels of `mask` (nearest sample)."""
-    vol = np.full(lab_shape, fill, dtype=np.asarray(values).dtype)
+    return shift_volumes(lab_shape, mask, pts, [values], fill)[0]
+
+
+def shift_volumes(lab_shape, mask, pts, value_arrays, fill=0):
+    """shift_volume for several arrays of values, with one nearest-sample search."""
+    vols = [np.full(lab_shape, fill, dtype=np.asarray(v).dtype) for v in value_arrays]
     if len(pts) == 0:
-        return vol
+        return vols
     xs = np.argwhere(mask)
     _, idx = cKDTree(pts).query(xs, k=1)
-    vol[xs[:, 0], xs[:, 1], xs[:, 2]] = np.asarray(values)[idx]
-    return vol
+    for vol, v in zip(vols, value_arrays):
+        vol[xs[:, 0], xs[:, 1], xs[:, 2]] = np.asarray(v)[idx]
+    return vols
 
 
 # --------------------------------------------------------------------------- driver
@@ -467,27 +516,29 @@ def prepare(img, lab, p: Params):
     return ct_s, pts, n, i, j, comp
 
 
-def unary_costs(lab_shape, prepared, p: Params):
+def unary_costs(lab_shape, prepared, p: Params, rays=None):
     """Edge-based cost of each candidate shift for each sample, plus bookkeeping."""
     ct_s, pts, n, i, j, comp = prepared
+    rays = rays or _rays(ct_s, pts, n)
     ts = np.arange(-p.t_max, p.t_max + 1e-6, p.t_step, dtype=np.float32)
     lo = p.border
     hi = np.array(lab_shape) - 1 - p.border
     movable = np.all((pts >= lo) & (pts <= hi), axis=1)
-    c_off, scale = estimate_convention(ct_s, pts[movable], n[movable], p)
+    c_off, scale = estimate_convention(ct_s, pts[movable], n[movable], p, rays=lambda g: rays(g)[movable])
     if p.convention_offset is not None:
         c_off = p.convention_offset
-    E = edge_strength(ct_s, pts, n, ts + c_off, p.edge_halfwidth) / scale
+    E = edge_strength(ct_s, pts, n, ts + c_off, p.edge_halfwidth, rays=rays) / scale
     return ts, E, movable, c_off, scale
 
 
-def reversed_faces(ct_s, pts, n, E, c_off, scale, p: Params):
+def reversed_faces(ct_s, pts, n, E, c_off, scale, p: Params, rays=None):
     """Samples whose label sits on a clear face of the opposite polarity (papyrus on the +n
     side, gap on the -n side) while no candidate along the normal shows a face of the
     expected polarity. There the label is probably on the far face of its sheet, or the
     normal is flipped; searching along +n would only push it into the papyrus."""
     near = np.arange(-1.5, 1.501, 0.5, dtype=np.float32)
-    e_rev = edge_strength(ct_s, pts, -n, near + c_off, p.edge_halfwidth).max(1) / scale
+    e_rev = edge_strength(ct_s, pts, -n, near + c_off, p.edge_halfwidth,
+                          rays=(lambda g: rays(-g)) if rays else None).max(1) / scale
     return (e_rev >= p.reverse_min) & (E.max(1) < p.forward_max)
 
 
@@ -498,17 +549,18 @@ def unary_scores(lab_shape, prepared, p: Params, extras=None):
     With p.face_polarity, samples found by reversed_faces() are scored along -n instead, so
     they settle on the face they are on. All scores stay indexed by the shift along +n.
     If `extras` is a dict, the reversed-face mask is stored in it as 'reversed'."""
-    ts, E, movable, c_off, scale = unary_costs(lab_shape, prepared, p)
     ct_s, pts, n = prepared[0], prepared[1], prepared[2]
+    rays = _rays(ct_s, pts, n)
+    ts, E, movable, c_off, scale = unary_costs(lab_shape, prepared, p, rays=rays)
     S = np.zeros_like(E)
     ref, tmpl = None, None
     if p.template_weight > 0 and movable.sum() > 100:
         peak = E.max(1)
         ref = movable & (peak >= np.percentile(peak[movable], 50))
-        S, tmpl = template_scores(ct_s, pts, n, ts, ref)
+        S, tmpl = template_scores(ct_s, pts, n, ts, ref, rays=rays)
     rev = np.zeros(len(pts), bool)
     if len(pts):
-        rev = reversed_faces(ct_s, pts, n, E, c_off, scale, p) & movable
+        rev = reversed_faces(ct_s, pts, n, E, c_off, scale, p, rays=rays) & movable
         if p.face_polarity and rev.any():
             # ts is symmetric, so a shift t along -n is candidate -t along +n: reverse the axis
             E[rev] = (edge_strength(ct_s, pts[rev], -n[rev], ts + c_off, p.edge_halfwidth) / scale)[:, ::-1]
@@ -516,6 +568,7 @@ def unary_scores(lab_shape, prepared, p: Params, extras=None):
                 S[rev] = template_scores(ct_s, pts[rev], -n[rev], ts, None, tmpl=tmpl)[0][:, ::-1]
     if extras is not None:
         extras["reversed"] = rev
+        extras["rays"] = rays
     U = E + p.template_weight * S
 
     # Self-calibration: assume the annotators are right on average, so the median
@@ -525,9 +578,9 @@ def unary_scores(lab_shape, prepared, p: Params, extras=None):
     if p.calibrate and movable.sum() > 100:
         d_med = float(np.median(ts[np.argmax(U[movable], 1)]))
         if abs(d_med) >= p.t_step:
-            E = edge_strength(ct_s, pts, n, ts + c_off + d_med, p.edge_halfwidth) / scale
+            E = edge_strength(ct_s, pts, n, ts + c_off + d_med, p.edge_halfwidth, rays=rays) / scale
             if ref is not None:
-                S, _ = template_scores(ct_s, pts, n, ts + d_med, ref)
+                S, _ = template_scores(ct_s, pts, n, ts + d_med, ref, rays=rays)
             U = E + p.template_weight * S
             c_off += d_med
     return ts, U, E, S, movable, c_off, scale
@@ -553,6 +606,7 @@ def snap(img, lab, p: Params | None = None, prepared=None):
     prepared = prepared if prepared is not None else prepare(img, lab, p)
     ct_s, pts, n, i, j, comp = prepared
     shift, conf, movable, rev, info = solve_surface(lab.shape, prepared, p)
+    del ct_s, prepared             # the warp doesn't need the smoothed CT (unless the caller keeps it)
     out = warp_labels(lab, pts, n, shift, comp=comp, smooth=p.smooth_warp)
     return SnapResult(out, pts, n, shift, conf, movable, info, rev)
 
@@ -572,7 +626,7 @@ def solve_surface(shape, prepared, p: Params):
         # +n points from papyrus toward the gap, so moving a label outward should never
         # end with papyrus on both sides of it. When it would, the normal is probably
         # flipped there or the label sits on the far face of a sheet; don't push it in.
-        inside, thr = inside_sheet(ct_s, pts, n, ts, c_off, p.inside_margin)
+        inside, thr = inside_sheet(ct_s, pts, n, ts, c_off, p.inside_margin, rays=extras["rays"])
         inside[:, ts <= 0] = False
         if p.face_polarity and rev.any():
             # for reversed-face samples "outward" is -n: same test in their own frame
@@ -580,6 +634,7 @@ def solve_surface(shape, prepared, p: Params):
             inside_r[:, ts <= 0] = False
             inside[rev] = inside_r[:, ::-1]
         D = D + p.inside_penalty * inside
+    del U, extras                  # the sampled profiles are no longer needed
     # border samples: forced to stay put
     D[~movable] = 1e3
     D[~movable, k0] = 0.0

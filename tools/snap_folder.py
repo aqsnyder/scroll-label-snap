@@ -25,17 +25,17 @@ def run_one(img_path, lab_path, out_dir):
     os.environ["SNAP_THREADS"] = "1"          # one process per core already
     import numpy as np
     import tifffile
-    from scroll_label_snap.core import Params, snap, shift_volume
+    from scroll_label_snap.core import Params, snap, shift_volumes
 
     name = os.path.basename(img_path).rsplit(".", 1)[0]
     t0 = time.time()
     img = tifffile.imread(img_path)
     lab = tifffile.imread(lab_path)
     res = snap(img, lab, Params())
-    conf = shift_volume(lab.shape, res.labels == 1, res.pts, (res.confidence * 255).astype(np.uint8))
+    conf, flags = shift_volumes(lab.shape, res.labels == 1, res.pts,
+                                [(res.confidence * 255).astype(np.uint8), (res.reversed_face * 255).astype(np.uint8)])
     tifffile.imwrite(os.path.join(out_dir, "labels", name + ".tif"), res.labels, compression="zlib")
     tifffile.imwrite(os.path.join(out_dir, "confidence", name + ".tif"), conf, compression="zlib")
-    flags = shift_volume(lab.shape, res.labels == 1, res.pts, (res.reversed_face * 255).astype(np.uint8))
     tifffile.imwrite(os.path.join(out_dir, "flags", name + ".tif"), flags, compression="zlib")
     i = res.info
     return dict(cube=name, samples=i["n_samples"], sheets=i["n_sheets"],

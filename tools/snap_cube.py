@@ -18,7 +18,7 @@ import numpy as np
 import tifffile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from scroll_label_snap.core import Params, snap, shift_volume  # noqa: E402
+from scroll_label_snap.core import Params, snap, shift_volumes  # noqa: E402
 
 
 def main(out_dir, *paths):
@@ -32,14 +32,13 @@ def main(out_dir, *paths):
         img = tifffile.imread(img_path)
         lab = tifffile.imread(lab_path)
         res = snap(img, lab, p)
-        conf = shift_volume(lab.shape, res.labels == 1, res.pts,
-                            (res.confidence * 255).astype(np.uint8))
+        # 255 in flags on band voxels whose label sits on a face of the opposite polarity: worth a look
+        conf, flags = shift_volumes(lab.shape, res.labels == 1, res.pts,
+                                    [(res.confidence * 255).astype(np.uint8), (res.reversed_face * 255).astype(np.uint8)])
         tifffile.imwrite(os.path.join(out_dir, "labels", name + ".tif"), res.labels,
                          compression="zlib")
         tifffile.imwrite(os.path.join(out_dir, "confidence", name + ".tif"), conf,
                          compression="zlib")
-        # 255 on band voxels whose label sits on a face of the opposite polarity: worth a look
-        flags = shift_volume(lab.shape, res.labels == 1, res.pts, (res.reversed_face * 255).astype(np.uint8))
         tifffile.imwrite(os.path.join(out_dir, "flags", name + ".tif"), flags, compression="zlib")
         info = dict(res.info, seconds=round(time.time() - t0, 1))
         with open(os.path.join(out_dir, name + ".json"), "w") as f:
