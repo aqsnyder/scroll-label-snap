@@ -170,7 +170,7 @@ Five of the eight losses put the label inside a thick sheet instead of on its fa
 - The snapped band's stair-step edge can give it away.
 - The controls and catch items were only clean at the centre point of each 48-voxel window.
 
-### Review v2 (set `af7d4c85d7f6`, in progress)
+### Review v2 (set `af7d4c85d7f6`)
 
 Built with `tools/make_review_v2.py --seed 1` on the v2 output, for a reviewer who did not work on the tool:
 - **Fresh points.** No item is within 32 voxels of a v1 item.
@@ -182,9 +182,16 @@ Built with `tools/make_review_v2.py --seed 1` on the v2 output, for a reviewer w
 - **Per-reviewer storage.** Answers are stored under each reviewer's name, so several people can take the same set.
 - **Sealed key.** The SHA-256 of the answer key is `af7d4c85d7f6f07106839d0af2de42655095ba677316cb9c3ae9ddec95dc08f6`, and an encrypted copy is `review/sealed_key_af7d4c85d7f6.enc`. The page is `review/v2/index.html`.
 
+### Result of review v2 ([`results/review_v2.md`](results/review_v2.md))
+
+A second reviewer, who did not work on the tool and had never seen these scans, judged the v2 output on fresh items:
+- **Moves:** where the snapper moved the label, she preferred the snapped label 63 times and the original 7 times. That is 90% of decisive answers (95% CI 81-95%); 10 of 80 were "about the same" or "can't tell".
+- **Big moves (2+ voxels)** went 27 to 6; **moderate moves (1-2 voxels)** 36 to 1; **the hazy cubes** 12 to 1.
+- **Checks:** she got all 16 catch items and all 4 practice items right. She rated 11 of the 15 controls "about the same".
+- **Losses:** four of the seven are the same failure mode found in review v1, where the label sits on a face whose gap is opposite the normal.
+
 ## Next steps
 
-1. **Finish review v2** with an independent reviewer and score it.
-2. **Better orientation where a label sits on the far face of a sheet**, the cause of most of the remaining losses.
-3. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
-4. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.
+1. **Better orientation where a label sits on the far face of a sheet.** This causes most of the remaining losses in both reviews.
+2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
+3. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.

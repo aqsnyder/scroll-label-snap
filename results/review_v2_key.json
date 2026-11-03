@@ -1,0 +1,2111 @@
+{
+ "q001": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   246,
+   179,
+   266
+  ],
+  "cube": "sample_00019",
+  "delta": 1.25,
+  "point_zyx": [
+   246.0,
+   179.0,
+   266.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.225
+ },
+ "q002": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   221,
+   132,
+   153
+  ],
+  "cube": "sample_00008",
+  "delta": -1.0,
+  "point_zyx": [
+   221.0,
+   132.0,
+   153.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.565
+ },
+ "q003": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   83,
+   59,
+   87
+  ],
+  "cube": "sample_00004",
+  "delta": 1.0,
+  "point_zyx": [
+   83.0,
+   59.1,
+   86.6
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.367
+ },
+ "q004": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   113,
+   159,
+   171
+  ],
+  "cube": "sample_00008",
+  "delta": 2.75,
+  "point_zyx": [
+   113.0,
+   159.0,
+   171.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.363
+ },
+ "q005": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   81,
+   221,
+   95
+  ],
+  "cube": "sample_00003",
+  "delta": -3.0,
+  "point_zyx": [
+   81.0,
+   221.0,
+   95.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.198
+ },
+ "q006": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   81,
+   134,
+   78
+  ],
+  "cube": "sample_00013",
+  "delta": -2.25,
+  "point_zyx": [
+   81.0,
+   134.0,
+   78.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.028
+ },
+ "q007": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   158,
+   234,
+   188
+  ],
+  "cube": "sample_00012",
+  "delta": 1.25,
+  "point_zyx": [
+   158.0,
+   234.0,
+   188.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.301
+ },
+ "q008": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   164,
+   164,
+   185
+  ],
+  "cube": "sample_00019",
+  "delta": 1.25,
+  "point_zyx": [
+   164.5,
+   164.0,
+   185.4
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.287
+ },
+ "q009": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   198,
+   56,
+   125
+  ],
+  "cube": "sample_00012",
+  "delta": -2.25,
+  "point_zyx": [
+   198.0,
+   56.0,
+   125.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.165
+ },
+ "q010": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   194,
+   251,
+   50
+  ],
+  "cube": "sample_00009",
+  "delta": -2.25,
+  "point_zyx": [
+   194.0,
+   251.0,
+   50.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.209
+ },
+ "q011": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   56,
+   54,
+   72
+  ],
+  "cube": "sample_00018",
+  "delta": 1.25,
+  "point_zyx": [
+   56.0,
+   54.0,
+   72.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.386
+ },
+ "q012": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   251,
+   218,
+   191
+  ],
+  "cube": "sample_00017",
+  "delta": 1.25,
+  "point_zyx": [
+   251.1,
+   218.1,
+   191.2
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.21
+ },
+ "q013": {
+  "A": "pushed -2.5",
+  "B": "original",
+  "center_zyx": [
+   54,
+   99,
+   86
+  ],
+  "cube": "sample_00015",
+  "delta": -2.5,
+  "point_zyx": [
+   53.7,
+   99.0,
+   86.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.127
+ },
+ "q014": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   244,
+   263,
+   147
+  ],
+  "cube": "sample_00007",
+  "delta": 1.0,
+  "point_zyx": [
+   244.0,
+   263.0,
+   146.8
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.451
+ },
+ "q015": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   119,
+   152,
+   204
+  ],
+  "cube": "sample_00009",
+  "delta": 3.0,
+  "point_zyx": [
+   119.0,
+   152.0,
+   204.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.291
+ },
+ "q016": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   54,
+   71,
+   255
+  ],
+  "cube": "sample_00015",
+  "delta": 4.25,
+  "point_zyx": [
+   54.0,
+   71.0,
+   255.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.139
+ },
+ "q017": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   111,
+   88,
+   190
+  ],
+  "cube": "sample_00018",
+  "delta": 0.0,
+  "point_zyx": [
+   111.0,
+   88.0,
+   190.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.811
+ },
+ "q018": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   61,
+   170,
+   110
+  ],
+  "cube": "sample_00003",
+  "delta": -1.0,
+  "point_zyx": [
+   61.0,
+   170.0,
+   110.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.414
+ },
+ "q019": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   80,
+   99,
+   243
+  ],
+  "cube": "sample_00020",
+  "delta": -1.0,
+  "point_zyx": [
+   80.0,
+   99.0,
+   243.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.433
+ },
+ "q020": {
+  "A": "pushed +3.0",
+  "B": "original",
+  "center_zyx": [
+   177,
+   246,
+   110
+  ],
+  "cube": "sample_00011",
+  "delta": 3.0,
+  "point_zyx": [
+   177.0,
+   246.0,
+   110.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.0
+ },
+ "q021": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   259,
+   198,
+   59
+  ],
+  "cube": "sample_00007",
+  "delta": 2.25,
+  "point_zyx": [
+   259.0,
+   198.0,
+   59.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.202
+ },
+ "q022": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   268,
+   154,
+   149
+  ],
+  "cube": "sample_00015",
+  "delta": 0.0,
+  "point_zyx": [
+   268.0,
+   154.0,
+   149.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.816
+ },
+ "q023": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   153,
+   246,
+   122
+  ],
+  "cube": "sample_00006",
+  "delta": 2.25,
+  "point_zyx": [
+   153.0,
+   246.0,
+   122.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.114
+ },
+ "q024": {
+  "A": "original",
+  "B": "pushed +3.0",
+  "center_zyx": [
+   140,
+   222,
+   250
+  ],
+  "cube": "sample_00004",
+  "delta": 3.0,
+  "point_zyx": [
+   140.0,
+   222.0,
+   250.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.0
+ },
+ "q025": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   55,
+   239,
+   132
+  ],
+  "cube": "sample_00010",
+  "delta": -1.75,
+  "point_zyx": [
+   55.0,
+   239.0,
+   132.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.21
+ },
+ "q026": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   162,
+   155,
+   201
+  ],
+  "cube": "sample_00002",
+  "delta": -1.0,
+  "point_zyx": [
+   162.0,
+   155.0,
+   201.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.184
+ },
+ "q027": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   126,
+   87,
+   170
+  ],
+  "cube": "sample_00013",
+  "delta": 1.5,
+  "point_zyx": [
+   126.0,
+   87.0,
+   170.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.322
+ },
+ "q028": {
+  "A": "original",
+  "B": "pushed -2.5",
+  "center_zyx": [
+   175,
+   111,
+   212
+  ],
+  "cube": "sample_00011",
+  "delta": -2.5,
+  "point_zyx": [
+   175.0,
+   111.0,
+   212.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.136
+ },
+ "q029": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   117,
+   255,
+   178
+  ],
+  "cube": "sample_00016",
+  "delta": -4.25,
+  "point_zyx": [
+   117.0,
+   255.0,
+   178.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.381
+ },
+ "q030": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   232,
+   186,
+   245
+  ],
+  "cube": "sample_00010",
+  "delta": -1.25,
+  "point_zyx": [
+   232.0,
+   186.0,
+   245.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.209
+ },
+ "q031": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   54,
+   189,
+   258
+  ],
+  "cube": "sample_00017",
+  "delta": 2.25,
+  "point_zyx": [
+   54.0,
+   189.0,
+   258.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.17
+ },
+ "q032": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   138,
+   126,
+   92
+  ],
+  "cube": "sample_00004",
+  "delta": -3.25,
+  "point_zyx": [
+   137.8,
+   125.6,
+   92.4
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.159
+ },
+ "q033": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   180,
+   52,
+   168
+  ],
+  "cube": "sample_00015",
+  "delta": 2.25,
+  "point_zyx": [
+   180.0,
+   52.0,
+   168.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.261
+ },
+ "q034": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   255,
+   197,
+   170
+  ],
+  "cube": "sample_00012",
+  "delta": 0.0,
+  "point_zyx": [
+   255.0,
+   197.0,
+   170.0
+  ],
+  "slice_axis": "z",
+  "stratum": "no move",
+  "window_iou": 0.843
+ },
+ "q035": {
+  "A": "pushed +3.0",
+  "B": "original",
+  "center_zyx": [
+   50,
+   58,
+   225
+  ],
+  "cube": "sample_00004",
+  "delta": 3.0,
+  "point_zyx": [
+   50.0,
+   58.0,
+   225.0
+  ],
+  "slice_axis": "z",
+  "stratum": "catch",
+  "window_iou": 0.0
+ },
+ "q036": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   254,
+   106,
+   141
+  ],
+  "cube": "sample_00011",
+  "delta": -1.0,
+  "point_zyx": [
+   254.0,
+   106.0,
+   141.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.487
+ },
+ "q037": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   215,
+   152,
+   128
+  ],
+  "cube": "sample_00020",
+  "delta": 0.0,
+  "point_zyx": [
+   215.4,
+   152.1,
+   128.1
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.857
+ },
+ "q038": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   150,
+   216,
+   266
+  ],
+  "cube": "sample_00001",
+  "delta": -1.0,
+  "point_zyx": [
+   150.0,
+   216.0,
+   266.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.305
+ },
+ "q039": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   269,
+   173,
+   146
+  ],
+  "cube": "sample_00019",
+  "delta": 0.0,
+  "point_zyx": [
+   269.0,
+   173.0,
+   146.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.846
+ },
+ "q040": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   78,
+   249,
+   266
+  ],
+  "cube": "sample_00012",
+  "delta": 0.0,
+  "point_zyx": [
+   77.9,
+   248.6,
+   266.3
+  ],
+  "slice_axis": "z",
+  "stratum": "no move",
+  "window_iou": 0.8
+ },
+ "q041": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   257,
+   257,
+   257
+  ],
+  "cube": "sample_00010",
+  "delta": 2.25,
+  "point_zyx": [
+   257.0,
+   257.0,
+   257.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.214
+ },
+ "q042": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   126,
+   179,
+   230
+  ],
+  "cube": "sample_00010",
+  "delta": -2.25,
+  "point_zyx": [
+   126.0,
+   179.0,
+   230.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.134
+ },
+ "q043": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   144,
+   245,
+   245
+  ],
+  "cube": "sample_00001",
+  "delta": 2.75,
+  "point_zyx": [
+   143.9,
+   245.2,
+   245.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.409
+ },
+ "q044": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   78,
+   107,
+   234
+  ],
+  "cube": "sample_00006",
+  "delta": -1.25,
+  "point_zyx": [
+   78.0,
+   107.0,
+   234.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.585
+ },
+ "q045": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   135,
+   210,
+   71
+  ],
+  "cube": "sample_00007",
+  "delta": -2.5,
+  "point_zyx": [
+   135.0,
+   209.8,
+   71.1
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.226
+ },
+ "q046": {
+  "A": "pushed +3.0",
+  "B": "original",
+  "center_zyx": [
+   166,
+   201,
+   259
+  ],
+  "cube": "sample_00005",
+  "delta": 3.0,
+  "point_zyx": [
+   166.0,
+   201.0,
+   259.0
+  ],
+  "slice_axis": "z",
+  "stratum": "catch",
+  "window_iou": 0.0
+ },
+ "q047": {
+  "A": "original",
+  "B": "pushed -2.5",
+  "center_zyx": [
+   179,
+   192,
+   173
+  ],
+  "cube": "sample_00005",
+  "delta": -2.5,
+  "point_zyx": [
+   179.0,
+   192.0,
+   173.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.151
+ },
+ "q048": {
+  "A": "original",
+  "B": "pushed +3.0",
+  "center_zyx": [
+   222,
+   207,
+   104
+  ],
+  "cube": "sample_00011",
+  "delta": 3.0,
+  "point_zyx": [
+   222.0,
+   207.0,
+   104.1
+  ],
+  "slice_axis": "z",
+  "stratum": "catch",
+  "window_iou": 0.0
+ },
+ "q049": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   124,
+   239,
+   218
+  ],
+  "cube": "sample_00017",
+  "delta": -2.25,
+  "point_zyx": [
+   124.0,
+   239.0,
+   218.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.352
+ },
+ "q050": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   207,
+   153,
+   258
+  ],
+  "cube": "sample_00008",
+  "delta": -1.25,
+  "point_zyx": [
+   206.7,
+   153.1,
+   257.5
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.222
+ },
+ "q051": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   248,
+   163,
+   203
+  ],
+  "cube": "sample_00009",
+  "delta": -1.0,
+  "point_zyx": [
+   248.0,
+   163.0,
+   203.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.455
+ },
+ "q052": {
+  "A": "original",
+  "B": "pushed -2.5",
+  "center_zyx": [
+   188,
+   246,
+   144
+  ],
+  "cube": "sample_00011",
+  "delta": -2.5,
+  "point_zyx": [
+   188.1,
+   246.0,
+   144.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.161
+ },
+ "q053": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   146,
+   254,
+   173
+  ],
+  "cube": "sample_00011",
+  "delta": 1.25,
+  "point_zyx": [
+   146.0,
+   254.0,
+   173.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.277
+ },
+ "q054": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   170,
+   183,
+   147
+  ],
+  "cube": "sample_00003",
+  "delta": 3.0,
+  "point_zyx": [
+   170.0,
+   183.0,
+   147.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.187
+ },
+ "q055": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   268,
+   93,
+   114
+  ],
+  "cube": "sample_00018",
+  "delta": 1.25,
+  "point_zyx": [
+   268.0,
+   93.0,
+   114.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.198
+ },
+ "q056": {
+  "A": "original",
+  "B": "pushed -2.5",
+  "center_zyx": [
+   196,
+   244,
+   56
+  ],
+  "cube": "sample_00019",
+  "delta": -2.5,
+  "point_zyx": [
+   196.0,
+   244.0,
+   56.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.141
+ },
+ "q057": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   150,
+   218,
+   78
+  ],
+  "cube": "sample_00011",
+  "delta": 0.0,
+  "point_zyx": [
+   149.8,
+   218.0,
+   77.8
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.843
+ },
+ "q058": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   248,
+   196,
+   58
+  ],
+  "cube": "sample_00014",
+  "delta": -1.5,
+  "point_zyx": [
+   248.0,
+   196.0,
+   58.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.438
+ },
+ "q059": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   65,
+   125,
+   186
+  ],
+  "cube": "sample_00005",
+  "delta": 2.0,
+  "point_zyx": [
+   65.0,
+   125.0,
+   186.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.249
+ },
+ "q060": {
+  "A": "pushed +3.0",
+  "B": "original",
+  "center_zyx": [
+   254,
+   53,
+   156
+  ],
+  "cube": "sample_00020",
+  "delta": 3.0,
+  "point_zyx": [
+   254.0,
+   53.0,
+   156.0
+  ],
+  "slice_axis": "z",
+  "stratum": "catch",
+  "window_iou": 0.0
+ },
+ "q061": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   200,
+   80,
+   200
+  ],
+  "cube": "sample_00008",
+  "delta": 4.25,
+  "point_zyx": [
+   200.0,
+   80.0,
+   200.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.31
+ },
+ "q062": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   235,
+   157,
+   150
+  ],
+  "cube": "sample_00013",
+  "delta": -1.5,
+  "point_zyx": [
+   235.0,
+   157.0,
+   150.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.321
+ },
+ "q063": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   175,
+   268,
+   54
+  ],
+  "cube": "sample_00005",
+  "delta": 0.0,
+  "point_zyx": [
+   175.0,
+   268.0,
+   54.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.806
+ },
+ "q064": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   95,
+   257,
+   111
+  ],
+  "cube": "sample_00011",
+  "delta": 0.0,
+  "point_zyx": [
+   95.0,
+   257.0,
+   111.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.87
+ },
+ "q065": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   89,
+   137,
+   219
+  ],
+  "cube": "sample_00012",
+  "delta": 3.75,
+  "point_zyx": [
+   89.0,
+   137.0,
+   219.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.013
+ },
+ "q066": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   117,
+   170,
+   259
+  ],
+  "cube": "sample_00002",
+  "delta": 0.0,
+  "point_zyx": [
+   117.0,
+   170.0,
+   259.0
+  ],
+  "slice_axis": "z",
+  "stratum": "no move",
+  "window_iou": 0.825
+ },
+ "q067": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   254,
+   227,
+   173
+  ],
+  "cube": "sample_00019",
+  "delta": 3.75,
+  "point_zyx": [
+   254.4,
+   227.0,
+   173.4
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.066
+ },
+ "q068": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   198,
+   256,
+   220
+  ],
+  "cube": "sample_00001",
+  "delta": 4.0,
+  "point_zyx": [
+   198.0,
+   256.0,
+   220.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.302
+ },
+ "q069": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   249,
+   191,
+   164
+  ],
+  "cube": "sample_00013",
+  "delta": 2.5,
+  "point_zyx": [
+   248.9,
+   191.0,
+   164.2
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.131
+ },
+ "q070": {
+  "A": "pushed -2.5",
+  "B": "original",
+  "center_zyx": [
+   200,
+   144,
+   134
+  ],
+  "cube": "sample_00005",
+  "delta": -2.5,
+  "point_zyx": [
+   200.0,
+   144.0,
+   134.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.17
+ },
+ "q071": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   186,
+   141,
+   180
+  ],
+  "cube": "sample_00020",
+  "delta": 2.25,
+  "point_zyx": [
+   185.6,
+   140.9,
+   180.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.347
+ },
+ "q072": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   209,
+   92,
+   224
+  ],
+  "cube": "sample_00018",
+  "delta": 2.5,
+  "point_zyx": [
+   209.0,
+   92.0,
+   224.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.036
+ },
+ "q073": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   111,
+   265,
+   53
+  ],
+  "cube": "sample_00001",
+  "delta": -1.25,
+  "point_zyx": [
+   111.0,
+   265.0,
+   53.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.276
+ },
+ "q074": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   108,
+   172,
+   125
+  ],
+  "cube": "sample_00019",
+  "delta": 3.25,
+  "point_zyx": [
+   108.0,
+   172.0,
+   125.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.358
+ },
+ "q075": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   126,
+   264,
+   137
+  ],
+  "cube": "sample_00003",
+  "delta": 1.75,
+  "point_zyx": [
+   126.0,
+   264.0,
+   137.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.241
+ },
+ "q076": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   257,
+   173,
+   210
+  ],
+  "cube": "sample_00020",
+  "delta": 0.0,
+  "point_zyx": [
+   257.0,
+   173.0,
+   210.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.81
+ },
+ "q077": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   53,
+   99,
+   114
+  ],
+  "cube": "sample_00011",
+  "delta": -2.25,
+  "point_zyx": [
+   53.0,
+   99.0,
+   114.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.436
+ },
+ "q078": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   178,
+   195,
+   103
+  ],
+  "cube": "sample_00005",
+  "delta": 0.0,
+  "point_zyx": [
+   178.0,
+   195.0,
+   103.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.882
+ },
+ "q079": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   122,
+   158,
+   227
+  ],
+  "cube": "sample_00002",
+  "delta": -1.0,
+  "point_zyx": [
+   122.1,
+   158.1,
+   227.4
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.42
+ },
+ "q080": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   268,
+   63,
+   207
+  ],
+  "cube": "sample_00020",
+  "delta": -1.0,
+  "point_zyx": [
+   268.0,
+   63.0,
+   207.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.162
+ },
+ "q081": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   144,
+   92,
+   175
+  ],
+  "cube": "sample_00006",
+  "delta": 3.5,
+  "point_zyx": [
+   144.0,
+   92.0,
+   175.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.19
+ },
+ "q082": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   135,
+   91,
+   141
+  ],
+  "cube": "sample_00016",
+  "delta": 1.0,
+  "point_zyx": [
+   135.0,
+   91.0,
+   141.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.234
+ },
+ "q083": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   261,
+   150,
+   70
+  ],
+  "cube": "sample_00015",
+  "delta": 0.25,
+  "point_zyx": [
+   260.7,
+   149.9,
+   70.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.811
+ },
+ "q084": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   213,
+   155,
+   213
+  ],
+  "cube": "sample_00005",
+  "delta": 1.0,
+  "point_zyx": [
+   213.0,
+   155.0,
+   213.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.526
+ },
+ "q085": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   53,
+   225,
+   245
+  ],
+  "cube": "sample_00011",
+  "delta": 3.75,
+  "point_zyx": [
+   53.0,
+   224.5,
+   245.1
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.223
+ },
+ "q086": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   192,
+   174,
+   149
+  ],
+  "cube": "sample_00006",
+  "delta": 1.5,
+  "point_zyx": [
+   192.0,
+   174.0,
+   149.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.337
+ },
+ "q087": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   146,
+   144,
+   98
+  ],
+  "cube": "sample_00005",
+  "delta": -1.0,
+  "point_zyx": [
+   146.0,
+   144.0,
+   98.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.452
+ },
+ "q088": {
+  "A": "original",
+  "B": "pushed +3.0",
+  "center_zyx": [
+   263,
+   215,
+   109
+  ],
+  "cube": "sample_00007",
+  "delta": 3.0,
+  "point_zyx": [
+   263.0,
+   215.0,
+   109.0
+  ],
+  "slice_axis": "z",
+  "stratum": "catch",
+  "window_iou": 0.0
+ },
+ "q089": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   222,
+   62,
+   198
+  ],
+  "cube": "sample_00020",
+  "delta": -3.0,
+  "point_zyx": [
+   221.9,
+   62.0,
+   198.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.182
+ },
+ "q090": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   90,
+   138,
+   86
+  ],
+  "cube": "sample_00002",
+  "delta": 0.0,
+  "point_zyx": [
+   89.8,
+   138.0,
+   86.1
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.955
+ },
+ "q091": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   84,
+   187,
+   203
+  ],
+  "cube": "sample_00002",
+  "delta": 2.25,
+  "point_zyx": [
+   84.0,
+   187.0,
+   203.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.208
+ },
+ "q092": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   206,
+   225,
+   91
+  ],
+  "cube": "sample_00005",
+  "delta": -2.0,
+  "point_zyx": [
+   206.0,
+   225.0,
+   91.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.393
+ },
+ "q093": {
+  "A": "original",
+  "B": "pushed -2.5",
+  "center_zyx": [
+   50,
+   191,
+   195
+  ],
+  "cube": "sample_00016",
+  "delta": -2.5,
+  "point_zyx": [
+   50.4,
+   191.1,
+   194.8
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.053
+ },
+ "q094": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   122,
+   66,
+   144
+  ],
+  "cube": "sample_00018",
+  "delta": -2.5,
+  "point_zyx": [
+   122.0,
+   66.0,
+   144.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.395
+ },
+ "q095": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   231,
+   79,
+   67
+  ],
+  "cube": "sample_00014",
+  "delta": 2.75,
+  "point_zyx": [
+   231.0,
+   79.0,
+   67.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.135
+ },
+ "q096": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   50,
+   75,
+   81
+  ],
+  "cube": "sample_00014",
+  "delta": 2.5,
+  "point_zyx": [
+   50.0,
+   75.0,
+   81.0
+  ],
+  "slice_axis": "x",
+  "stratum": "big move",
+  "window_iou": 0.122
+ },
+ "q097": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   206,
+   251,
+   82
+  ],
+  "cube": "sample_00007",
+  "delta": 1.25,
+  "point_zyx": [
+   206.0,
+   251.0,
+   82.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.461
+ },
+ "q098": {
+  "A": "pushed -2.5",
+  "B": "original",
+  "center_zyx": [
+   234,
+   72,
+   255
+  ],
+  "cube": "sample_00015",
+  "delta": -2.5,
+  "point_zyx": [
+   234.0,
+   72.0,
+   255.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.164
+ },
+ "q099": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   198,
+   138,
+   240
+  ],
+  "cube": "sample_00015",
+  "delta": -1.0,
+  "point_zyx": [
+   197.8,
+   138.0,
+   239.8
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.592
+ },
+ "q100": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   218,
+   209,
+   90
+  ],
+  "cube": "sample_00002",
+  "delta": 4.0,
+  "point_zyx": [
+   218.0,
+   209.0,
+   90.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.049
+ },
+ "q101": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   228,
+   234,
+   174
+  ],
+  "cube": "sample_00016",
+  "delta": 1.75,
+  "point_zyx": [
+   228.0,
+   234.0,
+   174.0
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.256
+ },
+ "q102": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   258,
+   80,
+   66
+  ],
+  "cube": "sample_00015",
+  "delta": 1.0,
+  "point_zyx": [
+   258.0,
+   80.0,
+   66.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.467
+ },
+ "q103": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   61,
+   223,
+   98
+  ],
+  "cube": "sample_00009",
+  "delta": 1.25,
+  "point_zyx": [
+   61.0,
+   223.0,
+   98.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.29
+ },
+ "q104": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   142,
+   90,
+   268
+  ],
+  "cube": "sample_00016",
+  "delta": 3.0,
+  "point_zyx": [
+   142.0,
+   90.0,
+   268.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.113
+ },
+ "q105": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   185,
+   56,
+   75
+  ],
+  "cube": "sample_00014",
+  "delta": -1.5,
+  "point_zyx": [
+   185.0,
+   56.0,
+   75.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.274
+ },
+ "q106": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   254,
+   249,
+   202
+  ],
+  "cube": "sample_00017",
+  "delta": -1.25,
+  "point_zyx": [
+   254.0,
+   249.0,
+   202.0
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.128
+ },
+ "q107": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   234,
+   249,
+   62
+  ],
+  "cube": "sample_00019",
+  "delta": 0.0,
+  "point_zyx": [
+   234.0,
+   249.0,
+   62.0
+  ],
+  "slice_axis": "x",
+  "stratum": "no move",
+  "window_iou": 0.811
+ },
+ "q108": {
+  "A": "snapped",
+  "B": "original",
+  "center_zyx": [
+   243,
+   177,
+   72
+  ],
+  "cube": "sample_00012",
+  "delta": 1.0,
+  "point_zyx": [
+   242.9,
+   177.0,
+   71.8
+  ],
+  "slice_axis": "z",
+  "stratum": "moderate move",
+  "window_iou": 0.214
+ },
+ "q109": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   124,
+   85,
+   52
+  ],
+  "cube": "sample_00004",
+  "delta": 3.75,
+  "point_zyx": [
+   124.0,
+   85.0,
+   52.0
+  ],
+  "slice_axis": "z",
+  "stratum": "big move",
+  "window_iou": 0.181
+ },
+ "q110": {
+  "A": "pushed +3.0",
+  "B": "original",
+  "center_zyx": [
+   177,
+   192,
+   135
+  ],
+  "cube": "sample_00005",
+  "delta": 3.0,
+  "point_zyx": [
+   177.0,
+   192.0,
+   135.0
+  ],
+  "slice_axis": "x",
+  "stratum": "catch",
+  "window_iou": 0.0
+ },
+ "q111": {
+  "A": "original",
+  "B": "snapped",
+  "center_zyx": [
+   144,
+   87,
+   215
+  ],
+  "cube": "sample_00004",
+  "delta": -1.0,
+  "point_zyx": [
+   143.7,
+   86.9,
+   215.3
+  ],
+  "slice_axis": "x",
+  "stratum": "moderate move",
+  "window_iou": 0.407
+ }
+}

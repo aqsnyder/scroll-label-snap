@@ -1,0 +1,557 @@
+{
+ "q001": {
+  "choice": "A",
+  "ms": 8655,
+  "set": "af7d4c85d7f6"
+ },
+ "q002": {
+  "choice": "B",
+  "ms": 18489,
+  "set": "af7d4c85d7f6"
+ },
+ "q003": {
+  "choice": "B",
+  "ms": 9420,
+  "set": "af7d4c85d7f6"
+ },
+ "q004": {
+  "choice": "A",
+  "ms": 4401,
+  "set": "af7d4c85d7f6"
+ },
+ "q005": {
+  "choice": "B",
+  "ms": 12022,
+  "set": "af7d4c85d7f6"
+ },
+ "q006": {
+  "choice": "B",
+  "ms": 2751,
+  "set": "af7d4c85d7f6"
+ },
+ "q007": {
+  "choice": "unsure",
+  "ms": 11047,
+  "set": "af7d4c85d7f6"
+ },
+ "q008": {
+  "choice": "B",
+  "ms": 12170,
+  "set": "af7d4c85d7f6"
+ },
+ "q009": {
+  "choice": "B",
+  "ms": 5843,
+  "set": "af7d4c85d7f6"
+ },
+ "q010": {
+  "choice": "A",
+  "ms": 7382,
+  "set": "af7d4c85d7f6"
+ },
+ "q011": {
+  "choice": "B",
+  "ms": 7468,
+  "set": "af7d4c85d7f6"
+ },
+ "q012": {
+  "choice": "A",
+  "ms": 8030,
+  "set": "af7d4c85d7f6"
+ },
+ "q013": {
+  "choice": "B",
+  "ms": 12858,
+  "set": "af7d4c85d7f6"
+ },
+ "q014": {
+  "choice": "A",
+  "ms": 10043,
+  "set": "af7d4c85d7f6"
+ },
+ "q015": {
+  "choice": "A",
+  "ms": 6456,
+  "set": "af7d4c85d7f6"
+ },
+ "q016": {
+  "choice": "A",
+  "ms": 4236,
+  "set": "af7d4c85d7f6"
+ },
+ "q017": {
+  "choice": "same",
+  "ms": 21986,
+  "set": "af7d4c85d7f6"
+ },
+ "q018": {
+  "choice": "B",
+  "ms": 11866,
+  "set": "af7d4c85d7f6"
+ },
+ "q019": {
+  "choice": "A",
+  "ms": 7604,
+  "set": "af7d4c85d7f6"
+ },
+ "q020": {
+  "choice": "B",
+  "ms": 3379,
+  "set": "af7d4c85d7f6"
+ },
+ "q021": {
+  "choice": "A",
+  "ms": 2011,
+  "set": "af7d4c85d7f6"
+ },
+ "q022": {
+  "choice": "same",
+  "ms": 5852,
+  "set": "af7d4c85d7f6"
+ },
+ "q023": {
+  "choice": "A",
+  "ms": 2975,
+  "set": "af7d4c85d7f6"
+ },
+ "q024": {
+  "choice": "A",
+  "ms": 1694,
+  "set": "af7d4c85d7f6"
+ },
+ "q025": {
+  "choice": "A",
+  "ms": 5257,
+  "set": "af7d4c85d7f6"
+ },
+ "q026": {
+  "choice": "B",
+  "ms": 3780,
+  "set": "af7d4c85d7f6"
+ },
+ "q027": {
+  "choice": "B",
+  "ms": 2590,
+  "set": "af7d4c85d7f6"
+ },
+ "q028": {
+  "choice": "A",
+  "ms": 3189,
+  "set": "af7d4c85d7f6"
+ },
+ "q029": {
+  "choice": "B",
+  "ms": 8505,
+  "set": "af7d4c85d7f6"
+ },
+ "q030": {
+  "choice": "A",
+  "ms": 2389,
+  "set": "af7d4c85d7f6"
+ },
+ "q031": {
+  "choice": "A",
+  "ms": 7677,
+  "set": "af7d4c85d7f6"
+ },
+ "q032": {
+  "choice": "unsure",
+  "ms": 6795,
+  "set": "af7d4c85d7f6"
+ },
+ "q033": {
+  "choice": "A",
+  "ms": 2083,
+  "set": "af7d4c85d7f6"
+ },
+ "q034": {
+  "choice": "same",
+  "ms": 3802,
+  "set": "af7d4c85d7f6"
+ },
+ "q035": {
+  "choice": "B",
+  "ms": 7051,
+  "set": "af7d4c85d7f6"
+ },
+ "q036": {
+  "choice": "same",
+  "ms": 2629,
+  "set": "af7d4c85d7f6"
+ },
+ "q037": {
+  "choice": "same",
+  "ms": 5634,
+  "set": "af7d4c85d7f6"
+ },
+ "q038": {
+  "choice": "B",
+  "ms": 4816,
+  "set": "af7d4c85d7f6"
+ },
+ "q039": {
+  "choice": "same",
+  "ms": 3732,
+  "set": "af7d4c85d7f6"
+ },
+ "q040": {
+  "choice": "same",
+  "ms": 5367,
+  "set": "af7d4c85d7f6"
+ },
+ "q041": {
+  "choice": "A",
+  "ms": 7559,
+  "set": "af7d4c85d7f6"
+ },
+ "q042": {
+  "choice": "unsure",
+  "ms": 3225,
+  "set": "af7d4c85d7f6"
+ },
+ "q043": {
+  "choice": "A",
+  "ms": 5199,
+  "set": "af7d4c85d7f6"
+ },
+ "q044": {
+  "choice": "B",
+  "ms": 2587,
+  "set": "af7d4c85d7f6"
+ },
+ "q045": {
+  "choice": "B",
+  "ms": 6184,
+  "set": "af7d4c85d7f6"
+ },
+ "q046": {
+  "choice": "B",
+  "ms": 2083,
+  "set": "af7d4c85d7f6"
+ },
+ "q047": {
+  "choice": "A",
+  "ms": 1719,
+  "set": "af7d4c85d7f6"
+ },
+ "q048": {
+  "choice": "A",
+  "ms": 1873,
+  "set": "af7d4c85d7f6"
+ },
+ "q049": {
+  "choice": "unsure",
+  "ms": 2499,
+  "set": "af7d4c85d7f6"
+ },
+ "q050": {
+  "choice": "A",
+  "ms": 2973,
+  "set": "af7d4c85d7f6"
+ },
+ "q051": {
+  "choice": "B",
+  "ms": 6363,
+  "set": "af7d4c85d7f6"
+ },
+ "q052": {
+  "choice": "A",
+  "ms": 3372,
+  "set": "af7d4c85d7f6"
+ },
+ "q053": {
+  "choice": "B",
+  "ms": 3047,
+  "set": "af7d4c85d7f6"
+ },
+ "q054": {
+  "choice": "A",
+  "ms": 6683,
+  "set": "af7d4c85d7f6"
+ },
+ "q055": {
+  "choice": "B",
+  "ms": 5895,
+  "set": "af7d4c85d7f6"
+ },
+ "q056": {
+  "choice": "A",
+  "ms": 2260,
+  "set": "af7d4c85d7f6"
+ },
+ "q057": {
+  "choice": "same",
+  "ms": 3800,
+  "set": "af7d4c85d7f6"
+ },
+ "q058": {
+  "choice": "A",
+  "ms": 2682,
+  "set": "af7d4c85d7f6"
+ },
+ "q059": {
+  "choice": "unsure",
+  "ms": 3284,
+  "set": "af7d4c85d7f6"
+ },
+ "q060": {
+  "choice": "B",
+  "ms": 2179,
+  "set": "af7d4c85d7f6"
+ },
+ "q061": {
+  "choice": "B",
+  "ms": 4016,
+  "set": "af7d4c85d7f6"
+ },
+ "q062": {
+  "choice": "A",
+  "ms": 3970,
+  "set": "af7d4c85d7f6"
+ },
+ "q063": {
+  "choice": "A",
+  "ms": 3068,
+  "set": "af7d4c85d7f6"
+ },
+ "q064": {
+  "choice": "B",
+  "ms": 5475,
+  "set": "af7d4c85d7f6"
+ },
+ "q065": {
+  "choice": "A",
+  "ms": 3050,
+  "set": "af7d4c85d7f6"
+ },
+ "q066": {
+  "choice": "A",
+  "ms": 3289,
+  "set": "af7d4c85d7f6"
+ },
+ "q067": {
+  "choice": "B",
+  "ms": 2940,
+  "set": "af7d4c85d7f6"
+ },
+ "q068": {
+  "choice": "B",
+  "ms": 3359,
+  "set": "af7d4c85d7f6"
+ },
+ "q069": {
+  "choice": "B",
+  "ms": 7550,
+  "set": "af7d4c85d7f6"
+ },
+ "q070": {
+  "choice": "B",
+  "ms": 5444,
+  "set": "af7d4c85d7f6"
+ },
+ "q071": {
+  "choice": "B",
+  "ms": 2723,
+  "set": "af7d4c85d7f6"
+ },
+ "q072": {
+  "choice": "B",
+  "ms": 1475,
+  "set": "af7d4c85d7f6"
+ },
+ "q073": {
+  "choice": "B",
+  "ms": 2057,
+  "set": "af7d4c85d7f6"
+ },
+ "q074": {
+  "choice": "A",
+  "ms": 10448,
+  "set": "af7d4c85d7f6"
+ },
+ "q075": {
+  "choice": "B",
+  "ms": 3618,
+  "set": "af7d4c85d7f6"
+ },
+ "q076": {
+  "choice": "A",
+  "ms": 2114,
+  "set": "af7d4c85d7f6"
+ },
+ "q077": {
+  "choice": "B",
+  "ms": 4032,
+  "set": "af7d4c85d7f6"
+ },
+ "q078": {
+  "choice": "same",
+  "ms": 3360,
+  "set": "af7d4c85d7f6"
+ },
+ "q079": {
+  "choice": "A",
+  "ms": 4036,
+  "set": "af7d4c85d7f6"
+ },
+ "q080": {
+  "choice": "B",
+  "ms": 2456,
+  "set": "af7d4c85d7f6"
+ },
+ "q081": {
+  "choice": "unsure",
+  "ms": 11729,
+  "set": "af7d4c85d7f6"
+ },
+ "q082": {
+  "choice": "A",
+  "ms": 1971,
+  "set": "af7d4c85d7f6"
+ },
+ "q083": {
+  "choice": "same",
+  "ms": 2440,
+  "set": "af7d4c85d7f6"
+ },
+ "q084": {
+  "choice": "A",
+  "ms": 6456,
+  "set": "af7d4c85d7f6"
+ },
+ "q085": {
+  "choice": "A",
+  "ms": 1429,
+  "set": "af7d4c85d7f6"
+ },
+ "q086": {
+  "choice": "B",
+  "ms": 1762,
+  "set": "af7d4c85d7f6"
+ },
+ "q087": {
+  "choice": "B",
+  "ms": 2839,
+  "set": "af7d4c85d7f6"
+ },
+ "q088": {
+  "choice": "A",
+  "ms": 4183,
+  "set": "af7d4c85d7f6"
+ },
+ "q089": {
+  "choice": "A",
+  "ms": 11777,
+  "set": "af7d4c85d7f6"
+ },
+ "q090": {
+  "choice": "same",
+  "ms": 4388,
+  "set": "af7d4c85d7f6"
+ },
+ "q091": {
+  "choice": "unsure",
+  "ms": 2491,
+  "set": "af7d4c85d7f6"
+ },
+ "q092": {
+  "choice": "A",
+  "ms": 2820,
+  "set": "af7d4c85d7f6"
+ },
+ "q093": {
+  "choice": "A",
+  "ms": 2254,
+  "set": "af7d4c85d7f6"
+ },
+ "q094": {
+  "choice": "B",
+  "ms": 6632,
+  "set": "af7d4c85d7f6"
+ },
+ "q095": {
+  "choice": "A",
+  "ms": 1956,
+  "set": "af7d4c85d7f6"
+ },
+ "q096": {
+  "choice": "A",
+  "ms": 3384,
+  "set": "af7d4c85d7f6"
+ },
+ "q097": {
+  "choice": "B",
+  "ms": 2963,
+  "set": "af7d4c85d7f6"
+ },
+ "q098": {
+  "choice": "B",
+  "ms": 3506,
+  "set": "af7d4c85d7f6"
+ },
+ "q099": {
+  "choice": "A",
+  "ms": 5041,
+  "set": "af7d4c85d7f6"
+ },
+ "q100": {
+  "choice": "unsure",
+  "ms": 10118,
+  "set": "af7d4c85d7f6"
+ },
+ "q101": {
+  "choice": "B",
+  "ms": 4068,
+  "set": "af7d4c85d7f6"
+ },
+ "q102": {
+  "choice": "A",
+  "ms": 2180,
+  "set": "af7d4c85d7f6"
+ },
+ "q103": {
+  "choice": "B",
+  "ms": 1744,
+  "set": "af7d4c85d7f6"
+ },
+ "q104": {
+  "choice": "B",
+  "ms": 1749,
+  "set": "af7d4c85d7f6"
+ },
+ "q105": {
+  "choice": "A",
+  "ms": 1502,
+  "set": "af7d4c85d7f6"
+ },
+ "q106": {
+  "choice": "B",
+  "ms": 2431,
+  "set": "af7d4c85d7f6"
+ },
+ "q107": {
+  "choice": "same",
+  "ms": 3405,
+  "set": "af7d4c85d7f6"
+ },
+ "q108": {
+  "choice": "unsure",
+  "ms": 3232,
+  "set": "af7d4c85d7f6"
+ },
+ "q109": {
+  "choice": "B",
+  "ms": 7964,
+  "set": "af7d4c85d7f6"
+ },
+ "q110": {
+  "choice": "B",
+  "ms": 1416,
+  "set": "af7d4c85d7f6"
+ },
+ "q111": {
+  "choice": "B",
+  "ms": 6489,
+  "set": "af7d4c85d7f6"
+ }
+}
