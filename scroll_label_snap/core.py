@@ -55,6 +55,7 @@ class Params:
     normal_dot: float = 0.8       # min |n_p . n_q| for same-sheet neighbours
     border: int = 8               # samples this close to the cube edge are not moved
     convention_offset: float | None = None  # label centre relative to the edge (None = estimate)
+    convention_reach: float = 4.0  # how far from the label to look for the edge when estimating it
     batch_points: int = 60000     # max samples per graph-cut problem
     smooth_warp: bool = True      # blend displacements and resample linearly (False = v1 warp)
     inside_penalty: float = 2.0   # cost of moving a label outward (+n) to a spot that has
@@ -301,7 +302,7 @@ def inside_sheet(ct_s, pts, n, ts, c_off, margin=0.1, reach=2.5, thr=None):
 def estimate_convention(ct_s, pts, n, p: Params):
     """Where the labels put the band centre relative to the steepest edge, and the
     typical edge strength. Returns (offset, scale)."""
-    tf = np.arange(-4.0, 4.001, 0.25, dtype=np.float32)
+    tf = np.arange(-p.convention_reach, p.convention_reach + 0.001, 0.25, dtype=np.float32)
     E = edge_strength(ct_s, pts, n, tf, p.edge_halfwidth)
     peak = E.max(1)
     strong = peak > np.percentile(peak, 50)
@@ -551,8 +552,18 @@ def snap(img, lab, p: Params | None = None, prepared=None):
     p = p or Params()
     prepared = prepared if prepared is not None else prepare(img, lab, p)
     ct_s, pts, n, i, j, comp = prepared
+    shift, conf, movable, rev, info = solve_surface(lab.shape, prepared, p)
+    out = warp_labels(lab, pts, n, shift, comp=comp, smooth=p.smooth_warp)
+    return SnapResult(out, pts, n, shift, conf, movable, info, rev)
+
+
+def solve_surface(shape, prepared, p: Params):
+    """Steps 4-5 for any oriented surface samples (from labels or from a mesh): score the
+    candidate shifts and choose them all at once. `shape` is the CT volume's shape; samples
+    within p.border of its edge stay put. Returns (shift, confidence, movable, reversed, info)."""
+    ct_s, pts, n, i, j, comp = prepared
     extras = {}
-    ts, U, E, S, movable, c_off, scale = unary_scores(lab.shape, prepared, p, extras)
+    ts, U, E, S, movable, c_off, scale = unary_scores(shape, prepared, p, extras)
     rev = extras["reversed"]
     D = -U + p.prior_mu * np.abs(ts)[None, :]
     k0 = int(np.argmin(np.abs(ts)))
@@ -579,14 +590,13 @@ def snap(img, lab, p: Params | None = None, prepared=None):
     # confidence: how label-like the CT profile is at the chosen position (template
     # match), falling back to edge strength when the template is off
     conf = np.clip(S[rows, labels] if p.template_weight > 0 else E[rows, labels], 0, 1)
-    out = warp_labels(lab, pts, n, shift, comp=comp, smooth=p.smooth_warp)
     info = dict(n_samples=int(len(pts)), n_pairs=int(len(i)), n_sheets=int(comp.max() + 1) if len(comp) else 0,
                 convention_offset=float(c_off), edge_scale=float(scale),
                 mean_abs_shift=float(np.mean(np.abs(shift[movable]))) if movable.any() else 0.0,
                 frac_moved_1vox=float(np.mean(np.abs(shift[movable]) >= 1.0)) if movable.any() else 0.0,
                 frac_reversed_face=float(np.mean(rev[movable])) if movable.any() else 0.0,
                 params=p.asdict())
-    return SnapResult(out, pts, n, shift, conf, movable, info, rev)
+    return shift, conf, movable, rev, info
 
 
 # --------------------------------------------------------------------------- baseline

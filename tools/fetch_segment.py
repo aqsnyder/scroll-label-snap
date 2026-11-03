@@ -12,7 +12,9 @@ Writes:
   OUT_DIR/segment.tifxyz/         the whole segment, as downloaded
   OUT_DIR/patch_K/volume.tif      a crop of the volume around patch K (z, y, x order)
   OUT_DIR/patch_K/segment.tifxyz/ the patch's grid window, in the segment's own coordinates
-  OUT_DIR/patch_K/patch.json      crop offset (z, y, x) and size, grid window, level, sources
+  OUT_DIR/patch_K/patch.json      crop offset (z, y, x) and size, grid window, level, sources, and
+                                  which side of the mesh is recto (recto_sign: +1 along the grid's
+                                  own normal, -1 against it), from the whole segment's curvature
 
 Patches are windows of --patch x --patch grid vertices with every vertex valid, picked at random
 with --seed and kept apart. Needs tifffile, zarr<3, fsspec and aiohttp (plus requests for
@@ -30,6 +32,7 @@ import numpy as np
 import tifffile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from scroll_label_snap.mesh import axis_orientation  # noqa: E402
 from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
 
 TIFXYZ_FILES = ("meta.json", "x.tif", "y.tif", "z.tif", "mask.tif")
@@ -115,6 +118,13 @@ def main():
     print(f"segment: {', '.join(files)}", flush=True)
     P, valid, meta = read_tifxyz(seg_dir)
     print(f"grid {P.shape[1]} x {P.shape[0]}, {valid.mean():.0%} valid, scale {meta.get('scale')}", flush=True)
+    # which way the recto faces, from the whole segment's geometry (recto faces the scroll axis)
+    r_sign, r_agree, r_axis = axis_orientation(P, valid)
+    print(f"scroll axis near y {r_axis[0]:.0f}, x {r_axis[1]:.0f}: the recto side is "
+          f"{'along' if r_sign > 0 else 'against'} the grid normal at {r_agree:.0%} of vertices", flush=True)
+    orient = dict(recto_agree=r_agree, scroll_axis_yx=list(r_axis))
+    if r_agree >= 0.9:
+        orient["recto_sign"] = r_sign
 
     vol = zarr.open_array(fsspec.get_mapper(a.volume.rstrip("/") + f"/{a.level}"), mode="r")
     print(f"volume level {a.level}: shape {vol.shape}, chunks {vol.chunks}, dtype {vol.dtype}", flush=True)
@@ -151,7 +161,7 @@ def main():
                      uuid=f"{meta.get('uuid', 'segment')}_patch{done}")
         json.dump(dict(offset_zyx=lo.tolist(), shape_zyx=list(crop.shape), level=a.level, scale_to_level=1 / f,
                        grid_window=dict(row=i, col=j, size=a.patch), dtype=str(crop.dtype),
-                       segment=a.segment, volume=a.volume), open(pj, "w"), indent=1)
+                       segment=a.segment, volume=a.volume, **orient), open(pj, "w"), indent=1)
         print(f"patch_{done}: grid rows {i}-{i + a.patch - 1}, cols {j}-{j + a.patch - 1}; crop {crop.shape} "
               f"at {lo.tolist()}, {crop.nbytes / 1e6:.0f} MB", flush=True)
         done += 1

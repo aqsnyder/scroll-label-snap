@@ -130,6 +130,35 @@ So flagging about 7% of labels points a human at half the losses. This matches t
 
 `Params(face_polarity=True)` snaps flagged labels onto the face they're on instead of searching along +n. At the reviewed points this keeps all 7 flagged losses within 1.5 voxels of the original. It also pulls back 10 of the 11 flagged wins, which the reviewers preferred moved, so it is off by default and the default output is unchanged from v2. The per-item positions are in [`results/reversed_face_check.json`](results/reversed_face_check.json).
 
+## Snapping traced meshes (VC3D tifxyz)
+
+The same scores and graph cut also snap a traced VC3D surface. A tifxyz grid has vertices about 20 voxels apart. It is densified to about 3-voxel samples, which are snapped and then fit back onto the original grid. The normals come from the grid. Which side is recto comes from the scroll's geometry, because every wrap's recto faces the scroll centre. Each mesh keeps its own offset from the papyrus face. Details are in [`results/mesh_w035.md`](results/mesh_w035.md).
+
+First test: segment w035 of PHerc. 0139 at 9.362 µm, the one in the scrollprize.org ink tutorial. We used 8 random patches of 24 × 24 vertices.
+
+- **Where the original mesh sits.** Read at its own typical face position, the original mesh has papyrus on the recto side at only 55% of samples. After snapping, 88%.
+- **Drift test.** Known smooth drifts were applied to the mesh vertices. At 15,324 trusted samples, the share within 1 voxel of the original position went:
+
+| Method | Within 1 voxel (drift std 1.5, corr. 40) | Within 1 voxel (drift std 2.0, corr. 80) |
+|---|---|---|
+| No correction | 70% | 42% |
+| VC3D alpha-composite refiner, thresholds tuned on these patches, offset removed | 61% | 57% |
+| **Snapper** | **90%** | **90%** |
+
+![w035 before and after](results/mesh_w035_render.png)
+
+Each patch shows the CT read through the original and the snapped mesh, just inside and just outside the recto face, plus a cross-section.
+
+**Open question.** At this resolution, sheets are often thin layers packed into bundles. Where the original trace runs through the middle of a bundle, the snapper picks the nearest recto face within ±4 voxels. That may be a neighbouring layer rather than the one the tracer meant. The drift test cannot tell these apart. It needs expert review, or a downstream check such as ink detection on renders of both meshes.
+
+```bash
+pip install "zarr>=2.16,<3" fsspec aiohttp requests        # to read the scan from the open-data bucket
+python tools/fetch_segment.py segments/w035 --segment <tifxyz URL> --volume <OME-Zarr URL> --patches 8
+python tools/snap_tifxyz.py snapped segments/w035/patch_*   # snapped.tifxyz (same grid) + snapped_dense.tifxyz
+python tools/eval_mesh.py out/eval_mesh.json segments/w035/patch_*
+python tools/render_mesh.py out/render.png snapped segments/w035/patch_1 --sections
+```
+
 ## Setup
 
 ```bash
@@ -246,4 +275,5 @@ A second reviewer, who did not work on the tool and had never seen these scans, 
 
 1. **Decide flagged labels with more context.** Following each sheet over a larger area, or using the traced mesh's own history, could tell which face a flagged label belongs to. Until then, flagged labels are the place for human review.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
-3. **Snap traced meshes.** Apply the same snapping to traced meshes (tifxyz) so it can be used in VC3D.
+3. **Meshes: check which layer is right.** Get expert review of the snapped w035 patches. Compare ink detection on renders of the original and snapped mesh.
+4. **Meshes: whole segments.** Snap a whole segment tile by tile, streaming the scan.
