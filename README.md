@@ -49,6 +49,27 @@ These are the full results in [`results/eval_v2.md`](results/eval_v2.md), with p
 | Existing refiner | −17.8 | 35% |
 | **Snapper** | **58.4** | **91%** |
 
+### Held-out test: 100 cubes never used during development
+
+Everything above was measured on the 20 cubes the method was built and tuned on. To check that it generalizes:
+- **The cubes.** We picked 100 other cube pairs from the bucket at random. The seed was fixed and pushed before any of them were downloaded.
+- **The run.** We evaluated them with the same settings ([`results/eval_heldout.md`](results/eval_heldout.md)).
+
+| | Development (20 cubes) | Held-out (100 cubes) |
+|---|---|---|
+| Drift test, within 1 voxel: no correction | 58% | 57% |
+| Drift test, within 1 voxel: existing refiner | 9% | 18% |
+| Drift test, within 1 voxel: **snapper** | **91%** | **88%** |
+| Drift test, mean error: snapper (voxels) | 0.46 | 0.55 |
+| Consistency, within 1 voxel: snapper | 83% | 75% |
+| Clean labels, papyrus on the correct side: original → snapper | 68% → 91% | 63% → 86% |
+
+- **Overall.** On the new cubes the snapper beats no correction on 97 of 100. The median gain is 31 points of "within 1 voxel".
+- **Losses.** It is worse on three: sample_00184, sample_00186 and sample_00478.
+- **Drop from development.** Accuracy falls by 3 points and consistency by 8 points.
+
+![held-out results per cube](results/eval_heldout.png)
+
 ### Changes since v1
 
 | | v1 | v2 |
