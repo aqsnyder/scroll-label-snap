@@ -27,11 +27,16 @@ Options:
   --param NAME=VALUE      override a snapper parameter
   --limit N               only the first N tiles (for a quick try)
   --name NAME             name for the outputs (default: the segment folder's name)
+  --fine-grid V           also write <name>_snapped_fine.tifxyz, with vertices about V voxels apart
+                          (5 is what has been tested; default 0 = don't write it)
 
 Writes:
-  OUT_DIR/<name>_snapped.tifxyz        the input grid, vertices moved (drop-in replacement)
+  OUT_DIR/<name>_snapped.tifxyz        the input grid, vertices moved. Same grid as the input, but
+                                       too coarse to hold all of the snapped surface
+  OUT_DIR/<name>_snapped_fine.tifxyz   with --fine-grid: the same fit on a finer grid, 5 voxels (meta
+                                       scale 0.2) for a 20-voxel input
   OUT_DIR/<name>_snapped_dense.tifxyz  the snapped surface at ~3-voxel spacing
-      with channels snap_shift, snap_confidence and (dense) snap_flag / snap_limit or
+      with channels snap_shift, snap_confidence and (dense, fine) snap_flag / snap_limit or
       (input grid) snap_review, as from snap_tifxyz.py
   OUT_DIR/snap_segment.json            summary
   OUT_DIR/tiles/                       one file per finished tile; a rerun skips them, and refuses
@@ -50,8 +55,9 @@ from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import Params, estimate_convention  # noqa: E402
-from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, densify,  # noqa: E402
-                                    fit_vertex_shifts, mean_spacing, prepare_mesh, snap_mesh, vertex_normals)
+from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, dense_at_fine, densify,  # noqa: E402
+                                    fine_factor, fine_surface, fit_vertex_shifts, mean_spacing, prepare_mesh,
+                                    snap_mesh, surface_area, vertex_normals)
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
 
@@ -300,6 +306,8 @@ def main():
     ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--name", help="name for the outputs (default: the segment folder's name)")
+    ap.add_argument("--fine-grid", type=float, default=0, metavar="V",
+                    help="also write <name>_snapped_fine.tifxyz, with vertices about V voxels apart (default 0: don't)")
     a = ap.parse_args()
     t_start = time.time()
     os.makedirs(os.path.join(a.out_dir, "tiles"), exist_ok=True)
@@ -472,8 +480,19 @@ def main():
                  uuid=f"{name}_snapped_dense",
                  channels=dict(snap_shift=shift_d, snap_confidence=(conf_d * 255).astype(np.uint8),
                                snap_flag=(flag_d * 255).astype(np.uint8), snap_limit=(limit_d * 255).astype(np.uint8)))
+    g = 0
+    if a.fine_grid:
+        g = fine_factor(spacing, factor, a.fine_grid)
+        Pg, vg, shift_g = fine_surface(P, Nn, ok, factor, vd, shift_d, g)
+        write_tifxyz(os.path.join(a.out_dir, f"{name}_snapped_fine.tifxyz"), Pg, vg, dict(src, area_vx2=surface_area(Pg, vg)),
+                     scale=densified_scale(meta, g), uuid=f"{name}_snapped_fine",
+                     channels=dict(snap_shift=shift_g.astype(np.float32),
+                                   snap_confidence=(dense_at_fine(conf_d, factor, g) * 255).astype(np.uint8),
+                                   snap_flag=(dense_at_fine(flag_d, factor, g) * 255).astype(np.uint8),
+                                   snap_limit=(dense_at_fine(limit_d, factor, g) * 255).astype(np.uint8)))
     s = shift_d[vd]
     summary = dict(segment=a.segment, volume=a.volume, level=a.level, name=name, grid=list(P.shape[:2]), factor=factor,
+                   fine_factor=g,
                    tiles=len(wins), convention_offset=float(c_off), convention_note=c_note, normal_sign=int(sign),
                    n_dense=int(vd.sum()), mean_abs_shift=float(np.abs(s).mean()), frac_moved_1vox=float(np.mean(np.abs(s) >= 1)),
                    frac_flagged=float(flag_d[vd].mean()), frac_at_limit=float(limit_d[vd].mean()),

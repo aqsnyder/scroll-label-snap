@@ -26,13 +26,20 @@ Options:
                       warning. ct: let the CT decide. That vote was wrong on 4 of 16 real patches,
                       and then every sample is pulled toward the wrong faces.
   --axis Y X          scroll axis position in the volume, for --tifxyz meshes
+  --fine-grid V       also write snapped_fine.tifxyz, with vertices about V voxels apart (5 is what
+                      has been tested; default 0 = don't write it)
 
 Writes, per input:
-  OUT_DIR/<name>/snapped.tifxyz        the input grid with its vertices moved (drop-in replacement)
+  OUT_DIR/<name>/snapped.tifxyz        the input grid with its vertices moved. Same grid as the
+                                       input, but about 20 voxels is too coarse to hold the snapped
+                                       surface: it follows the dense one only in part
+  OUT_DIR/<name>/snapped_fine.tifxyz   with --fine-grid: the same fit on a finer grid, 5 voxels (meta
+                                       scale 0.2) for a 20-voxel input, which stays close to the dense
+                                       surface. Its effect on reading ink has not been measured
   OUT_DIR/<name>/snapped_dense.tifxyz  the snapped surface at about 3-voxel spacing
-      Both carry extra channels: snap_shift (voxels moved along the normal) and
-      snap_confidence (0-255). The dense one also has snap_flag (255 where the mesh sits on a
-      face of the opposite polarity) and snap_limit (255 where the shift stopped at the edge of
+      All carry extra channels: snap_shift (voxels moved along the normal) and
+      snap_confidence (0-255). The dense and fine ones also have snap_flag (255 where the mesh sits
+      on a face of the opposite polarity) and snap_limit (255 where the shift stopped at the edge of
       the search range, so the face may be farther away); the input-size one has snap_review
       (255 where either applies to most of the surface around the vertex). Those are the places
       worth a look.
@@ -51,8 +58,8 @@ from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import Params  # noqa: E402
-from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, expand_paths,  # noqa: E402
-                                    patch_orientation, snap_mesh)
+from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, dense_at_fine, expand_paths,  # noqa: E402
+                                    patch_orientation, snap_mesh, surface_area)
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
 
@@ -62,11 +69,11 @@ def load_patch(d):
             pj["offset_zyx"], pj.get("scale_to_level", 1.0))
 
 
-def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p, ct_ok=False):
+def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p, ct_ok=False, fine=0):
     t0 = time.time()
     P, valid, meta = read_tifxyz(seg)
     ct = tifffile.imread(vol)
-    res = snap_mesh(ct, P, valid, p, offset_zyx=offset, level_scale=level_scale, normal_sign=normal_sign)
+    res = snap_mesh(ct, P, valid, p, offset_zyx=offset, level_scale=level_scale, normal_sign=normal_sign, fine=fine)
     f = res.factor
     uuid = str(meta.get("uuid") or os.path.basename(os.path.normpath(seg))).replace(".tifxyz", "")
     src = dict(meta, snapped_from=uuid)
@@ -84,12 +91,21 @@ def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p, ct_ok=
                                snap_confidence=(res.dense_confidence * 255).astype(np.uint8),
                                snap_flag=(res.dense_flag * 255).astype(np.uint8),
                                snap_limit=(res.dense_limit * 255).astype(np.uint8)))
+    if fine:
+        g = res.fine_factor
+        write_tifxyz(os.path.join(out_dir, name, "snapped_fine.tifxyz"), res.fine_P, res.fine_valid,
+                     dict(src, area_vx2=surface_area(res.fine_P, res.fine_valid)),
+                     scale=densified_scale(meta, g), uuid=f"{uuid}_snapped_fine",
+                     channels=dict(snap_shift=res.fine_shift.astype(np.float32),
+                                   snap_confidence=(dense_at_fine(res.dense_confidence, f, g) * 255).astype(np.uint8),
+                                   snap_flag=(dense_at_fine(res.dense_flag, f, g) * 255).astype(np.uint8),
+                                   snap_limit=(dense_at_fine(res.dense_limit, f, g) * 255).astype(np.uint8)))
     info = {k: v for k, v in res.info.items() if k != "params"}
     vs = res.dense_shift[res.dense_valid]
     info.update(name=name, seconds=round(time.time() - t0, 1),
                 dense_shift_percentiles={str(q): float(np.percentile(vs, q)) for q in (5, 25, 50, 75, 95)} if len(vs) else {},
                 mean_confidence=float(res.dense_confidence[res.dense_valid].mean()) if len(vs) else 0.0,
-                params=p.asdict())
+                fine_factor=res.fine_factor, params=p.asdict())
     json.dump(info, open(os.path.join(out_dir, name, "snap.json"), "w"), indent=1)
     print(f"{name}: {info['n_vertices']} vertices, {info['n_dense']} samples (x{f}), "
           f"edge at {info['convention_offset']:+.2f} voxels, mean |shift| {info['mean_abs_shift']:.2f}, "
@@ -120,6 +136,8 @@ def main():
                     help="override a snapper parameter (see scroll_label_snap/core.py Params), e.g. t_max=6")
     ap.add_argument("--axis", type=float, nargs=2, metavar=("Y", "X"),
                     help="scroll axis position (volume y, x) for the orientation of a --tifxyz mesh")
+    ap.add_argument("--fine-grid", type=float, default=0, metavar="V",
+                    help="also write snapped_fine.tifxyz, with vertices about V voxels apart (default 0: don't)")
     a = ap.parse_args()
     p = Params()
     for kv in a.param:
@@ -152,7 +170,7 @@ def main():
     if not jobs:
         sys.exit("nothing to do: give PATCH_DIRs or --tifxyz and --volume")
     os.makedirs(a.out_dir, exist_ok=True)
-    infos = [run_one(a.out_dir, *job, p, ct_ok=a.normals == "ct") for job in jobs]
+    infos = [run_one(a.out_dir, *job, p, ct_ok=a.normals == "ct", fine=a.fine_grid) for job in jobs]
     json.dump(infos, open(os.path.join(a.out_dir, "summary.json"), "w"), indent=1)
 
 

@@ -178,6 +178,18 @@ It was developed on segment w035 of PHerc. 0139 at 9.362 µm, the one in the scr
 | Consistency: snapper / refiner with each patch's own levels / m7 snapping | 84% / 75% / 69% | 90% / 84% / 76% |
 | Fibre check, patches with the recto signature: snapped / original / m7 snapping | 8 / 5 / 7 of 8 | 8 / 6 / 6 of 8 |
 
+**Which output these numbers score.** The snapper's position numbers in this section, and in `results/mesh_w035.md`, `results/mesh_w052.md` and `results/w035_whole.md`, score `snapped_dense.tifxyz`, the surface as solved. `snapped.tifxyz` keeps the input's 20-voxel grid, which can't hold that surface. `snapped_fine.tifxyz` (5 voxels, meta scale 0.2, written only with `--fine-grid 5`) can. Scored on the written files, read bilinearly, w035 / w052:
+
+| | Input mesh | `snapped.tifxyz` (20 voxels) | `snapped_fine.tifxyz` (5 voxels) | `snapped_dense.tifxyz` (about 3 voxels) |
+|---|---|---|---|---|
+| Drift test, within 1 voxel (std 1.5, corr. 40) | 70% / 69% | 72% / 82% | 90% / 94% | 90% / 94% |
+| Drift test, within 1 voxel (std 2.0, corr. 80) | 42% / 41% | 73% / 82% | 90% / 92% | 90% / 92% |
+| Papyrus on the recto side of the face | 55% / 70% | 81% / 89% | 88% / 92% | 88% / 93% |
+| Mean step across the face | 8.4 / 30.2 | 46.8 / 64.7 | 59.7 / 74.8 | 60.4 / 75.3 |
+| The whole of w035 on disk, with channels | 0.9 MB | 1.4 MB | 23 MB | 71 MB |
+
+`tools/eval_mesh.py --output dense|fine|grid` scores each one. This table is about where the surface sits, not about reading it. The pre-registered ink test (`results/ink_test_plan.md`) rendered `snapped.tifxyz`, so its result describes the 20-voxel column: reviewers preferred the snapped map less often than the original's (`results/ink_review.md`). The fine grid has not been through any ink test, so nothing here says it reads better. `tools/render_surface_volume.py` renders the fine grid onto the input's pixels. The fine grid's normals are rougher, like the dense surface's: 9.6° from the original mesh's on average, against 4.7° at 20 voxels, so a layer 8 voxels off the surface wanders by about 1.3 voxels instead of 0.65. None of these files has been opened in VC3D.
+
 The w035 results are below.
 
 - **Where the original mesh sits.** Read at its own typical face position, the original mesh has papyrus on the recto side at only 55% of samples. After snapping, 88%.
@@ -223,8 +235,8 @@ Whether a cleaner surface reads better is not yet measured. The PHerc. 306B winn
 ```bash
 pip install "zarr>=2.16,<3" fsspec aiohttp requests        # to read the scan from the open-data bucket
 python tools/fetch_segment.py segments/w035 --segment <tifxyz URL> --volume <OME-Zarr URL> --patches 8
-python tools/snap_tifxyz.py snapped segments/w035/patch_*   # snapped.tifxyz (same grid) + snapped_dense.tifxyz
-python tools/eval_mesh.py out/eval_mesh.json segments/w035/patch_*
+python tools/snap_tifxyz.py snapped segments/w035/patch_*   # snapped.tifxyz (same grid) + snapped_dense.tifxyz; add --fine-grid 5 for snapped_fine.tifxyz
+python tools/eval_mesh.py out/eval_mesh.json segments/w035/patch_*   # add --output grid or fine to score those files instead of the dense one
 python tools/render_mesh.py out/render.png snapped segments/w035/patch_1 --sections
 python tools/fibre_check.py out/fibre.json segments/w035/patch_* --snapped snapped --png out/fibre.png
 python tools/snap_to_prediction.py snapped_m7 segments/w035/patch_*   # baseline: snap onto a surface prediction (fetch with --extra m7=URL)
