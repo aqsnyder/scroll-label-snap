@@ -22,8 +22,9 @@ Three tests of the mesh snapper came in this week. Two were pre-registered.
   - With `--target-offset 0` and the learned profile off, the share was 43%. His tool, snap_labels, reached 80%.
 
 A follow-up diagnostic ([`results/depth_sweep.md`](results/depth_sweep.md)) looked for the cause:
-- **Not the surface's average depth.** Moving a whole mesh 1–2 voxels barely changes the ink signal, and agreement with ink labels doesn't change detectably.
-- **The snapper's varying moves.** Snapping lowered w052's signal, and so did a mirrored mesh moved as far the other way, a little less. On PHerc. 0841, the mirrored depth cost 0.07 AUC while the snapped one cost nothing.
+- **Not the surface's average depth.** Moving a whole mesh 1–2 voxels barely changes the ink map's level, and agreement with ink labels doesn't change detectably.
+- **The snapper's varying moves.** Snapping lowered w052's map level, and so did a mirrored mesh moved as far the other way, a little less. On PHerc. 0841, the mirrored depth cost 0.07 AUC while the snapped one cost nothing.
+- **Their vertex-scale bumps, specifically** ([`results/move_scale.md`](results/move_scale.md)). The drop-in output's moves vary from one vertex to the next. With the moves smoothed over about 20 voxels, w052 keeps its map level, and the mesh keeps 43% of the snapper's gain at the face. With only the bumps, it loses as much as the full snap.
 
 So, for now:
 - **Don't use snapped meshes for ink detection.**
@@ -375,5 +376,5 @@ A second reviewer, who did not work on the tool and had never seen these scans, 
 1. **Decide flagged labels with more context.** Following each sheet over a larger area, or using the traced mesh's own history, could tell which face a flagged label belongs to. Until then, flagged labels are the place for human review.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
 3. **Make the learned profile independent of the input labels** (see "Drift draws" above; in Chase's test, turning it off helped). Then test it on a fresh held-out set.
-4. **Meshes: find what in the snapper's varying moves costs legibility.** The average depth isn't it ([`results/depth_sweep.md`](results/depth_sweep.md)). A much smoother snap, or one that corrects only a segment's offset and keeps the shape of the trace, would test it.
+4. **Meshes: a smooth snap (not started).** The drop in map level is in the moves' vertex-scale bumps ([`results/move_scale.md`](results/move_scale.md)). Moves smoothed over about one vertex spacing keep the map level; `tools/depth_sweep.py filter --low-pass 1` makes such a mesh after the fact. Whether it reads better needs a pre-registered blind review.
 5. **Meshes: face placement.** Find out why `--target-offset 0` still sits about a voxel inside the two-scan face in Chase's test. Compare with snap_labels in the blind ink test.

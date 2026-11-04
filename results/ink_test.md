@@ -62,11 +62,11 @@ The unit is a 256 × 256-pixel tile with at least half its pixels valid. "Flagge
 The correlations of the change in the tile mean are as small (|ρ| ≤ 0.10). Some notes on reading this:
 - **The tiles differ little in how far they moved.** The middle half of w052's tiles have a mean |shift| of 1.50–1.90 voxels and 12–24% flagged samples. So this can't rule out that moving further hurts more. What it does show is that the loss isn't confined to a few badly snapped places.
 - **The probability scale is narrow.** The model was trained with label smoothing, so its probabilities run from about 0.25 to 0.75. A change of 0.02 in the 99th percentile is about 4% of that range.
-- **A check after the fact, by ink level.** Ranking tiles by the mean of both maps' 99th percentiles, 56–72% of tiles lose signal in every quartile. So the loss is not limited to inky tiles or to blank ones. Ranking by the original map alone would seem to show gains in blank tiles, but that is regression to the mean.
+- **A check after the fact, by ink level.** Ranking tiles by the mean of both maps' 99th percentiles, 56–72% of tiles drop in every quartile. So the loss is not limited to inky tiles or to blank ones. Ranking by the original map alone would seem to show gains in blank tiles, but that is regression to the mean.
 
 ![Distribution of the tile changes on w052](ink_test/w052_tile_changes.png)
 
-![Where the ink signal changes on w052](ink_test/w052_change_map.png)
+![Where the map level changes on w052](ink_test/w052_change_map.png)
 
 In the tiles that lose most, whole ink blobs in the original map are gone in the snapped one. In the tiles that gain most, blobs appear that the original doesn't show.
 
@@ -100,5 +100,6 @@ The snapper puts the steepest edge at the mesh's own offset, which is close to w
   - The model was trained on renders of traced meshes. It may depend on how those sit relative to the papyrus, so moving the surface, even onto an edge, moves the ink away from where the model expects it.
   - The steepest density edge may not be where the ink is.
 - **Checked since** ([`depth_sweep.md`](depth_sweep.md)):
-  - It isn't the surface's average depth: moving the whole mesh 1–2 voxels barely changes the ink signal.
-  - It comes with the snapper's varying moves. A mirrored mesh, moved by the same amounts the other way, also lowers w052's signal, a little less.
+  - It isn't the surface's average depth: moving the whole mesh 1–2 voxels barely changes the map level.
+  - It comes with the snapper's varying moves. A mirrored mesh, moved by the same amounts the other way, also lowers w052's map level, a little less.
+  - More exactly, it is their vertex-scale bumps ([`move_scale.md`](move_scale.md)). The same moves smoothed over about 20 voxels keep the map level.

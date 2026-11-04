@@ -2,17 +2,19 @@
 
 This was planned in [`depth_sweep_plan.md`](depth_sweep_plan.md), pushed at a91ef05 before any of these maps existed. It ran on 3–4 November 2026 with the ink test's model (`ink_9um` seed 42), settings and layer direction. The score files are in [`depth_sweep/`](depth_sweep/).
 
+The w052 measures describe the ink map's level, tile by tile: how strong the map is. They are not a measure of legibility.
+
 ## Summary
 
 - **The window check passed.** Reading the layer stack with d = 0 reproduced the earlier maps exactly, on w035 and on all three PHerc. 0841 segments.
-- **Moving the whole surface 1–2 voxels barely changes the ink signal.**
+- **Moving the whole surface 1–2 voxels barely changes the map level.**
   - On w052, the median tile change in the 99th percentile was 0.000 at d = −2, −1 and +1, and −0.003 at +2. Snapping gave −0.027.
   - The maps do change (r = 0.84–0.94 with the original), but about as many tiles gain as lose. At ±2 voxels, 35–37% of tiles lose more than 0.02 and 29–32% gain as much. Snapping: 53% lose, 24% gain.
   - The rule fixed in advance reads this as "partly", because the share losing at ±2 voxels is just over its 35% line. The medians say a uniform shift reshuffles the map rather than lowering it.
   - On PHerc. 0841, no shift made a detectable difference to agreement with the ink labels. Moving into the papyrus raised the AUC slightly on all three segments (pooled +0.013 at −1 and +0.014 at −2); moving toward the gap lowered it slightly (−0.006 and −0.002).
   - On w035, the AUC stayed between 0.9969 and 0.9979.
 - **The direction of the snapper's moves matters, and the two scrolls disagree.**
-  - **w052:** the mirrored mesh lowered the ink signal less than the snapped one (median −0.016 against −0.027). By the rule fixed in advance, the snapper's moves point the wrong way for this model. The margin is small: 0.012 against a threshold of 0.01.
+  - **w052:** the mirrored mesh lowered the map level less than the snapped one (median −0.016 against −0.027). By the rule fixed in advance, the snapper's moves point the wrong way for this model. The margin is small: 0.012 against a threshold of 0.01.
   - **PHerc. 0841:** at the mirrored depth, all three traced segments lost 0.06–0.07 AUC against the labels (pooled −0.068); at the snapped depth they lost nothing (pooled +0.011). Mirrored minus snapped was −0.077 and −0.092, intervals excluding 0, and −0.063, whose interval just includes 0. So here the snapper's moves point the right way on average.
 - **What remains is the shape of the moves.**
   - The snapped and mirrored w052 meshes move each vertex 1.95 voxels on average along its normal (median 1.69), varying from place to place, with almost no net offset (0.05 voxels).
@@ -63,7 +65,7 @@ These are AUC differences with 95% block-bootstrap intervals. Bold marks an inte
 | …174252405 | +0.020 (−0.017 to +0.054) | +0.013 (−0.009 to +0.034) | +0.003 (−0.019 to +0.025) | +0.007 (−0.026 to +0.039) |
 | Pooled, weighted by pixels | +0.014 | +0.013 | −0.006 | −0.002 |
 
-**The snapped and mirrored depths** (the snapped one is the follow-up's dense output):
+**The snapped and mirrored depths** (the snapped one is the follow-up's dense output). Both come through the same depth transfer, so they have the same missing pixels:
 
 | Target | Snapped − traced | Mirrored − traced | Mirrored − snapped |
 |---|---|---|---|
@@ -72,13 +74,13 @@ These are AUC differences with 95% block-bootstrap intervals. Bold marks an inte
 | …174252405 | +0.022 (−0.025 to +0.071) | **−0.071 (−0.128 to −0.006)** | **−0.092 (−0.146 to −0.037)** |
 | Pooled, weighted by pixels | +0.011 | −0.068 | −0.078 |
 
-![Left: w052's ink signal when the whole mesh moves, against the snapped and mirrored meshes. Right: PHerc. 0841's agreement with ink labels when the traced segments move.](depth_sweep/depth_sweep.png)
+![Left: w052's map level when the whole mesh moves, against the snapped and mirrored meshes. Right: PHerc. 0841's agreement with ink labels when the traced segments move.](depth_sweep/depth_sweep.png)
 
 ## What this means
 
-- **Where the surface sits on average is not the problem.** The model tolerates a uniform shift of 2 voxels either way. The ink signal holds, and agreement with real ink labels doesn't change detectably. If anything, a voxel or two deeper reads slightly better on PHerc. 0841.
+- **Where the surface sits on average is not the problem.** The model tolerates a uniform shift of 2 voxels either way. The map level holds, and agreement with real ink labels doesn't change detectably. If anything, a voxel or two deeper reads slightly better on PHerc. 0841.
 - **The snapper's varying moves are.**
-  - On w052, they lowered the ink signal, and so did their mirror image, a little less.
+  - On w052, they lowered the map level, and so did their mirror image, a little less.
   - On PHerc. 0841, they were neutral for agreement with the labels, while their mirror image clearly hurt it. So there the moves carry real information about where the surface is.
   - On w052, the moves cost legibility anyway.
-- **Not tested here:** what in the varying moves the model reacts to. It could be the roughness they add between vertices, or departures from the sheet the tracer followed.
+- **Tested since** ([`move_scale.md`](move_scale.md)): it is the moves' vertex-scale bumps. The same moves smoothed over about 20 voxels keep the map level, and the bumps alone lower it as much as the full snap.

@@ -78,7 +78,7 @@ def main():
     ax1.set_xticks([-2, -1, 0, 1, 2])
     ax1.set_xlabel("whole mesh moved, voxels (− into papyrus, + toward gap)")
     ax1.set_ylabel("median change in tile 99th percentile")
-    ax1.set_title("w052: ink signal against the original map", loc="left", fontsize=10)
+    ax1.set_title("w052: map level against the original map", loc="left", fontsize=10)
     ax1.grid(axis="y", color=GRID, linewidth=0.5, alpha=0.6)
 
     for i, spec in enumerate(a.o841):
