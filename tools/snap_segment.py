@@ -246,8 +246,8 @@ def tile_convention(win, p, level_scale, margin, factor, sign):
         pts = prep.Pd[prep.vd]
         if not len(pts):                        # says nothing about the segment's offset
             return None, "no samples in this tile"
-        if not np.all((pts >= p.border) & (pts <= np.array(prep.ct_s.shape) - 1 - p.border), axis=1).any():
-            return None, "no samples inside the scan, away from its edge"
+        if not np.all((pts >= 0) & (pts <= np.array(prep.ct_s.shape) - 1), axis=1).any():
+            return None, "no samples inside the scan"
         c_off, _ = estimate_convention(prep.ct_s, pts, prep.Nd[prep.vd], p)
         return float(c_off), None
     except Exception as e:

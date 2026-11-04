@@ -359,6 +359,12 @@ def test_sample_tile_outside_the_scan_does_not_vote_on_the_offset():
     snap_segment._STATE.update(seg=(P, np.ones(P.shape[:2], bool), {}), vol=CT)
     offset, error = snap_segment.tile_convention((0, 5, 0, 5, (0, 5, 0, 5)), Params(), 1.0, 8, 1, 1)
     assert offset is None and "inside the scan" in error
+    # samples in the scan but too near its edge to move still measure the offset, as they always did
+    Q = mesh_grid()
+    Q[..., 1] = 3.0
+    snap_segment._STATE.update(seg=(Q, np.ones(Q.shape[:2], bool), {}), vol=CT)
+    offset, error = snap_segment.tile_convention((0, 5, 0, 5, (0, 5, 0, 5)), Params(), 1.0, 8, 1, 1)
+    assert offset is not None and error is None
 
 
 def test_grid_past_the_scan_does_not_pull_the_offset_to_zero(scene, tmp_path):
