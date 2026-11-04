@@ -6,28 +6,33 @@ Usage:
   python tools/eval_orient_test.py IN_DIR OUT_DIR [--workers N] [--cubes NAME ...] [--only NAME ...]
 
 IN_DIR holds images/ and labels/. The cubes are the plan's 100, or --cubes (k below is a cube's position in that list);
---only runs part of the list with the same k, and the decision then counts as incomplete. Each cube's result goes to
-OUT_DIR/cubes/<name>.json as soon as it finishes, so an interrupted run resumes where it stopped. At the end
-OUT_DIR/orient_test.json holds the decision and the numbers behind it, and OUT_DIR/orient_test_cubes.csv one row per cube.
-On one development cube (sample_00018) a worker took about 6 minutes and 1.3 GB.
+--only runs part of the list with the same k, and the decision then counts as incomplete. Only the plan's own list can
+decide anything: with another, complete, adopt and the third arm's passed are null. Each cube's result goes to
+OUT_DIR/cubes/<name>.json as soon as it finishes, so an interrupted run resumes where it stopped. Each result records the
+commit, the plan's and the list's SHA-256, IN_DIR, the parameters and k, and a rerun refuses a stored result that differs in
+any of them but the list. At the end OUT_DIR/orient_test.json holds the decision and the numbers behind it, and
+OUT_DIR/orient_test_cubes.csv one row per cube. On one development cube (sample_00018) a worker took about 6 minutes and 1.3 GB.
 
 Per cube, on one fixed set of points, the clean labels' samples at least 10 voxels from every face:
   - each arm's band position (tools/eval_snap.py band_position) along the same lines, on the clean labels and on
     drifted labels at seeds k, 100+k and 200+k. The drifted labels are built once, along the default arm's normals, as
     in tools/eval_snap.py, so all arms start from the same input.
-  - consistency: within 1 voxel of the same arm's clean result, at all points.
+  - consistency: within 1 voxel of the same arm's clean result, at all points where both bands exist. The share of points
+    with no band to measure is reported as "missing".
   - drift: within 1 voxel of the original label, at the points trusted under the default's and under orient_cube's normals.
   - orientation change: the share of points whose nearest sample in the drifted run, within 6 voxels, has a reversed normal.
   - axis share, sign margin and guard triggers of the orient_cube step on all four inputs.
-  - the fibre signature, which uses no labels and no CT step sign, on the samples where the two orientations disagree on
-    the clean labels. It assumes the scroll axis is scan z.
+  - the fibre signature, on the samples where the two orientations disagree on the clean labels. It uses no label polarity
+    and no CT step sign, though the samples' positions and normal lines come from the labels. It assumes the scroll axis is scan z.
   - Betti numbers and merger events (tools/eval_topology.py) and contested samples on the clean output of each arm.
 """
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -208,10 +213,13 @@ def contested_samples(pts, n, shift, sheet, near=3.0):
 # --------------------------------------------------------------------------- one cube
 
 def errors(e):
+    """The errors at the points where both bands exist; missing is the share of points where one doesn't."""
+    total = len(e)
     e = e[np.isfinite(e)]
+    missing = 1 - len(e) / total if total else None
     if not len(e):
-        return dict(within_1=None, over_2=None, mean=None, n=0)
-    return dict(within_1=float(np.mean(e <= 1)), over_2=float(np.mean(e > 2)), mean=float(np.mean(e)), n=int(len(e)))
+        return dict(within_1=None, over_2=None, mean=None, n=0, missing=missing)
+    return dict(within_1=float(np.mean(e <= 1)), over_2=float(np.mean(e > 2)), mean=float(np.mean(e)), n=int(len(e)), missing=missing)
 
 
 def run_arms(lab_in, ct_s, pts, raw, i, j, p):
@@ -233,9 +241,10 @@ def run_arms(lab_in, ct_s, pts, raw, i, j, p):
 def measure_cube(img_path, lab_path, k):
     t0 = time.time()
     p = Params()
+    name = os.path.basename(img_path).rsplit(".", 1)[0]
+    cube_id = int(re.search(r"(\d+)$", name).group(1))
     img = tifffile.imread(img_path)
     lab = tifffile.imread(lab_path)
-    name = os.path.basename(img_path).rsplit(".", 1)[0]
     ct_s = ndi.gaussian_filter(img.astype(np.float32), p.sigma_ct)
     pts, raw, _ = surface_points(lab, p)
     if len(pts) == 0:
@@ -294,7 +303,7 @@ def measure_cube(img_path, lab_path, k):
     margins = [v["sign_margin"] for v in inputs.values()]
     apart = np.abs(q_clean["default"] - q_clean["orient_cube"])[disputed[inner]]
     apart = apart[np.isfinite(apart)]
-    return dict(cube=name, id=int(re.search(r"(\d+)$", name).group(1)), k=k, n_samples=int(len(pts)), n_points=int(inner.sum()),
+    return dict(cube=name, id=cube_id, k=k, n_samples=int(len(pts)), n_points=int(inner.sum()),
                 n_fixed=int(fixed.sum()), axis_share=inputs["clean"]["axis_share"], axis_share_min=min(shares),
                 sign_margin=inputs["clean"]["sign_margin"], sign_margin_min=min(margins),
                 guard_triggers=sum(v["guard_triggered"] for v in inputs.values()), inputs=inputs, disputed=float(disputed.mean()),
@@ -362,8 +371,9 @@ def mean_of(values):
     return float(np.mean(v)) if v else None
 
 
-def decide(cubes, planned):
-    """The plan's rule. The decision uses all the cubes; the id stretch is reported beside it."""
+def decide(cubes, planned, plan_list=True):
+    """The plan's rule. The decision uses all the cubes; the id stretch is reported beside it. With any list but the
+    plan's own there is nothing to decide, so complete, adopt and the third arm's passed are None."""
     all_ = numbers(cubes)
     low = all_["consistency_diff"]["low"]
     drift_low = all_["drift_diff"]["low"]
@@ -373,7 +383,8 @@ def decide(cubes, planned):
                   orientation_change=change is not None and change <= 1.0, fibre=fibre is not None and fibre >= 0.75)
     keep = [c["arms"]["orient_cube_keep"] for c in cubes]
     third = dict(betti_equal=sum(a["betti_equal"] for a in keep), merger_events_zero=sum(a["merger_events"] == 0 for a in keep),
-                 cubes=len(keep), passed=len(keep) == planned and all(a["betti_equal"] and a["merger_events"] == 0 for a in keep),
+                 cubes=len(keep), passed=(len(keep) == planned and all(a["betti_equal"] and a["merger_events"] == 0 for a in keep))
+                 if plan_list else None,
                  consistency=arm_mean(cubes, "orient_cube_keep", "consistency"),
                  consistency_minus_orient_cube=paired(cubes, "orient_cube_keep", "consistency", "orient_cube"),
                  drift=arm_mean(cubes, "orient_cube_keep", "drift"),
@@ -382,10 +393,16 @@ def decide(cubes, planned):
                  band_moved_over_1_contested=mean_of(a.get("band_moved_over_1_contested") for a in keep),
                  band_moved_over_1_elsewhere=mean_of(a.get("band_moved_over_1_elsewhere") for a in keep))
     a, b = STRETCH
-    return dict(complete=len(cubes) == planned, planned=planned, checks=checks,
-                adopt=len(cubes) == planned and all(checks.values()), all=all_,
+    return dict(plan_list=plan_list, complete=len(cubes) == planned if plan_list else None, planned=planned, checks=checks,
+                adopt=(len(cubes) == planned and all(checks.values())) if plan_list else None, all=all_,
                 stretch_161_280=numbers([c for c in cubes if a <= c["id"] <= b]),
                 other_ids=numbers([c for c in cubes if not a <= c["id"] <= b]), third_arm=third)
+
+
+def missing_share(c, arm, key):
+    """A cube's mean share of points with no band to measure, over the seeds; None if a seed has no such points."""
+    v = [c["seeds"][s][arm][key]["missing"] for s in sorted(c["seeds"])]
+    return None if any(x is None for x in v) else float(np.mean(v))
 
 
 def csv_row(c):
@@ -398,6 +415,7 @@ def csv_row(c):
     change = {arm: 100 * float(np.mean([c["seeds"][s][arm]["orientation_change"] for s in c["seeds"]])) for arm in ARMS}
     for arm in ARMS:
         r.update({f"consistency_{arm}": cube_mean(c, arm, "consistency"), f"drift_{arm}": cube_mean(c, arm, "drift"),
+                  f"missing_consistency_{arm}": missing_share(c, arm, "consistency"), f"missing_drift_{arm}": missing_share(c, arm, "drift"),
                   f"orientation_change_{arm}": change[arm], f"betti_equal_{arm}": c["arms"][arm]["betti_equal"],
                   f"merger_events_{arm}": c["arms"][arm]["merger_events"], f"contested_{arm}": c["arms"][arm]["contested"]})
     keep = c["arms"]["orient_cube_keep"]
@@ -406,9 +424,30 @@ def csv_row(c):
     return r
 
 
-def run_one(img_path, lab_path, out_json, k):
+def code_revision():
+    """The commit this code is at, with -dirty if tracked files differ from it; None outside a git checkout."""
+    try:
+        r = subprocess.run(["git", "-C", HERE, "describe", "--always", "--abbrev=40", "--dirty"], capture_output=True, text=True)
+    except OSError:
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def sha256(text):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def run_record(in_dir, cubes):
+    """What a run is made from, kept with each cube's result and with the decision."""
+    with open(PLAN, encoding="utf-8") as f:
+        plan = f.read()
+    return dict(revision=code_revision(), plan_sha256=sha256(plan), list_sha256=sha256(" ".join(cubes)),
+                in_dir=os.path.abspath(in_dir), params=Params().asdict())
+
+
+def run_one(img_path, lab_path, out_json, k, record):
     os.environ["SNAP_THREADS"] = "1"          # one process per core already
-    r = measure_cube(img_path, lab_path, k)
+    r = dict(measure_cube(img_path, lab_path, k), run=dict(record, k=k))
     with open(out_json + ".tmp", "w") as f:
         json.dump(r, f, indent=1)
     os.replace(out_json + ".tmp", out_json)
@@ -424,39 +463,61 @@ def main():
     ap.add_argument("--only", nargs="+", help="run only these cubes of the list")
     a = ap.parse_args()
 
-    cubes = a.cubes or plan_lists()["drawn"]
+    drawn = plan_lists()["drawn"]
+    cubes = a.cubes or drawn
+    for n in cubes:
+        if not re.fullmatch(r"[^*?]*\d", n):
+            sys.exit(f"--cubes {n}: a cube's name ends in its number, and wildcards are not expanded here")
+    for n in a.only or ():
+        if n not in cubes:
+            sys.exit(f"--only {n}: not in the list of cubes")
+    record = run_record(a.in_dir, cubes)
     cube_dir = os.path.join(a.out_dir, "cubes")
     os.makedirs(cube_dir, exist_ok=True)
     jobs = [(k, n) for k, n in enumerate(cubes) if not a.only or n in a.only]
-    todo = [(k, n) for k, n in jobs if not os.path.exists(os.path.join(cube_dir, n + ".json"))]
+    todo = []
+    for k, n in jobs:
+        path = os.path.join(cube_dir, n + ".json")
+        if not os.path.exists(path):
+            todo.append((k, n))
+            continue
+        stored = json.load(open(path)).get("run") or {}
+        differ = [key for key, mine in dict(record, k=k).items() if key != "list_sha256" and stored.get(key) != mine]
+        if differ:
+            sys.exit(f"{path} was made with another {', '.join(differ)}, so it can't count in this run; use a new OUT_DIR")
     print(f"{len(cubes)} cubes in the list, {len(jobs)} chosen, {len(todo)} to run, {a.workers} workers", flush=True)
     failed = []
     with ProcessPoolExecutor(max_workers=a.workers) as ex:
         futs = {ex.submit(run_one, os.path.join(a.in_dir, "images", n + ".tif"), os.path.join(a.in_dir, "labels", n + ".tif"),
-                          os.path.join(cube_dir, n + ".json"), k): n for k, n in todo}
+                          os.path.join(cube_dir, n + ".json"), k, record): n for k, n in todo}
         for count, fut in enumerate(as_completed(futs), 1):
             try:
                 r = fut.result()
+                before, after = (cube_mean(r, arm, "consistency") for arm in ("default", "orient_cube"))
                 print(f"[{count}/{len(todo)}] {r['cube']}: axis share {r['axis_share']:.3f}, sign margin {r['sign_margin']:.3f}, "
-                      f"disputed {r['disputed']:.1%}, consistency {cube_mean(r, 'default', 'consistency'):.1f} -> "
-                      f"{cube_mean(r, 'orient_cube', 'consistency'):.1f}, {r['seconds']} s", flush=True)
+                      f"disputed {r['disputed']:.1%}, consistency {'n/a' if before is None else f'{before:.1f}'} -> "
+                      f"{'n/a' if after is None else f'{after:.1f}'}, {r['seconds']} s", flush=True)
             except Exception as e:  # keep going; report at the end
                 failed.append(futs[fut])
                 print(f"[{count}/{len(todo)}] {futs[fut]}: FAILED: {type(e).__name__}: {e}", flush=True)
 
     done = [json.load(open(os.path.join(cube_dir, n + ".json"))) for _, n in jobs
             if os.path.exists(os.path.join(cube_dir, n + ".json"))]
-    result = decide(done, len(cubes))
+    result = decide(done, len(cubes), cubes == drawn)
     with open(os.path.join(a.out_dir, "orient_test.json"), "w") as f:
-        json.dump(dict(result, params=Params().asdict()), f, indent=1)
+        json.dump(dict(result, params=Params().asdict(), run=record), f, indent=1)
     if done:
         rows = [csv_row(c) for c in done]
-        with open(os.path.join(a.out_dir, "orient_test_cubes.csv"), "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=list(rows[0]))
-            w.writeheader()
-            w.writerows(rows)
+        try:
+            with open(os.path.join(a.out_dir, "orient_test_cubes.csv"), "w", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        except OSError as e:                  # held open by another program; the numbers are in the JSON files
+            print(f"warning: can't write orient_test_cubes.csv ({e}); close the file and run the same command again", flush=True)
+    note = "" if result["plan_list"] else " (not the plan's list of cubes, so nothing is decided)"
     print(f"{len(done)} of {len(cubes)} cubes; checks {result['checks']}; adopt: {result['adopt']}; "
-          f"third arm passed: {result['third_arm']['passed']} -> {a.out_dir}", flush=True)
+          f"third arm passed: {result['third_arm']['passed']}{note} -> {a.out_dir}", flush=True)
     if failed:
         sys.exit(f"{len(failed)} cubes failed: {', '.join(sorted(failed))}")
 
