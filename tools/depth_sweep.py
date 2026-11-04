@@ -5,6 +5,13 @@ depend on where the surface sits, and does the direction of the snapper's move m
       The snapper's move the other way: 2 x original - snapped at every vertex valid in both (a
       drop-in output shares the original's grid). Other vertices are left out.
 
+  python tools/depth_sweep.py filter OUT_TIFXYZ --original TIFXYZ --snapped TIFXYZ
+                                      (--low-pass SIGMA | --high-pass SIGMA | --random-phase SEED)
+      The snapper's moves along the original's vertex normals, filtered over the vertex grid: only
+      their large-scale part (a Gaussian of SIGMA vertices, normalised over valid vertices), only
+      the rest (the move minus that), or a field with the same mean, spread and spatial spectrum
+      but random phases (unrelated to the scan). Written as a mesh on the original's grid.
+
   python tools/depth_sweep.py negate OUT_NPZ IN_NPZ
       A depth file from tools/depth_transfer.py with the depth negated (the same move the other
       way along the target's normals); everything else is copied.
@@ -31,6 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, ".."))
 from ink_scores import load_map, tile_rows, valid_both  # noqa: E402
+from scroll_label_snap.mesh import vertex_normals  # noqa: E402
 from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
 
 
@@ -50,6 +58,62 @@ def cmd_mirror(a):
     write_tifxyz(a.out_tifxyz, M, valid, meta)
     print(f"{int(valid.sum()):,} vertices; the snapper moved them {d.mean():.2f} voxels on average "
           f"(median {np.median(d):.2f}); the mirror moves them as far the other way -> {a.out_tifxyz}")
+
+
+def move_field(P, v_orig, S, v_snap):
+    """The snapper's move at each vertex, along the original's vertex normal (voxels)."""
+    N, ok = vertex_normals(P, v_orig)
+    valid = v_orig & v_snap & ok
+    d = np.where(valid, ((S.astype(np.float64) - P.astype(np.float64)) * N).sum(-1), 0.0)
+    return d, N, valid
+
+
+def low_pass(d, valid, sigma):
+    from scipy.ndimage import gaussian_filter
+    w = valid.astype(np.float64)
+    return np.where(valid, gaussian_filter(d * w, sigma) / np.maximum(gaussian_filter(w, sigma), 1e-9), 0.0)
+
+
+def random_phase(d, valid, seed):
+    """Same mean and spread over the valid vertices, same amplitude spectrum, random phases."""
+    rng = np.random.default_rng(seed)
+    m = float(d[valid].mean())
+    x = np.where(valid, d - m, 0.0)
+    y = np.real(np.fft.ifft2(np.abs(np.fft.fft2(x)) * np.exp(2j * np.pi * rng.random(x.shape))))
+    y = (y - y[valid].mean()) / y[valid].std() * x[valid].std() + m
+    return np.where(valid, y, 0.0)
+
+
+def lag1(e, valid):
+    """Correlation between the moves of neighbouring vertices (both grid directions pooled)."""
+    a, b = [], []
+    for ax in (0, 1):
+        lo = tuple(slice(0, -1) if k == ax else slice(None) for k in range(2))
+        hi = tuple(slice(1, None) if k == ax else slice(None) for k in range(2))
+        ok = valid[lo] & valid[hi]
+        a.append(e[lo][ok])
+        b.append(e[hi][ok])
+    a, b = np.concatenate(a), np.concatenate(b)
+    return float(np.corrcoef(a, b)[0, 1]) if a.size > 1 else None
+
+
+def cmd_filter(a):
+    P, vo, meta = read_tifxyz(a.original)
+    S, vs, _ = read_tifxyz(a.snapped)
+    if P.shape != S.shape:
+        sys.exit(f"the grids differ: {P.shape[:2]} and {S.shape[:2]} (use the drop-in output)")
+    d, N, valid = move_field(P, vo, S, vs)
+    if a.low_pass is not None:
+        e, what = low_pass(d, valid, a.low_pass), f"large-scale part (Gaussian, sigma {a.low_pass:g} vertices)"
+    elif a.high_pass is not None:
+        e, what = d - low_pass(d, valid, a.high_pass), f"the rest after a Gaussian of sigma {a.high_pass:g} vertices"
+    else:
+        e, what = random_phase(d, valid, a.random_phase), f"random phases (seed {a.random_phase})"
+    out = P.astype(np.float64) + e[..., None] * N
+    write_tifxyz(a.out_tifxyz, out.astype(np.float32), valid, meta)
+    st = lambda x: f"mean {x[valid].mean():+.3f}, sd {x[valid].std():.3f}, mean |.| {np.abs(x[valid]).mean():.3f}, neighbour r {lag1(x, valid):.2f}"  # noqa: E731
+    print(f"{int(valid.sum()):,} vertices. The snapper's moves: {st(d)}")
+    print(f"{what}: {st(e)} -> {a.out_tifxyz}")
 
 
 def cmd_negate(a):
@@ -136,6 +200,14 @@ def main():
     p.add_argument("out_tifxyz")
     p.add_argument("--original", required=True)
     p.add_argument("--snapped", required=True)
+    p = sub.add_parser("filter")
+    p.add_argument("out_tifxyz")
+    p.add_argument("--original", required=True)
+    p.add_argument("--snapped", required=True)
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--low-pass", type=float)
+    g.add_argument("--high-pass", type=float)
+    g.add_argument("--random-phase", type=int)
     p = sub.add_parser("negate")
     p.add_argument("out_npz")
     p.add_argument("in_npz")
@@ -147,7 +219,7 @@ def main():
     p.add_argument("--tile", type=int, default=256)
     p.add_argument("--min-valid", type=float, default=0.5)
     a = ap.parse_args()
-    dict(mirror=cmd_mirror, negate=cmd_negate, compare=cmd_compare)[a.cmd](a)
+    dict(mirror=cmd_mirror, filter=cmd_filter, negate=cmd_negate, compare=cmd_compare)[a.cmd](a)
 
 
 if __name__ == "__main__":

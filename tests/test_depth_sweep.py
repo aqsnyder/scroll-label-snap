@@ -100,3 +100,34 @@ def test_pearson_matches_numpy():
     x = rng.integers(0, 256, 100_000).astype(np.uint8)
     y = np.clip(x.astype(int) + rng.integers(-40, 40, x.size), 0, 255).astype(np.uint8)
     assert ds.pearson(x, y, band=7_777) == pytest.approx(np.corrcoef(x.astype(float), y.astype(float))[0, 1], abs=1e-9)
+
+
+def test_filter_parts_add_up_and_random_phase_keeps_the_spread(tmp_path):
+    rng = np.random.default_rng(3)
+    P = grid(rows=40, cols=50)
+    valid = np.ones(P.shape[:2], bool)
+    valid[:3, :4] = False
+    r, c = np.mgrid[0:40, 0:50]
+    move = 1.5 * np.sin(c / 9.0) + rng.normal(0, 1.0, (40, 50))    # a large-scale part plus vertex-scale roughness
+    S = P.copy()
+    S[..., 0] += move                                                 # the grid normal of this plane is along z
+    write_tifxyz(str(tmp_path / "orig.tifxyz"), P, valid, {"scale": [0.05, 0.05]})
+    write_tifxyz(str(tmp_path / "snap.tifxyz"), S, valid, {"scale": [0.05, 0.05]})
+    outs = {}
+    for name, opt in (("lp", ["--low-pass", "2"]), ("hp", ["--high-pass", "2"]), ("rp", ["--random-phase", "7"]), ("rp2", ["--random-phase", "7"])):
+        run("filter", tmp_path / f"{name}.tifxyz", "--original", tmp_path / "orig.tifxyz", "--snapped", tmp_path / "snap.tifxyz", *opt)
+        outs[name] = read_tifxyz(str(tmp_path / f"{name}.tifxyz"))
+    Pr, vr, _ = read_tifxyz(str(tmp_path / "orig.tifxyz"))
+    v = outs["lp"][1]
+    assert v.sum() > 0.9 * valid.sum() and not v[:3, :4].any()
+    dz = lambda Q: (Q[..., 0] - Pr[..., 0])  # noqa: E731
+    # the large-scale part and the rest add up to the snapper's move, which runs along the normal (z)
+    np.testing.assert_allclose((dz(outs["lp"][0]) + dz(outs["hp"][0]))[v], move[v], atol=1e-3)
+    np.testing.assert_allclose(outs["lp"][0][..., 1:][v], Pr[..., 1:][v], atol=1e-3)
+    # the large-scale part is smooth: neighbouring vertices move alike
+    assert ds.lag1(dz(outs["lp"][0]), v) > 0.9 > ds.lag1(dz(outs["hp"][0]), v)
+    # random phases: same mean and spread, reproducible, unrelated to the move
+    e = dz(outs["rp"][0])
+    assert e[v].mean() == pytest.approx(move[v].mean(), abs=1e-3) and e[v].std() == pytest.approx(move[v].std(), rel=1e-3)
+    np.testing.assert_array_equal(outs["rp"][0], outs["rp2"][0])
+    assert abs(np.corrcoef(e[v], move[v])[0, 1]) < 0.3
