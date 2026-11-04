@@ -35,7 +35,8 @@ Writes, per input:
                                        surface: it follows the dense one only in part
   OUT_DIR/<name>/snapped_fine.tifxyz   with --fine-grid: the same fit on a finer grid, 5 voxels (meta
                                        scale 0.2) for a 20-voxel input, which stays close to the dense
-                                       surface. Its effect on reading ink has not been measured
+                                       surface. A geometry output: in an exploratory look at 15 w052
+                                       sites, its ink map was dimmer than the 20-voxel file's
   OUT_DIR/<name>/snapped_dense.tifxyz  the snapped surface at about 3-voxel spacing
       All carry extra channels: snap_shift (voxels moved along the normal) and
       snap_confidence (0-255). The dense and fine ones also have snap_flag (255 where the mesh sits
@@ -74,6 +75,9 @@ def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p, ct_ok=
     P, valid, meta = read_tifxyz(seg)
     ct = tifffile.imread(vol)
     res = snap_mesh(ct, P, valid, p, offset_zyx=offset, level_scale=level_scale, normal_sign=normal_sign, fine=fine)
+    if not res.info["n_movable"]:
+        print(f"{name}: no samples to move inside the volume crop, so nothing was written for it", flush=True)
+        return None
     f = res.factor
     uuid = str(meta.get("uuid") or os.path.basename(os.path.normpath(seg))).replace(".tifxyz", "")
     src = dict(meta, snapped_from=uuid)
@@ -120,8 +124,6 @@ def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p, ct_ok=
     if normal_sign == 0 and not ct_ok:
         print(f"{name}: warning: nothing in the scroll's geometry settled the recto side, so the CT vote did; it was wrong "
               "on 4 of 16 real patches. Check it, or pass --normals grid or flipped", flush=True)
-    if not info["n_movable"]:
-        print(f"{name}: warning: no samples inside the volume crop, so the mesh is unchanged", flush=True)
     return info
 
 
@@ -177,7 +179,10 @@ def main():
                  "give each segment its own output folder")
     os.makedirs(a.out_dir, exist_ok=True)
     infos = [run_one(a.out_dir, *job, p, ct_ok=a.normals == "ct", fine=a.fine_grid) for job in jobs]
-    json.dump(infos, open(os.path.join(a.out_dir, "summary.json"), "w"), indent=1)
+    done = [info for info in infos if info is not None]
+    json.dump(done, open(os.path.join(a.out_dir, "summary.json"), "w"), indent=1)
+    if len(done) < len(infos):
+        sys.exit(f"{len(infos) - len(done)} of {len(infos)} inputs had no samples to move inside the volume crop")
 
 
 if __name__ == "__main__":

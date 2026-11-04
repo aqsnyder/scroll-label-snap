@@ -199,6 +199,18 @@ def test_meshes_with_nothing_to_move(case):
     assert res.info["n_movable"] == 0 and not np.abs(res.dense_shift).any()
 
 
+def test_snap_tifxyz_writes_nothing_for_a_mesh_outside_its_crop(tmp_path):
+    P = mesh_grid()
+    write_tifxyz(str(tmp_path / "far.tifxyz"), P + 1000, np.ones(P.shape[:2], bool), scale=0.05)
+    tifffile.imwrite(str(tmp_path / "vol.tif"), CT)
+    r = run("snap_tifxyz.py", tmp_path / "out", "--tifxyz", tmp_path / "far.tifxyz", "--volume", tmp_path / "vol.tif",
+            "--normals", "grid")
+    assert r.returncode != 0
+    assert "no samples to move" in r.stdout + r.stderr
+    assert not (tmp_path / "out" / "far").exists()
+    assert json.load(open(tmp_path / "out" / "summary.json")) == []
+
+
 def test_tile_with_no_samples_does_not_vote_on_the_offset():
     import snap_segment
     # a single row of vertices has no normals, so a tile with nothing to sample
