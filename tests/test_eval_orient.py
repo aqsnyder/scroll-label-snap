@@ -505,3 +505,21 @@ def test_third_arm_must_hold_on_every_cube_and_does_not_decide_adoption():
     bad[3]["arms"]["orient_cube_keep"]["betti_equal"] = False
     assert not decide(bad, 30)["third_arm"]["passed"]
     assert cube_mean(cubes[0], "orient_cube_keep", "consistency") < cube_mean(cubes[0], "orient_cube", "consistency")
+
+
+def test_revision_ignores_tags(tmp_path, monkeypatch):
+    """A tag added later must not change the name of a commit, or a run would refuse its own folder."""
+    def git(*args):
+        return subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                              check=True, capture_output=True, text=True).stdout.strip()
+    git("init", "-q")
+    (tmp_path / "f").write_text("a")
+    git("add", "f")
+    git("commit", "-qm", "one")
+    monkeypatch.setattr(eval_orient_test, "HERE", str(tmp_path))
+    head = git("rev-parse", "HEAD")
+    assert eval_orient_test.code_revision() == head
+    git("tag", "-a", "v1", "-m", "tag")
+    assert eval_orient_test.code_revision() == head
+    (tmp_path / "f").write_text("b")
+    assert eval_orient_test.code_revision() == head + "-dirty"

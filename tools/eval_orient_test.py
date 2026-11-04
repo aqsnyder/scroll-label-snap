@@ -427,7 +427,7 @@ def csv_row(c):
 def code_revision():
     """The commit this code is at, with -dirty if tracked files differ from it; None outside a git checkout."""
     try:
-        r = subprocess.run(["git", "-C", HERE, "describe", "--always", "--abbrev=40", "--dirty"], capture_output=True, text=True)
+        r = subprocess.run(["git", "-C", HERE, "describe", "--always", "--abbrev=40", "--dirty", "--exclude=*"], capture_output=True, text=True)
     except OSError:
         return None
     return r.stdout.strip() if r.returncode == 0 else None
