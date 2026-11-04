@@ -3,6 +3,7 @@ tools write, and that it changes nothing they wrote before. Run with: python -m 
 import filecmp
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -12,10 +13,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, os.path.join(HERE, "..", "tools"))
 sys.path.insert(0, HERE)
+import eval_mesh  # noqa: E402
 from eval_mesh import evaluate, output_on_dense  # noqa: E402
 from regression_cases import mesh_case  # noqa: E402
 from render_surface_volume import tile_pixels  # noqa: E402
 from snap_tifxyz import run_one  # noqa: E402
+from test_robustness import run  # noqa: E402
 from scroll_label_snap.core import Params  # noqa: E402
 from scroll_label_snap.mesh import (dense_at_fine, densify, fine_factor, fine_surface, fit_vertex_shifts,  # noqa: E402
                                     snap_mesh, surface_area, vertex_normals)
@@ -149,6 +152,55 @@ def test_snap_tifxyz_adds_the_fine_grid_and_leaves_the_rest(tmp_path):
     assert json.load(open(on / "snap.json"))["fine_factor"] == 4
 
 
+def test_fine_grid_channels_hold_what_their_names_say(tmp_path):
+    seg, vol, P = write_case(tmp_path)
+    p = Params(t_max=2.0)                                   # a short search, so some samples stop at its limit
+    run_one(str(tmp_path / "w"), "m", seg, vol, [0, 0, 0], 1.0, 0, p, fine=5.0)
+    res = snap_mesh(tifffile.imread(vol), P, np.ones(P.shape[:2], bool), p, fine=5.0)
+    f, g = res.factor, res.fine_factor
+    channel = lambda name: tifffile.imread(str(tmp_path / "w" / "m" / "snapped_fine.tifxyz" / f"{name}.tif"))  # noqa: E731
+    assert np.abs(res.fine_shift).max() > 0.5 and np.array_equal(channel("snap_shift"), res.fine_shift.astype(np.float32))
+    conf = (dense_at_fine(res.dense_confidence, f, g) * 255).astype(np.uint8)
+    assert conf.any() and np.array_equal(channel("snap_confidence"), conf)
+    limit = (dense_at_fine(res.dense_limit, f, g) * 255).astype(np.uint8)
+    assert limit.any() and np.array_equal(channel("snap_limit"), limit)
+    assert np.array_equal(channel("snap_flag"), (dense_at_fine(res.dense_flag, f, g) * 255).astype(np.uint8))
+    assert not channel("snap_flag").any()                   # no reversed faces here, whatever the limit map holds
+
+
+def test_fine_grid_values(tmp_path):
+    seg, vol, _ = write_case(tmp_path)
+    common = ("--tifxyz", seg, "--volume", vol, "--normals", "flipped")
+    for bad in ("-5", "inf", "nan", "abc"):
+        r = run("snap_tifxyz.py", tmp_path / "bad", *common, f"--fine-grid={bad}")
+        assert r.returncode != 0 and "--fine-grid" in r.stderr and "Traceback" not in r.stderr and not (tmp_path / "bad").exists(), bad
+        r = run("snap_segment.py", tmp_path / "bad", "--segment", seg, "--volume", vol, "--normals", "flipped", f"--fine-grid={bad}")
+        assert r.returncode != 0 and "--fine-grid" in r.stderr and "Traceback" not in r.stderr and not (tmp_path / "bad").exists(), bad
+    # what can't be had is reported: the input's spacing at most, the dense samples' at least
+    for asked, low, high in (("100", 19.0, 23.0), ("0.5", 2.7, 3.3)):
+        r = run("snap_tifxyz.py", tmp_path / asked, *common, f"--fine-grid={asked}")
+        apart = re.search(r"gives vertices ([\d.]+) voxels apart", r.stdout)
+        assert r.returncode == 0 and apart and low < float(apart.group(1)) < high, r.stdout + r.stderr
+    r = run("snap_tifxyz.py", tmp_path / "five", *common, "--fine-grid=5")
+    assert r.returncode == 0 and "gives vertices" not in r.stdout
+    r = run("snap_tifxyz.py", tmp_path / "none", *common, "--fine-grid=0")
+    assert r.returncode == 0 and not (tmp_path / "none" / "seg" / "snapped_fine.tifxyz").exists()
+
+
+def test_wildcards_reach_the_patches_and_same_names_are_refused(tmp_path):
+    ct, P, v = mesh_case()
+    for s in ("a", "b"):
+        d = tmp_path / "segs" / s / "patch_0"
+        d.mkdir(parents=True)
+        write_tifxyz(str(d / "segment.tifxyz"), P, v, {"scale": [0.05, 0.05]}, uuid="synth" + s)
+        tifffile.imwrite(str(d / "volume.tif"), ct)
+        json.dump(dict(offset_zyx=[0, 0, 0], scale_to_level=1.0, recto_sign=-1), open(d / "patch.json", "w"))
+    r = run("snap_tifxyz.py", tmp_path / "one", tmp_path / "segs" / "a" / "patch_*")
+    assert r.returncode == 0 and (tmp_path / "one" / "patch_0" / "snapped.tifxyz").exists(), r.stdout + r.stderr
+    r = run("snap_tifxyz.py", tmp_path / "two", tmp_path / "segs" / "*" / "patch_0")
+    assert r.returncode != 0 and "patch_0" in r.stderr and "overwrite" in r.stderr and not (tmp_path / "two").exists()
+
+
 def test_fine_grid_renders_on_the_input_grids_pixels():
     """render_surface_volume uses round(1 / scale) pixels per vertex: 20 on the input grid, 5 on the
     fine one, so they cover the same pixels and agree where the fine grid holds the input's vertices."""
@@ -186,6 +238,29 @@ def test_eval_mesh_scores_the_output_it_names(tmp_path):
     assert c["fine"] != c["dense"] and c["grid"] != c["dense"]
     a = {o: r[o]["face_alignment"]["snapped"]["mean_step"] for o in r}
     assert a["grid"] < a["fine"]
+
+
+def test_eval_mesh_scores_only_where_the_output_exists(tmp_path, monkeypatch):
+    ct, P, v = mesh_case()
+    P, v = P.copy(), v.copy()
+    P[2, 2] = -1
+    v[2, 2] = False
+    d = tmp_path / "patch_0"
+    d.mkdir()
+    write_tifxyz(str(d / "segment.tifxyz"), P, v, {"scale": [0.05, 0.05]}, uuid="synth")
+    tifffile.imwrite(str(d / "volume.tif"), ct)
+    json.dump(dict(offset_zyx=[0, 0, 0], scale_to_level=1.0, recto_sign=0), open(d / "patch.json", "w"))
+    p = Params()
+    whole = evaluate(str(d), p, 0, output="grid")["drift_test"]["snapper consistency"]["n"]
+    real = eval_mesh.output_on_dense
+
+    def with_a_gap(res, output):                            # samples this output does not hold are not scored
+        Y, vy = real(res, output)
+        vy = vy.copy()
+        vy[:6] = False
+        return Y, vy
+    monkeypatch.setattr(eval_mesh, "output_on_dense", with_a_gap)
+    assert evaluate(str(d), p, 0, output="grid")["drift_test"]["snapper consistency"]["n"] < whole
 
 
 def test_output_on_dense_matches_the_written_files(tmp_path):

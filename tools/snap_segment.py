@@ -64,7 +64,7 @@ from scipy import ndimage as ndi
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import Params, estimate_convention, parse_params  # noqa: E402
 from scroll_label_snap.mesh import (FIT_RULE, axis_fit_is_meaningful, axis_orientation, dense_at_fine, densify,  # noqa: E402
-                                    fine_factor, fine_surface, fit_vertex_shifts, mean_spacing, prepare_mesh,
+                                    fine_factor, fine_grid_value, fine_surface, fit_vertex_shifts, mean_spacing, prepare_mesh,
                                     refuse_label_only, snap_mesh, surface_area, vertex_normals)
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
@@ -349,7 +349,7 @@ def main():
     ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--name", help="name for the outputs (default: the segment folder's name)")
-    ap.add_argument("--fine-grid", type=float, default=0, metavar="V",
+    ap.add_argument("--fine-grid", type=fine_grid_value, default=0, metavar="V",
                     help="also write <name>_snapped_fine.tifxyz, with vertices about V voxels apart (default 0: don't)")
     a = ap.parse_args()
     t_start = time.time()
@@ -559,6 +559,8 @@ def main():
     g = 0
     if a.fine_grid:
         g = fine_factor(spacing, factor, a.fine_grid)
+        if abs(spacing / g - a.fine_grid) > 0.1 * a.fine_grid:   # the input's vertices and the dense samples set the choice
+            print(f"--fine-grid {a.fine_grid:g} gives vertices {spacing / g:.1f} voxels apart", flush=True)
         Pg, vg, shift_g = fine_surface(P, Nn, ok, factor, vd, shift_d, g)
         write_tifxyz(os.path.join(a.out_dir, f"{name}_snapped_fine.tifxyz"), Pg, vg, dict(src, area_vx2=surface_area(Pg, vg)),
                      scale=densified_scale(meta, g), uuid=f"{name}_snapped_fine",

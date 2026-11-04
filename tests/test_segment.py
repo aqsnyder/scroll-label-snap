@@ -13,6 +13,7 @@ import threading
 
 import numpy as np
 import pytest
+import tifffile
 
 zarr = pytest.importorskip("zarr")
 pytest.importorskip("fsspec")
@@ -22,7 +23,7 @@ sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, HERE)
 from regression_cases import wavy_sheets  # noqa: E402
 from scroll_label_snap.core import Params  # noqa: E402
-from scroll_label_snap.mesh import densify, snap_mesh, vertex_normals  # noqa: E402
+from scroll_label_snap.mesh import dense_at_fine, densify, snap_mesh, surface_area, vertex_normals  # noqa: E402
 from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
 
 TOOL = os.path.join(HERE, "..", "tools", "snap_segment.py")
@@ -68,6 +69,13 @@ def test_tiled_segment_matches_one_piece(tmp_path):
     g = summary["fine_factor"]
     assert g == 4 and F.shape[:2] == ((P.shape[0] - 1) * g + 1, (P.shape[1] - 1) * g + 1)
     assert mf["scale"] == [0.2, 0.2] and mf["uuid"] == "synth_snapped_fine"
+    # the fine grid's channels and area are its own, read from the same dense surface as the dense file's
+    assert abs(mf["area_vx2"] - surface_area(F, vf)) < 1e-3
+    for name in ("snap_confidence", "snap_flag", "snap_limit"):
+        dense = tifffile.imread(tmp_path / "out" / "synth_snapped_dense.tifxyz" / f"{name}.tif")
+        fine = tifffile.imread(tmp_path / "out" / "synth_snapped_fine.tifxyz" / f"{name}.tif")
+        assert np.array_equal(fine, dense_at_fine(dense, summary["factor"], g)), name
+    assert tifffile.imread(tmp_path / "out" / "synth_snapped_fine.tifxyz" / "snap_confidence.tif").any()
     N, ok = vertex_normals(F, vf)
     Z, _, vz = densify(F, N, ok, summary["factor"], g=g)
     N, ok = vertex_normals(G, vg)

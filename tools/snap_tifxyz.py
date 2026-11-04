@@ -59,7 +59,7 @@ from scipy import ndimage as ndi
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import Params, parse_params  # noqa: E402
 from scroll_label_snap.mesh import (FIT_RULE, axis_fit_is_meaningful, axis_orientation, dense_at_fine, expand_paths,  # noqa: E402
-                                    patch_orientation, refuse_label_only, snap_mesh, surface_area)
+                                    fine_grid_value, patch_orientation, refuse_label_only, snap_mesh, surface_area)
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
 
@@ -93,6 +93,9 @@ def run_one(out_dir, name, seg, vol, offset, level_scale, normal_sign, p, ct_ok=
                                snap_limit=(res.dense_limit * 255).astype(np.uint8)))
     if fine:
         g = res.fine_factor
+        apart = res.info["vertex_spacing"] * level_scale / g
+        if abs(apart - fine) > 0.1 * fine:    # the input's vertices and the dense samples set the choice
+            print(f"{name}: --fine-grid {fine:g} gives vertices {apart:.1f} voxels apart", flush=True)
         write_tifxyz(os.path.join(out_dir, name, "snapped_fine.tifxyz"), res.fine_P, res.fine_valid,
                      dict(src, area_vx2=surface_area(res.fine_P, res.fine_valid)),
                      scale=densified_scale(meta, g), uuid=f"{uuid}_snapped_fine",
@@ -136,7 +139,7 @@ def main():
                     help="override a snapper parameter (see scroll_label_snap/core.py Params), e.g. t_max=6")
     ap.add_argument("--axis", type=float, nargs=2, metavar=("Y", "X"),
                     help="scroll axis position (volume y, x) for the orientation of a --tifxyz mesh")
-    ap.add_argument("--fine-grid", type=float, default=0, metavar="V",
+    ap.add_argument("--fine-grid", type=fine_grid_value, default=0, metavar="V",
                     help="also write snapped_fine.tifxyz, with vertices about V voxels apart (default 0: don't)")
     a = ap.parse_args()
     overrides = parse_params(a.param)
@@ -167,6 +170,11 @@ def main():
                      list(a.offset), a.level_scale, sign))
     if not jobs:
         sys.exit("nothing to do: give PATCH_DIRs or --tifxyz and --volume")
+    names = [job[0] for job in jobs]
+    same = sorted({n for n in names if names.count(n) > 1})
+    if same:
+        sys.exit(f"inputs with the same folder name would overwrite each other in {a.out_dir}: {', '.join(same)}; "
+                 "give each segment its own output folder")
     os.makedirs(a.out_dir, exist_ok=True)
     infos = [run_one(a.out_dir, *job, p, ct_ok=a.normals == "ct", fine=a.fine_grid) for job in jobs]
     json.dump(infos, open(os.path.join(a.out_dir, "summary.json"), "w"), indent=1)

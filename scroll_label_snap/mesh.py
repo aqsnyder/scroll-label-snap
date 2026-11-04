@@ -20,6 +20,7 @@ Positions are (z, y, x). The CT is a crop: crop coordinates = volume coordinates
 """
 from __future__ import annotations
 
+import argparse
 import glob
 import json
 import os
@@ -262,6 +263,17 @@ def fit_vertex_shifts(ok, f, vd, shift_d, lam=1e-3, g=1):
         out = out.reshape(H, W)
     out[~ok] = 0
     return out.astype(np.float32)
+
+
+def fine_grid_value(text):
+    """--fine-grid's value: voxels between vertices, or 0 to write no fine grid."""
+    try:
+        v = float(text)
+    except ValueError:
+        v = float("nan")
+    if not (np.isfinite(v) and v >= 0):
+        raise argparse.ArgumentTypeError(f"{text}: give the voxels between vertices, a positive number, or 0 for no fine grid")
+    return v
 
 
 def fine_factor(spacing, f, voxels=5.0):
