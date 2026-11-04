@@ -1,0 +1,225 @@
+{
+ "plan_list": true,
+ "complete": true,
+ "planned": 100,
+ "checks": {
+  "primary": true,
+  "drift": true,
+  "orientation_change": true,
+  "fibre": true
+ },
+ "adopt": true,
+ "all": {
+  "cubes": 100,
+  "consistency": {
+   "default": 75.39870943377369,
+   "orient_cube": 82.67168851273865
+  },
+  "consistency_diff": {
+   "mean": 7.272979078964952,
+   "low": 5.675740031457775,
+   "high": 8.979453188645346,
+   "cubes": 100,
+   "better": 63,
+   "worse": 2
+  },
+  "drift": {
+   "default": 87.19049088224568,
+   "orient_cube": 89.44065757085613
+  },
+  "drift_diff": {
+   "mean": 2.2501666886104728,
+   "low": 1.3078207088354266,
+   "high": 3.4141105699365086,
+   "cubes": 100,
+   "better": 36,
+   "worse": 4
+  },
+  "orientation_change": {
+   "orient_cube": 0.012901422305190322,
+   "orient_cube_max": 0.09505411952288964,
+   "default": 10.610278098750898
+  },
+  "fibre": {
+   "cubes_with_data": 46,
+   "positive": 41,
+   "share": 0.8913043478260869
+  },
+  "guard_triggers": 0,
+  "sign_margin_min": 0.3363467316237336,
+  "axis_share_min": 0.7163282928128254
+ },
+ "stretch_161_280": {
+  "cubes": 13,
+  "consistency": {
+   "default": 69.47658512132367,
+   "orient_cube": 75.68463359979188
+  },
+  "consistency_diff": {
+   "mean": 6.208048478468214,
+   "low": 2.550490759865036,
+   "high": 10.15349376815719,
+   "cubes": 13,
+   "better": 9,
+   "worse": 0
+  },
+  "drift": {
+   "default": 85.3744090171894,
+   "orient_cube": 86.99958801309789
+  },
+  "drift_diff": {
+   "mean": 1.6251789959084901,
+   "low": 0.33432856117402093,
+   "high": 3.3145692315439628,
+   "cubes": 13,
+   "better": 5,
+   "worse": 1
+  },
+  "orientation_change": {
+   "orient_cube": 0.006689068808765821,
+   "orient_cube_max": 0.018732170584624272,
+   "default": 9.650185155284312
+  },
+  "fibre": {
+   "cubes_with_data": 8,
+   "positive": 7,
+   "share": 0.875
+  },
+  "guard_triggers": 0,
+  "sign_margin_min": 0.3835179593924306,
+  "axis_share_min": 0.7941740682309635
+ },
+ "other_ids": {
+  "cubes": 87,
+  "consistency": {
+   "default": 76.2836245609214,
+   "orient_cube": 83.71573120088011
+  },
+  "consistency_diff": {
+   "mean": 7.432106639958717,
+   "low": 5.693878429987725,
+   "high": 9.274657964312091,
+   "cubes": 87,
+   "better": 54,
+   "worse": 2
+  },
+  "drift": {
+   "default": 87.46185943679431,
+   "orient_cube": 89.80541509098094
+  },
+  "drift_diff": {
+   "mean": 2.3435556541866314,
+   "low": 1.2953204925050499,
+   "high": 3.6486022571450105,
+   "cubes": 87,
+   "better": 31,
+   "worse": 3
+  },
+  "orientation_change": {
+   "orient_cube": 0.013829705011552606,
+   "orient_cube_max": 0.09505411952288964,
+   "default": 10.75374026271717
+  },
+  "fibre": {
+   "cubes_with_data": 38,
+   "positive": 34,
+   "share": 0.8947368421052632
+  },
+  "guard_triggers": 0,
+  "sign_margin_min": 0.3363467316237336,
+  "axis_share_min": 0.7163282928128254
+ },
+ "third_arm": {
+  "betti_equal": 100,
+  "merger_events_zero": 100,
+  "cubes": 100,
+  "passed": true,
+  "consistency": 82.47242868053921,
+  "consistency_minus_orient_cube": {
+   "mean": -0.1992598321994167,
+   "low": -0.21843896327219042,
+   "high": -0.1808803265900681,
+   "cubes": 100,
+   "better": 0,
+   "worse": 1
+  },
+  "drift": 89.45790420499699,
+  "drift_minus_orient_cube": {
+   "mean": 0.017246634140828405,
+   "low": 0.0043819122302369935,
+   "high": 0.029925662651274238,
+   "cubes": 100,
+   "better": 0,
+   "worse": 0
+  },
+  "contested": 0.003330809123374923,
+  "band_moved_over_1_contested": 0.07595466575123241,
+  "band_moved_over_1_elsewhere": 0.0006289967523436433
+ },
+ "params": {
+  "sigma_band": 1.5,
+  "sigma_ct": 1.0,
+  "spacing": 3.0,
+  "t_max": 4.0,
+  "t_step": 0.5,
+  "edge_halfwidth": 1.5,
+  "smooth_w": 0.25,
+  "max_step": 1.0,
+  "prior_mu": 0.02,
+  "template_weight": 2.0,
+  "calibrate": false,
+  "stay_bonus": 0.0,
+  "neigh_radius": 3.6,
+  "tangential_tol": 1.0,
+  "normal_dot": 0.8,
+  "border": 8,
+  "convention_offset": null,
+  "template_follows_offset": true,
+  "convention_reach": 4.0,
+  "batch_points": 60000,
+  "smooth_warp": true,
+  "inside_penalty": 2.0,
+  "inside_margin": 0.1,
+  "face_polarity": false,
+  "reverse_min": 0.5,
+  "forward_max": 0.5,
+  "keep_topology": false,
+  "orient_cube": false
+ },
+ "run": {
+  "revision": "678121a09b93200ed872d241b44b24c766313325",
+  "plan_sha256": "d3a2703c3d49729632b7e91b41b00649110a35da913c2447c2a4ec184e7b044c",
+  "list_sha256": "2bfbe44b2ab3b3bb1de31b1034d971cf9a6544adb75650c159109e79e55bbd76",
+  "in_dir": "D:\\vesuvius\\all",
+  "params": {
+   "sigma_band": 1.5,
+   "sigma_ct": 1.0,
+   "spacing": 3.0,
+   "t_max": 4.0,
+   "t_step": 0.5,
+   "edge_halfwidth": 1.5,
+   "smooth_w": 0.25,
+   "max_step": 1.0,
+   "prior_mu": 0.02,
+   "template_weight": 2.0,
+   "calibrate": false,
+   "stay_bonus": 0.0,
+   "neigh_radius": 3.6,
+   "tangential_tol": 1.0,
+   "normal_dot": 0.8,
+   "border": 8,
+   "convention_offset": null,
+   "template_follows_offset": true,
+   "convention_reach": 4.0,
+   "batch_points": 60000,
+   "smooth_warp": true,
+   "inside_penalty": 2.0,
+   "inside_margin": 0.1,
+   "face_polarity": false,
+   "reverse_min": 0.5,
+   "forward_max": 0.5,
+   "keep_topology": false,
+   "orient_cube": false
+  }
+ }
+}
