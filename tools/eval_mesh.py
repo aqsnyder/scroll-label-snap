@@ -2,7 +2,11 @@
 tools/eval_snap.py.
 
 Usage:
-  python tools/eval_mesh.py OUT_JSON PATCH_DIR [PATCH_DIR ...] [--seed 0]
+  python tools/eval_mesh.py OUT_JSON PATCH_DIR [PATCH_DIR ...] [--seed 0] [--output dense|fine|grid]
+
+--output says which output of the snapper is scored, read bilinearly at the dense samples the way
+tools/render_surface_volume.py reads it. dense (the default) is snapped_dense.tifxyz, the surface as
+solved, fine is snapped_fine.tifxyz and grid is snapped.tifxyz. The JSON records which.
 
 Per patch:
   1. Drift test. Push the mesh off the surface with a known smooth random drift (std 1.5
@@ -37,7 +41,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from scipy import ndimage as ndi  # noqa: E402
 from scroll_label_snap.baselines import snap_to_prediction  # noqa: E402
 from scroll_label_snap.core import Params, alphacomp_shifts, sample  # noqa: E402
-from scroll_label_snap.mesh import (densify, patch_orientation, prepare_mesh, snap_mesh,  # noqa: E402
+from scroll_label_snap.mesh import (densify, expand_paths, patch_orientation, prepare_mesh, snap_mesh,  # noqa: E402
                                     trusted_dense, vertex_normals)
 from scroll_label_snap.tifxyz import read_tifxyz  # noqa: E402
 from eval_snap import otsu_class_means  # noqa: E402
@@ -61,12 +65,30 @@ def stats(err):
                 over_2=float(np.mean(err > 2.0)), n=int(len(err)))
 
 
-def face_alignment(ct_e, Q, valid, factor, c_off, sign):
+def written_grid(res, output):
+    """One output of a snap_mesh result as its file holds it: (vertices, valid, samples per step of
+    the input grid that put it on the dense grid, its own steps per step of the input grid)."""
+    return dict(dense=(res.dense_P, res.dense_valid, 1, 1), grid=(res.P, res.valid, res.factor, 1),
+                fine=(res.fine_P, res.fine_valid, res.factor, res.fine_factor))[output]
+
+
+def output_on_dense(res, output):
+    """One output of a snap_mesh result read bilinearly at the dense samples, in volume coordinates:
+    (positions, valid)."""
+    if output == "dense":
+        return res.dense_P, res.dense_valid
+    Q, v, f, g = written_grid(res, output)
+    N, ok = vertex_normals(Q, v)
+    Pd, _, vd = densify(Q, N, ok, f, g=g)
+    return Pd, vd
+
+
+def face_alignment(ct_e, Q, valid, factor, c_off, sign, g=1):
     """Where a mesh puts the recto face (its convention offset along papyrus -> gap), is the CT
     brighter 2 voxels on the papyrus side than 2 voxels on the gap side? Q in crop coordinates;
     the mesh is densified by `factor` and its normals recomputed from its own grid."""
     N, ok = vertex_normals(Q, valid)
-    Pd, Nd, vd = densify(Q, N, ok, factor)
+    Pd, Nd, vd = densify(Q, N, ok, factor, g=g)
     p, n = Pd[vd], Nd[vd] * sign
     e = p + c_off * n
     step = sample(ct_e, e - 2 * n) - sample(ct_e, e + 2 * n)
@@ -95,7 +117,7 @@ BASELINE_GRID = [(118, 165)] + [(lo, hi) for lo in (50, 60, 70, 80, 90) for hi i
                                  if hi >= lo + 20]
 
 
-def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0, prediction="m7"):
+def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0, prediction="m7", output="dense"):
     t0 = time.time()
     pj = json.load(open(os.path.join(patch_dir, "patch.json")))
     off, ls = np.asarray(pj["offset_zyx"], np.float32), float(pj.get("scale_to_level", 1.0))
@@ -115,22 +137,24 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0, prediction="m7"
                           ct_s=prep0.ct_s)
 
     X0, N0 = prep0.Pd, prep0.Nd                                   # original dense samples (crop coords)
-    res0 = snap_mesh(ct, P, valid, p, off, ls, prep=prep0)
-    res_d = snap_mesh(ct, Pd, prep0.ok, p, off, ls, prep=prep_d)
-    as_crop = lambda r: r.dense_P * ls - off                      # noqa: E731
+    fine = 5.0 if output == "fine" else None
+    res0 = snap_mesh(ct, P, valid, p, off, ls, prep=prep0, fine=fine)
+    res_d = snap_mesh(ct, Pd, prep0.ok, p, off, ls, prep=prep_d, fine=fine)
+    out0, vo0 = output_on_dense(res0, output)
+    out_d, vo_d = output_on_dense(res_d, output)
     ac_vol = ndi.gaussian_filter(ct.astype(np.float32) / 255.0, 1.4)        # the refiner's blur, once
     base0 = alphacomp_shifts(ct, X0[prep0.vd], N0[prep0.vd], vol=ac_vol)
     base_d = alphacomp_shifts(ct, prep_d.Pd[prep_d.vd], prep_d.Nd[prep_d.vd], vol=ac_vol)
     base_off = float(np.median(base0))
     pos = {
         "drifted": prep_d.Pd,
-        "snap(original)": as_crop(res0),
-        "snap(drifted)": as_crop(res_d),
+        "snap(original)": out0 * ls - off,
+        "snap(drifted)": out_d * ls - off,
         "baseline(original)": X0 + on_grid(prep0, base0)[..., None] * N0,
         "baseline(drifted)": prep_d.Pd + on_grid(prep_d, base_d)[..., None] * prep_d.Nd,
         "baseline offset-corrected(drifted)": prep_d.Pd + (on_grid(prep_d, base_d) - base_off)[..., None] * prep_d.Nd,
     }
-    both = prep0.vd & prep_d.vd
+    both = prep0.vd & prep_d.vd & vo0 & vo_d
     # snapping onto a surface prediction (Erwin Nieuwlaar's method), if the patch has one
     pred_path = os.path.join(patch_dir, f"{prediction}.tif")
     if os.path.exists(pred_path):
@@ -194,7 +218,7 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0, prediction="m7"
     rp = os.path.join(patch_dir, "recto.tif")
     if os.path.exists(rp):
         recto = tifffile.imread(rp) > 0
-        meshes = {"original": (X0, prep0.vd, N0), "snapped": (as_crop(res0), res0.dense_valid, N0)}
+        meshes = {"original": (X0, prep0.vd, N0), "snapped": (pos["snap(original)"], vo0, N0)}
         if f"{prediction} snap(original)" in pos:
             s0 = pos[f"{prediction} snap(original)"]
             meshes[f"snap to {prediction}"] = (s0, np.isfinite(s0).all(-1), N0)
@@ -202,11 +226,13 @@ def evaluate(patch_dir, p, seed, drift_std=1.5, drift_corr=40.0, prediction="m7"
             recto_hits[k] = recto_hit_rate(recto, X[vm], NN[vm])
     ct_e = ndi.gaussian_filter(ct.astype(np.float32), 0.5)
     c0 = res0.info["convention_offset"]
+    Qo, vq, fq, gq = written_grid(res0, output)
     align = dict(original=face_alignment(ct_e, P.astype(np.float32) * ls - off, valid, prep0.factor, c0, prep0.normal_sign),
-                 snapped=face_alignment(ct_e, res0.dense_P * ls - off, res0.dense_valid, 1, c0, prep0.normal_sign))
-    moved = res0.dense_shift[prep0.vd] * ls
+                 snapped=face_alignment(ct_e, Qo * ls - off, vq, fq, c0, prep0.normal_sign, g=gq))
+    moved = (res0.dense_shift[prep0.vd] * ls if output == "dense"
+             else np.einsum("...k,...k->...", pos["snap(original)"] - X0, N0)[prep0.vd & vo0])
     name = os.path.basename(os.path.normpath(patch_dir))
-    return dict(patch=name, seconds=round(time.time() - t0, 1), n_dense=int(prep0.vd.sum()),
+    return dict(patch=name, output=output, seconds=round(time.time() - t0, 1), n_dense=int(prep0.vd.sum()),
                 n_trusted=int(tr.sum()), factor=prep0.factor, vertex_spacing=prep0.spacing / ls,
                 convention_offset=res0.info["convention_offset"], normal_sign=prep0.normal_sign,
                 orientation_agree=prep0.orientation_agree, baseline_median_offset=base_off,
@@ -227,11 +253,14 @@ def main():
     ap.add_argument("--drift-corr", type=float, default=40.0)
     ap.add_argument("--prediction", default="m7",
                     help="surface prediction crop (patch_K/NAME.tif) to compare with, if present")
+    ap.add_argument("--output", choices=("dense", "fine", "grid"), default="dense",
+                    help="which output of the snapper to score: snapped_dense, snapped_fine or snapped (the input grid)")
     a = ap.parse_args()
+    print(f"scoring the snapper's {a.output} output", flush=True)
     p = Params()
     results = []
-    for k, d in enumerate(a.patches):
-        r = evaluate(d, p, a.seed + k, a.drift_std, a.drift_corr, a.prediction)
+    for k, d in enumerate(expand_paths(a.patches)):
+        r = evaluate(d, p, a.seed + k, a.drift_std, a.drift_corr, a.prediction, a.output)
         results.append(r)
         t = r["drift_test"]
         print(f"{r['patch']}: {r['n_dense']} samples, {r['n_trusted']} trusted, edge at {r['convention_offset']:+.2f}, "
@@ -266,7 +295,7 @@ def main():
         for k in results[0]["recto_prediction_hits"]:
             rh[k] = float(np.mean([r["recto_prediction_hits"][k] for r in results]))
         print("recto prediction within 2 voxels: " + ", ".join(f"{k} {v:.0%}" for k, v in rh.items()))
-    json.dump(dict(params=p.asdict(), seed=a.seed, drift=dict(std=a.drift_std, corr=a.drift_corr), pooled=pooled,
+    json.dump(dict(params=p.asdict(), output=a.output, seed=a.seed, drift=dict(std=a.drift_std, corr=a.drift_corr), pooled=pooled,
                    face_alignment=fa, recto_prediction_hits=rh,
                    baseline_grid_pooled=gp, baseline_best=best, patches=results),
               open(a.out_json, "w"), indent=1)

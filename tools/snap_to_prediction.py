@@ -27,9 +27,9 @@ from scipy import ndimage as ndi
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.baselines import snap_to_prediction  # noqa: E402
 from scroll_label_snap.core import Params, estimate_convention  # noqa: E402
-from scroll_label_snap.mesh import (densify, mean_spacing, orientation_vote, patch_orientation,  # noqa: E402
+from scroll_label_snap.mesh import (densify, expand_paths, mean_spacing, orientation_vote, patch_orientation,  # noqa: E402
                                     vertex_normals)
-from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
+from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
 
 def main():
@@ -43,7 +43,7 @@ def main():
     a = ap.parse_args()
     p = Params()
     infos = []
-    for d in a.patches:
+    for d in expand_paths(a.patches):
         name = os.path.basename(os.path.normpath(d))
         pj = json.load(open(os.path.join(d, "patch.json")))
         off = np.asarray(pj["offset_zyx"], np.float32)
@@ -63,11 +63,10 @@ def main():
         dense = (Sd + off) / ls
         uuid = str(meta.get("uuid") or name).replace(".tifxyz", "")
         src = dict(meta, snapped_from=uuid, snapped_with=f"snap_to_prediction ({a.prediction})")
-        scale = float(np.atleast_1d(meta.get("scale", [1.0]))[0])
         os.makedirs(os.path.join(a.out_dir, name), exist_ok=True)
         write_tifxyz(os.path.join(a.out_dir, name, "snapped.tifxyz"), out, ok, src, uuid=f"{uuid}_{a.prediction}")
         write_tifxyz(os.path.join(a.out_dir, name, "snapped_dense.tifxyz"), dense, vd, src,
-                     scale=round(scale * f, 6), uuid=f"{uuid}_{a.prediction}_dense")
+                     scale=densified_scale(meta, f), uuid=f"{uuid}_{a.prediction}_dense")
         info.update(name=name, prediction=a.prediction, convention_offset=float(c_off), normal_sign=int(sign),
                     factor=f, max_off=a.max_off, jump=a.jump, sigma=a.sigma,
                     prediction_fraction=float((pred > 0).mean()))

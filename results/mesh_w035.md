@@ -29,7 +29,7 @@ Each mesh is read at its own typical face position. The question is whether the 
 | Original mesh | 55% | 8.4 |
 | Snapped mesh | 88% | 60.4 |
 
-At the voxel level, the traced surface is about as often on the wrong side of a face as the right one. This matches the 2026 open problems note that traced segments drift across fibre layers rather than tracking one sheet. The comparison is partly circular, because the snapper's own score rewards a clear face. The drift test below is not circular.
+At the voxel level, the traced surface is about as often on the wrong side of a face as the right one. This matches the 2026 open problems note that traced segments drift across fibre layers rather than tracking one sheet. The comparison is circular, because the snapper's own score rewards a clear face: a per-sample search with no graph cut gets 96%. The drift test below picks its samples with the same score, so it isn't independent of it either.
 
 ![renders](mesh_w035_render.png)
 
@@ -63,7 +63,7 @@ The refiner is a Python port of VC3D's `ObjAlphaCompRefinement`. Its default opa
 - thresholds set from each patch's own gap and papyrus brightness (the two Otsu class means; added later);
 - its most generous setting, the threshold pair that does best in a grid search on these same patches.
 
-Even then it does worse than no correction.
+Even then it does worse than no correction at std 1.5 (61% vs 70%). At std 2.0, corr. 80, where the drift is larger, it does better (57% vs 42%).
 
 **Consistency.** This is measured at all 210k samples. It asks whether snapping the drifted mesh lands where snapping the original lands.
 
@@ -77,7 +77,7 @@ Per-patch numbers are in [`eval_mesh_w035.json`](eval_mesh_w035.json) and [`eval
 
 ## Fibre check: does the snapper land on recto faces?
 
-A papyrus sheet is two fibre layers. The recto layer faces the scroll centre, and its fibres run horizontally, around the scroll. The verso layer's fibres run vertically, along the scroll's axis. This gives a test that the snapper's own scores never look at.
+A papyrus sheet is two fibre layers. The recto layer faces the scroll centre, and its fibres run horizontally, around the scroll. The verso layer's fibres run vertically, along the scroll's axis. This gives a test that reads only the CT, apart from its depth origin, which is the snapper's estimate of where the face is.
 
 Read the CT through a surface at increasing depth into the papyrus from its face:
 - **On a recto face,** fibres near the face should run across the scroll axis, then turn toward the axis deeper in.

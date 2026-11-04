@@ -1,16 +1,19 @@
 """Whole-segment snapping (tools/snap_segment.py) on a small synthetic scan: tiling and blending
 must give the same surface as snapping the mesh in one piece, and reading the scan over http(s)
 through the chunk cache must give the same result as reading it from disk."""
+import filecmp
 import functools
 import http.server
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
 
 import numpy as np
 import pytest
+import tifffile
 
 zarr = pytest.importorskip("zarr")
 pytest.importorskip("fsspec")
@@ -20,7 +23,7 @@ sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, HERE)
 from regression_cases import wavy_sheets  # noqa: E402
 from scroll_label_snap.core import Params  # noqa: E402
-from scroll_label_snap.mesh import snap_mesh  # noqa: E402
+from scroll_label_snap.mesh import dense_at_fine, densify, snap_mesh, surface_area, vertex_normals  # noqa: E402
 from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
 
 TOOL = os.path.join(HERE, "..", "tools", "snap_segment.py")
@@ -39,10 +42,10 @@ def make_scene(tmp_path, root):
     return ct, P, valid
 
 
-def run_tool(out, volume, workers=1, cache=None):
+def run_tool(out, volume, workers=1, cache=None, extra=()):
     cmd = [sys.executable, TOOL, str(out), "--segment", str(out.parent / "seg.tifxyz"), "--volume", volume,
            "--tile", "8", "--overlap", "2", "--workers", str(workers), "--sample-tiles", "4",
-           "--normals", "flipped", "--name", "synth"]
+           "--normals", "flipped", "--name", "synth", *extra]
     if cache:
         cmd += ["--cache", str(cache)]
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -53,15 +56,48 @@ def run_tool(out, volume, workers=1, cache=None):
 def test_tiled_segment_matches_one_piece(tmp_path):
     from dataclasses import replace
     ct, P, valid = make_scene(tmp_path, tmp_path)
-    summary = run_tool(tmp_path / "out", str(tmp_path / "scan.zarr"))
+    summary = run_tool(tmp_path / "out", str(tmp_path / "scan.zarr"), extra=("--fine-grid", "5"))
     assert not summary["tiles_failed"]
-    one = snap_mesh(ct, P, valid, replace(Params(), convention_offset=summary["convention_offset"]), normal_sign=-1)
+    one = snap_mesh(ct, P, valid, replace(Params(), convention_offset=summary["convention_offset"], template_follows_offset=False), normal_sign=-1)
     D, vd, _ = read_tifxyz(str(tmp_path / "out" / "synth_snapped_dense.tifxyz"))
     both = vd & one.dense_valid
     diff = np.linalg.norm(D - one.dense_P, axis=-1)[both]
     assert both.mean() > 0.95 and np.mean(diff <= 0.5) > 0.95 and diff.max() < 1.0
     G, vg, _ = read_tifxyz(str(tmp_path / "out" / "synth_snapped.tifxyz"))
     assert vg.all() and G.shape == P.shape
+    F, vf, mf = read_tifxyz(str(tmp_path / "out" / "synth_snapped_fine.tifxyz"))
+    g = summary["fine_factor"]
+    assert g == 4 and F.shape[:2] == ((P.shape[0] - 1) * g + 1, (P.shape[1] - 1) * g + 1)
+    assert mf["scale"] == [0.2, 0.2] and mf["uuid"] == "synth_snapped_fine"
+    # the fine grid's channels and area are its own, read from the same dense surface as the dense file's
+    assert abs(mf["area_vx2"] - surface_area(F, vf)) < 1e-3
+    for name in ("snap_confidence", "snap_flag", "snap_limit"):
+        dense = tifffile.imread(tmp_path / "out" / "synth_snapped_dense.tifxyz" / f"{name}.tif")
+        fine = tifffile.imread(tmp_path / "out" / "synth_snapped_fine.tifxyz" / f"{name}.tif")
+        assert np.array_equal(fine, dense_at_fine(dense, summary["factor"], g)), name
+    assert tifffile.imread(tmp_path / "out" / "synth_snapped_fine.tifxyz" / "snap_confidence.tif").any()
+    N, ok = vertex_normals(F, vf)
+    Z, _, vz = densify(F, N, ok, summary["factor"], g=g)
+    N, ok = vertex_normals(G, vg)
+    Y, _, vy = densify(G, N, ok, summary["factor"])
+    near = np.linalg.norm(Z - D, axis=-1)[vz & vd]
+    coarse = np.linalg.norm(Y - D, axis=-1)[vy & vd]
+    assert np.percentile(near, 95) < 0.5 * np.percentile(coarse, 95)
+
+
+def test_fine_grid_leaves_the_other_outputs_alone(tmp_path):
+    make_scene(tmp_path, tmp_path)
+    run_tool(tmp_path / "on", str(tmp_path / "scan.zarr"), extra=("--fine-grid", "5"))
+    (tmp_path / "off").mkdir()
+    shutil.copytree(tmp_path / "on" / "tiles", tmp_path / "off" / "tiles")          # same tiles, so only the outputs differ
+    shutil.copy(tmp_path / "on" / "convention.json", tmp_path / "off" / "convention.json")
+    summary = run_tool(tmp_path / "off", str(tmp_path / "scan.zarr"))                # the default writes no fine grid
+    assert not (tmp_path / "off" / "synth_snapped_fine.tifxyz").exists() and summary["fine_factor"] == 0
+    for folder in ("synth_snapped.tifxyz", "synth_snapped_dense.tifxyz"):
+        names = os.listdir(tmp_path / "on" / folder)
+        assert sorted(names) == sorted(os.listdir(tmp_path / "off" / folder))
+        for n in names:
+            assert filecmp.cmp(tmp_path / "on" / folder / n, tmp_path / "off" / folder / n, shallow=False), n
 
 
 class _QuietHandler(http.server.SimpleHTTPRequestHandler):

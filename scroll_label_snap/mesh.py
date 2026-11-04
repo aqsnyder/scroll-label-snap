@@ -8,24 +8,29 @@ The same scoring and graph cut as label snapping (core.solve_surface), applied t
   2. The mesh is densified bilinearly to about p.spacing voxels between samples, so it is
      scored and solved at the same resolution as labels. Neighbours are the 4 grid neighbours.
   3. Each dense sample gets a shift along its normal. The mesh keeps its own convention: where
-     it sits relative to the papyrus edge is estimated from the mesh and kept, unless
-     p.convention_offset says where it should sit instead.
+     the papyrus edge sits relative to it is estimated from the mesh and kept, unless
+     p.convention_offset (the edge relative to the mesh, along the normal) says otherwise.
   4. Output: the snapped dense surface, and the input grid with each vertex moved so the
-     bilinear mesh best matches the snapped dense surface (least squares).
+     bilinear mesh best matches the snapped dense surface (least squares). A 20-voxel grid is too
+     coarse to hold that surface, so on request a finer grid (fine_surface, about 5 voxels) is
+     fitted the same way.
 
 Positions are (z, y, x). The CT is a crop: crop coordinates = volume coordinates * level_scale
 - offset_zyx (level_scale = 1 at full resolution, 0.5 for OME-Zarr level 1, ...).
 """
 from __future__ import annotations
 
+import argparse
+import glob
 import json
 import os
+import sys
 from dataclasses import dataclass
 
 import numpy as np
 from scipy import ndimage as ndi
 from scipy import sparse
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import cg, spsolve
 
 from .core import Params, sample, solve_surface, unary_costs
 from .tifxyz import read_tifxyz
@@ -85,12 +90,15 @@ def dense_coords(shape, f):
     return A, B
 
 
-def densify(P, N, ok, f):
+def densify(P, N, ok, f, g=1):
     """Bilinear upsampling of vertex positions and normals by an integer factor f. A dense
     sample is valid when every vertex with weight in its interpolation is valid; normals are
-    renormalised (and the sample dropped where neighbouring normals cancel)."""
-    A, B = dense_coords(ok.shape, f)
-    c = np.stack([A.ravel(), B.ravel()])
+    renormalised (and the sample dropped where neighbouring normals cancel). With g > 1 the grid
+    given is g times finer than the one f counts from, which reads a fine grid at the dense
+    samples of its input grid."""
+    H, W = ok.shape
+    A, B = dense_coords(((H - 1) // g + 1, (W - 1) // g + 1), f)
+    c = np.stack([A.ravel() * g, B.ravel() * g])
     vd = ndi.map_coordinates(ok.astype(np.float32), c, order=1, mode="nearest") > 1 - 1e-4
     Pd = np.stack([ndi.map_coordinates(P[..., k], c, order=1, mode="nearest") for k in range(3)], -1)
     Nd = np.stack([ndi.map_coordinates(N[..., k], c, order=1, mode="nearest") for k in range(3)], -1)
@@ -151,13 +159,43 @@ def axis_orientation(P, valid, axis_yx=None):
     return sign, max(frac, 1 - frac), (float(axis_yx[0]), float(axis_yx[1]))
 
 
+# Parameters only labels use: a mesh has its own samples, normals and neighbours, and moves vertices, not voxels.
+LABEL_ONLY = ("sigma_band", "neigh_radius", "tangential_tol", "normal_dot", "smooth_warp", "keep_topology", "orient_cube")
+
+
+def refuse_label_only(overrides):
+    """Stop a mesh tool that was given parameters it would record but not use."""
+    used = [k for k in LABEL_ONLY if k in overrides]
+    if used:
+        sys.exit(f"only labels use {', '.join(used)}; a mesh does not, so this run would not do what it records")
+
+
+# Below this extent in (y, x), a sheet's local waves can outweigh the curve of its wrap, and a circle fit
+# then finds a tight false circle with a confident sign. On 4,400 random windows of w035 and w052 (9.362 um), 3,991
+# passed the other checks: none of the 1,882 at this extent or more had the wrong sign, and 20 of the 2,109 below it
+# did, the largest between 1,400 and 1,500 voxels. Measured on these two segments only.
+MIN_FIT_EXTENT = 1600.0
+FIT_RULE = f"it takes 90% agreement, at least {MIN_FIT_EXTENT:,.0f} voxels across and a radius under 3 times that"
+
+
 def axis_fit_is_meaningful(P, valid, axis_yx):
-    """A circle fit only says where the scroll centre is if the segment curves noticeably: the
-    fitted radius should not dwarf the segment's own extent in (y, x)."""
+    """A circle fit only says where the scroll centre is if the segment curves noticeably and is long
+    enough for that curve to be its wrap's: the fitted radius should not dwarf the segment's own extent
+    in (y, x), and the extent should be at least MIN_FIT_EXTENT voxels."""
     q = P[valid].astype(np.float64)
+    if not len(q):
+        return False, 0.0, 0.0
     r = np.hypot(q[:, 1] - axis_yx[0], q[:, 2] - axis_yx[1])
     extent = max(np.ptp(q[:, 1]), np.ptp(q[:, 2]))
-    return bool(np.median(r) < 3 * extent), float(np.median(r)), float(extent)
+    return bool(np.median(r) < 3 * extent and extent >= MIN_FIT_EXTENT), float(np.median(r)), float(extent)
+
+
+def expand_paths(paths):
+    """Expand wildcards in a list of patch folders. PowerShell and cmd pass patch_* to the tool as it is."""
+    out = []
+    for d in paths:
+        out += [d] if os.path.exists(d) else sorted(glob.glob(d)) or [d]
+    return out
 
 
 _ORIENT = {}
@@ -178,9 +216,13 @@ def patch_orientation(patch_dir, verbose=True):
     if whole not in _ORIENT:
         P, valid, _ = read_tifxyz(whole)
         sign, agree, axis = axis_orientation(P, valid)
-        if not axis_fit_is_meaningful(P, valid, axis)[0]:
-            agree = 0.0                      # nearly flat: the fit says nothing about the scroll centre
-        if verbose:
+        curved, radius, extent = axis_fit_is_meaningful(P, valid, axis)
+        if not curved:
+            agree = 0.0                      # nearly flat or short: the fit says nothing about the scroll centre
+            if verbose:
+                print(f"the whole segment's curve does not settle the recto side (fitted radius {radius:.0f} voxels for a "
+                      f"segment {extent:.0f} voxels across; {FIT_RULE})", flush=True)
+        elif verbose:
             print(f"orientation from the whole segment: scroll axis near y {axis[0]:.0f}, x {axis[1]:.0f}; "
                   f"recto normal {'= grid normal' if sign > 0 else '= flipped grid normal'} at {agree:.0%} of vertices",
                   flush=True)
@@ -188,12 +230,14 @@ def patch_orientation(patch_dir, verbose=True):
     return _ORIENT[whole]
 
 
-def fit_vertex_shifts(ok, f, vd, shift_d, lam=1e-3):
+def fit_vertex_shifts(ok, f, vd, shift_d, lam=1e-3, g=1):
     """Per-vertex shifts whose bilinear interpolation onto the dense grid best matches the
-    dense shifts (least squares over the valid dense samples; vertices without any get 0)."""
+    dense shifts (least squares over the valid dense samples; vertices without any get 0).
+    `ok` is the output grid. It has g steps per step of the input grid, and the dense grid f.
+    Fine grids of a whole segment have millions of vertices, so g > 1 uses conjugate gradients."""
     H, W = ok.shape
-    A, B = dense_coords(ok.shape, f)
-    a, b, s = A[vd], B[vd], shift_d[vd]
+    A, B = dense_coords(((H - 1) // g + 1, (W - 1) // g + 1), f)
+    a, b, s = A[vd] * g, B[vd] * g, shift_d[vd]
     r0 = np.minimum(np.floor(a).astype(int), max(H - 2, 0))
     c0 = np.minimum(np.floor(b).astype(int), max(W - 2, 0))
     fr, fc = a - r0, b - c0
@@ -209,9 +253,62 @@ def fit_vertex_shifts(ok, f, vd, shift_d, lam=1e-3):
     Bm = sparse.csr_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
                            shape=(len(a), H * W))
     lhs = (Bm.T @ Bm + lam * sparse.identity(H * W)).tocsc()
-    out = spsolve(lhs, Bm.T @ s).reshape(H, W)
+    if g == 1:
+        out = spsolve(lhs, Bm.T @ s).reshape(H, W)
+    else:
+        pre = sparse.diags(1.0 / lhs.diagonal())
+        out, info = cg(lhs, Bm.T @ s, M=pre, rtol=1e-6, atol=0.0, maxiter=5000)
+        if info:
+            raise RuntimeError(f"fine grid fit did not converge in {info} iterations")
+        out = out.reshape(H, W)
     out[~ok] = 0
     return out.astype(np.float32)
+
+
+def fine_grid_value(text):
+    """--fine-grid's value: voxels between vertices, or 0 to write no fine grid."""
+    try:
+        v = float(text)
+    except ValueError:
+        v = float("nan")
+    if not (np.isfinite(v) and v >= 0):
+        raise argparse.ArgumentTypeError(f"{text}: give the voxels between vertices, a positive number, or 0 for no fine grid")
+    return v
+
+
+def fine_factor(spacing, f, voxels=5.0):
+    """Output grid steps per input grid step for vertices about `voxels` apart, given the input
+    grid's spacing and its f dense samples per step. Never finer than the dense samples, which
+    are what hold the fine vertices in place."""
+    return min(int(f), max(1, int(round(spacing / voxels))))
+
+
+def fine_surface(P, N, ok, f, vd, shift_d, g):
+    """The snapped surface on a grid g times finer than the input grid: the bilinear input mesh,
+    moved along its normals by the shifts that best match the dense ones. P and shift_d are in
+    volume coordinates and voxels, N the oriented vertex normals. Returns (P, valid, shift)."""
+    Pg, Ng, vg = densify(P.astype(np.float32), N, ok, g)
+    shift = fit_vertex_shifts(vg, f, vd, shift_d, g=g)
+    Pg = Pg + shift[..., None] * Ng
+    Pg[~vg] = -1
+    return Pg, vg, shift
+
+
+def dense_at_fine(dense, f, g):
+    """A map over the dense samples read at the vertices of the fine grid (nearest sample)."""
+    Hd, Wd = dense.shape
+    r = np.rint(np.arange((Hd - 1) // f * g + 1) * f / g).astype(int)
+    c = np.rint(np.arange((Wd - 1) // f * g + 1) * f / g).astype(int)
+    return dense[np.ix_(r, c)]
+
+
+def surface_area(P, valid):
+    """Area of a tifxyz grid in voxels^2: two triangles per quad of valid vertices."""
+    a, b = P[:-1, :-1].astype(np.float64), P[:-1, 1:].astype(np.float64)
+    c, d = P[1:, :-1].astype(np.float64), P[1:, 1:].astype(np.float64)
+    q = valid[:-1, :-1] & valid[:-1, 1:] & valid[1:, :-1] & valid[1:, 1:]
+    tri = np.linalg.norm(np.cross(b - a, c - a), axis=-1) + np.linalg.norm(np.cross(b - d, c - d), axis=-1)
+    return float(0.5 * tri[q].sum())
 
 
 @dataclass
@@ -272,12 +369,17 @@ class MeshSnapResult:
     dense_limit: np.ndarray  # shift stopped at the edge of the search range: the face may be farther
     factor: int
     info: dict
+    fine_P: np.ndarray = None     # snapped surface on the fine grid (volume coordinates), if asked for
+    fine_valid: np.ndarray = None
+    fine_shift: np.ndarray = None  # shift along the normal per fine vertex (volume voxels)
+    fine_factor: int = 0          # fine grid steps per input grid step
 
 
 def snap_mesh(ct, P, valid, p: Params | None = None, offset_zyx=(0, 0, 0), level_scale=1.0,
-              factor=None, normal_sign=0, prep: MeshPrep | None = None):
+              factor=None, normal_sign=0, prep: MeshPrep | None = None, fine=None):
     """Snap a tifxyz grid of vertices P (H, W, 3; volume coordinates, z y x) onto the papyrus
-    surface in the CT crop `ct`."""
+    surface in the CT crop `ct`. fine: also fit the surface on a grid about this many (crop)
+    voxels apart."""
     p = p or Params()
     prep = prep or prepare_mesh(ct, P, valid, p, offset_zyx, level_scale, factor, normal_sign)
     shift, conf, movable, rev, info = solve_surface(prep.ct_s.shape, prep.prepared, p)
@@ -301,8 +403,13 @@ def snap_mesh(ct, P, valid, p: Params | None = None, offset_zyx=(0, 0, 0), level
                 n_vertices=int(prep.ok.sum()), n_dense=int(vd.sum()),
                 frac_at_limit=float(limit_d[vd].mean()) if vd.any() else 0.0,
                 mean_abs_vertex_shift=float(np.abs(v_shift[prep.ok]).mean()) if prep.ok.any() else 0.0)
-    return MeshSnapResult(Pout, prep.ok, v_shift / level_scale, dense.astype(np.float32), vd,
-                          shift_d / level_scale, conf_d, flag_d, limit_d, prep.factor, info)
+    res = MeshSnapResult(Pout, prep.ok, v_shift / level_scale, dense.astype(np.float32), vd,
+                         shift_d / level_scale, conf_d, flag_d, limit_d, prep.factor, info)
+    if fine:
+        res.fine_factor = fine_factor(prep.spacing, prep.factor, fine)
+        res.fine_P, res.fine_valid, res.fine_shift = fine_surface(P, prep.N, prep.ok, prep.factor, vd,
+                                                                  res.dense_shift, res.fine_factor)
+    return res
 
 
 def trusted_dense(prep: MeshPrep, p: Params):

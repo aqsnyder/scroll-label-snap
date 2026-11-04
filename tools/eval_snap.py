@@ -13,6 +13,14 @@ labels removed: with VC3D's default thresholds, with thresholds from each cube's
 papyrus levels (Otsu class means), and with each pair in a grid (summarize_eval.py reports the
 pair that is best over all evaluated cubes, i.e. the refiner's most generous setting).
 
+Three methods with no graph cut are scored the same way, and warped the same way as the snapper:
+the best candidate of the snapper's own score per sample, and the strongest plain CT gradient along
+the normal, raw and after a light median. Trusted points are picked with the snapper's own edge
+score (the strongest edge is already at the label), so these rows show how much of a drift-test
+result any polarity-aware edge search gets. They say nothing about surface smoothness.
+
+Cube k gets drift seed k here and in eval_folder.py. Each cube's result records its seed.
+
 Usage:
   python tools/eval_snap.py OUT_JSON IMAGE_TIF LABEL_TIF [IMAGE_TIF LABEL_TIF ...]
 """
@@ -24,10 +32,11 @@ import time
 import numpy as np
 import tifffile
 from scipy import ndimage as ndi
+from scipy.spatial import cKDTree
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import (Params, prepare, snap, alphacomp_shifts,  # noqa: E402
-                                    warp_labels, sample, unary_costs)
+                                    warp_labels, sample, unary_costs, unary_scores)
 
 
 def drift_field(pts, amp, corr, rng, n_modes=64):
@@ -101,6 +110,41 @@ def trusted_samples(lab, prep, p):
     return mov & (np.abs(ts[amax]) <= 0.5) & (peak >= 0.8) & (second < 0.5 * peak)
 
 
+def median_on_sheet(s, pts, comp, r=6.0, k=13):
+    """Median of a shift field over up to k nearest samples within r voxels on the same sheet."""
+    if len(pts) < 2:                        # a query for k <= 1 returns another shape
+        return np.asarray(s, np.float32)
+    _, idx = cKDTree(pts).query(pts, k=min(k, len(pts)), distance_upper_bound=r)
+    ok = idx < len(pts)
+    ic = np.where(ok, idx, 0)
+    v = s[ic].astype(np.float32)
+    v[~(ok & (comp[ic] == comp[:, None]))] = np.nan
+    return np.nanmedian(v, 1).astype(np.float32)
+
+
+def per_sample_shifts(shape, prep, p, h=1.0):
+    """Shift per sample with no graph cut. 'argmax': the best candidate of the snapper's own score.
+    'gradient': the strongest plain step ct(t - h) - ct(t + h) along the normal, with the labels'
+    offset from that edge taken from the labels given (median position over the stronger half of
+    the samples, as the snapper estimates its own). Samples at the border stay put, as for the snapper."""
+    ct_s, pts, n, _, _, comp = prep
+    ts, U, _, _, movable, _, _ = unary_scores(shape, prep, p)
+    if not movable.any():
+        return {m: np.zeros(len(pts), np.float32) for m in ("argmax", "gradient", "gradient median")}
+    grid = np.arange(-1.5 * p.t_max - h, 1.5 * p.t_max + h + 1e-6, 0.5, dtype=np.float32)
+    prof = np.stack([sample(ct_s, pts + g * n) for g in grid], 1)
+    kh = int(round(h / 0.5))
+    es, g = grid[kh:-kh], prof[:, :-2 * kh] - prof[:, 2 * kh:]
+    win = np.abs(es) <= p.t_max
+    peak = g[movable][:, win].max(1)
+    strong = peak > np.percentile(peak, 50)
+    off = np.median(es[win][np.argmax(g[movable][:, win], 1)][strong]) if strong.any() else 0.0
+    ix = np.clip(np.rint((ts + np.round(off * 2) / 2 - es[0]) / 0.5).astype(int), 0, len(es) - 1)
+    t_grad = ts[np.argmax(g[:, ix], 1)]
+    out = {"argmax": ts[np.argmax(U, 1)], "gradient": t_grad, "gradient median": median_on_sheet(t_grad, pts, comp)}
+    return {m: np.where(movable, s, 0).astype(np.float32) for m, s in out.items()}
+
+
 def evaluate(img_path, lab_path, p, seed):
     t0 = time.time()
     img = tifffile.imread(img_path)
@@ -141,6 +185,10 @@ def evaluate(img_path, lab_path, p, seed):
     gap_level, pap_level = otsu_class_means(img)
     (versions["baseline adaptive(drifted)"], off_adaptive,
      versions["baseline adaptive(original)"]) = refiner_corrected(gap_level / 255, pap_level / 255, also_clean=True)
+    # no graph cut: best candidate per sample, warped the same way as the snapper's shifts
+    for tag, pr, lb in (("original", prep0, lab), ("drifted", prep_d, lab_d)):
+        for m, s in per_sample_shifts(lab.shape, pr, p).items():
+            versions[f"{m}({tag})"] = warp_labels(lb, pr[1], pr[2], s, comp=pr[5], smooth=p.smooth_warp, keep_topology=p.keep_topology)
     pos = {k: band_position(v, pts0[inner], n0[inner]) for k, v in versions.items()}
     o = pos["original"]
     tr = trusted_samples(lab, prep0, p)[inner]
@@ -156,12 +204,19 @@ def evaluate(img_path, lab_path, p, seed):
         "baseline": stats(np.abs(pos["baseline(drifted)"] - o)[tr]),
         "baseline, offset-corrected": stats(np.abs(pos["baseline offset-corrected(drifted)"] - o)[tr]),
         "baseline, adaptive thresholds, offset-corrected": stats(np.abs(pos["baseline adaptive(drifted)"] - o)[tr]),
+        "argmax": stats(np.abs(pos["argmax(drifted)"] - o)[tr]),
+        "gradient": stats(np.abs(pos["gradient(drifted)"] - o)[tr]),
+        "gradient median": stats(np.abs(pos["gradient median(drifted)"] - o)[tr]),
         # consistency everywhere: does correcting drifted labels land where correcting
         # the clean labels lands?
         "snapper consistency": stats(np.abs(pos["snap(drifted)"] - pos["snap(original)"])),
         "baseline consistency": stats(np.abs(pos["baseline(drifted)"] - pos["baseline(original)"])),
         "baseline, adaptive thresholds consistency": stats(np.abs(pos["baseline adaptive(drifted)"]
                                                                    - pos["baseline adaptive(original)"])),
+        "argmax consistency": stats(np.abs(pos["argmax(drifted)"] - pos["argmax(original)"])),
+        "gradient consistency": stats(np.abs(pos["gradient(drifted)"] - pos["gradient(original)"])),
+        "gradient median consistency": stats(np.abs(pos["gradient median(drifted)"]
+                                                     - pos["gradient median(original)"])),
     }
     moved = pos["snap(original)"] - o
     clean_moves = dict(frac_moved_1vox=float(np.nanmean(np.abs(moved) >= 1.0)),
@@ -171,9 +226,10 @@ def evaluate(img_path, lab_path, p, seed):
     ct_e = ndi.gaussian_filter(img.astype(np.float32), 0.5)
     pi, ni = pts0[inner], n0[inner]
     align = {k: step_alignment(ct_e, pi, ni, pos[k])
-             for k in ("original", "snap(original)", "baseline(original)", "baseline adaptive(original)")}
+             for k in ("original", "snap(original)", "baseline(original)", "baseline adaptive(original)",
+                       "argmax(original)", "gradient median(original)")}
     name = os.path.basename(img_path).rsplit(".", 1)[0]
-    return dict(cube=name, seconds=round(time.time() - t0, 1), n_points=int(inner.sum()),
+    return dict(cube=name, seed=seed, seconds=round(time.time() - t0, 1), n_points=int(inner.sum()),
                 n_trusted=int(tr.sum()), drift_test=drift_res, edge_alignment=align,
                 clean_label_moves=clean_moves, baseline_grid=grid,
                 baseline_offsets=dict(default=off_default, adaptive=off_adaptive,
@@ -181,6 +237,10 @@ def evaluate(img_path, lab_path, p, seed):
 
 
 def main(out_json, *paths):
+    if len(paths) % 2:
+        sys.exit(f"image and label TIFFs come in pairs, and {len(paths)} paths were given")
+    if any("*" in x or "?" in x for x in paths):
+        sys.exit("wildcards are not expanded here: give each TIFF")
     p = Params()
     results = []
     for k, (img_path, lab_path) in enumerate(zip(paths[0::2], paths[1::2])):
@@ -189,8 +249,8 @@ def main(out_json, *paths):
         d = r["drift_test"]
         a = r["edge_alignment"]
         print(f"{r['cube']} ({r['n_points']} pts, {r['n_trusted']} trusted, {r['seconds']} s)", flush=True)
-        for m in ("drifted (no correction)", "snapper", "baseline", "snapper consistency",
-                  "baseline consistency"):
+        for m in ("drifted (no correction)", "snapper", "argmax", "gradient median", "baseline",
+                  "snapper consistency", "argmax consistency", "baseline consistency"):
             print(f"   {m:26s} mean {d[m]['mean']:.2f}  median {d[m]['median']:.2f}  "
                   f"within 1 vox {d[m]['within_1']:.0%}  over 2 vox {d[m]['over_2']:.0%}")
         for m, v in a.items():

@@ -3,7 +3,10 @@ one pixel per voxel on the mesh's own grid, in the layout the ink models read: (
 columns), uint8, 0 outside the mesh.
 
 A mesh and its snapped version (snap_segment.py or snap_tifxyz.py, which keep the vertex grid)
-render onto the same pixel grid, so ink predictions from the two line up pixel for pixel.
+render onto the same pixel grid, so ink predictions from the two line up pixel for pixel. So does
+snapped_fine, from --fine-grid 5 (scale 0.2, 5 pixels per vertex, 4 vertices per input vertex; --rows
+and --cols count its own vertices). snapped_dense does not: no whole number of pixels per vertex gives
+20 per input vertex at 7 vertices each.
 
 Usage:
   python tools/render_surface_volume.py OUT_ZARR --segment TIFXYZ --volume OME_ZARR [options]
