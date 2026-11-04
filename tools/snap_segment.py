@@ -37,7 +37,8 @@ Writes:
   OUT_DIR/<name>_snapped.tifxyz        the input grid, vertices moved. Same grid as the input, but
                                        too coarse to hold all of the snapped surface
   OUT_DIR/<name>_snapped_fine.tifxyz   with --fine-grid: the same fit on a finer grid, 5 voxels (meta
-                                       scale 0.2) for a 20-voxel input
+                                       scale 0.2) for a 20-voxel input. A geometry output: its ink
+                                       map was dimmer than the 20-voxel file's at 15 w052 sites
   OUT_DIR/<name>_snapped_dense.tifxyz  the snapped surface at ~3-voxel spacing
       with channels snap_shift, snap_confidence and (dense, fine) snap_flag / snap_limit or
       (input grid) snap_review, as from snap_tifxyz.py
