@@ -1,0 +1,39 @@
+{
+ "reference": {
+  "name": "traced",
+  "path": "D:\\vesuvius\\f0841\\s213127\\maps\\A1_traced_forward.tif"
+ },
+ "renders": [
+  "D:\\vesuvius\\f0841\\s213127\\A1_traced.zarr"
+ ],
+ "pixels": 4866977,
+ "tile": 256,
+ "min_valid": 0.5,
+ "maps": {
+  "d0": {
+   "path": "D:\\vesuvius\\ink\\sweep\\0841\\s213127\\maps\\A1_traced_d0.tif",
+   "identical": true,
+   "max_abs_difference": 0,
+   "pearson_r": 1.0,
+   "whole_map": {
+    "mean_reference": 0.37589563617955757,
+    "mean": 0.37589563617955757,
+    "p99_reference": 0.7686274509803922,
+    "p99": 0.7686274509803922
+   },
+   "tiles": 77,
+   "d_p99_median": 0.0,
+   "d_mean_median": 0.0,
+   "abs_d_p99_median": 0.0,
+   "share_tiles_d_p99_below_minus_0_02": 0.0,
+   "share_tiles_d_p99_above_0_02": 0.0,
+   "d_p99_percentiles": {
+    "5": 0.0,
+    "25": 0.0,
+    "50": 0.0,
+    "75": 0.0,
+    "95": 0.0
+   }
+  }
+ }
+}

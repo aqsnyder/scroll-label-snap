@@ -1,0 +1,11 @@
+{
+ "ours": "D:\\vesuvius\\ink\\w035\\original_seed42.tif",
+ "official": "D:\\vesuvius\\ink\\w035\\official_seed42.tif",
+ "inplane_shift_yx": [
+  0,
+  0
+ ],
+ "pixels": 25176901,
+ "pearson_r": 0.8621316160791299,
+ "mean_abs_difference": 0.03869169725744043
+}

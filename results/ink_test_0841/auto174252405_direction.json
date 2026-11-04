@@ -1,0 +1,23 @@
+{
+ "crop": "D:\\vesuvius\\f0841\\s022814\\direction_crop.json",
+ "rule": "higher 99th percentile of the ink map over the crop's valid pixels; forward if equal",
+ "forward": {
+  "p50": 0.2862745225429535,
+  "p90": 0.49803921580314636,
+  "p99": 0.7647058963775635,
+  "mean": 0.3335503339767456,
+  "valid_pixels": 4793098
+ },
+ "reverse": {
+  "p50": 0.30588236451148987,
+  "p90": 0.5254902243614197,
+  "p99": 0.7372549176216125,
+  "mean": 0.3506634533405304,
+  "valid_pixels": 4793098
+ },
+ "direction": "forward",
+ "crop_seconds": {
+  "forward": 31.0,
+  "reverse": 31.5
+ }
+}

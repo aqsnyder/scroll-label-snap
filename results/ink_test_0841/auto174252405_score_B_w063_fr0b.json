@@ -1,0 +1,73 @@
+{
+ "labels": "D:\\vesuvius\\f0841\\s022814\\labels.npz",
+ "pixels": 694316,
+ "ink_fraction": 0.23254397133293775,
+ "blocks": 90,
+ "block_size": 128,
+ "scores": {
+  "original": {
+   "path": "D:\\vesuvius\\f0841\\s022814\\maps\\B1_w063_fr0b_original_forward.tif",
+   "auc": 0.6690195500527346,
+   "best_f1": 0.4438491512980364,
+   "threshold": 87,
+   "threshold_probability": 0.3412,
+   "positives": 161459,
+   "negatives": 532857
+  },
+  "snapped_grid": {
+   "path": "D:\\vesuvius\\f0841\\s022814\\maps\\B2_w063_fr0b_snapped_grid_forward.tif",
+   "auc": 0.6796019033456824,
+   "best_f1": 0.4390951231950798,
+   "threshold": 82,
+   "threshold_probability": 0.3216,
+   "positives": 161459,
+   "negatives": 532857,
+   "minus_reference": {
+    "auc": 0.010582353292947766,
+    "best_f1": -0.004754028102956609,
+    "auc_95": {
+     "lo": -0.059564096394933944,
+     "hi": 0.07104751679276348,
+     "resamples": 1000
+    }
+   }
+  },
+  "snapped_dense": {
+   "path": "D:\\vesuvius\\f0841\\s022814\\maps\\B3_w063_fr0b_snapped_dense_forward.tif",
+   "auc": 0.6512570748965048,
+   "best_f1": 0.4211851612940831,
+   "threshold": 113,
+   "threshold_probability": 0.4431,
+   "positives": 161459,
+   "negatives": 532857,
+   "minus_reference": {
+    "auc": -0.017762475156229862,
+    "best_f1": -0.022663990003953305,
+    "auc_95": {
+     "lo": -0.09005003619146301,
+     "hi": 0.05397814827991988,
+     "resamples": 1000
+    }
+   }
+  },
+  "off0_s01_dense": {
+   "path": "D:\\vesuvius\\f0841\\s022814\\maps\\B4_w063_fr0b_off0_s01_dense_forward.tif",
+   "auc": 0.6589016693712624,
+   "best_f1": 0.4226914883084787,
+   "threshold": 110,
+   "threshold_probability": 0.4314,
+   "positives": 161459,
+   "negatives": 532857,
+   "minus_reference": {
+    "auc": -0.010117880681472236,
+    "best_f1": -0.021157662989557735,
+    "auc_95": {
+     "lo": -0.08494431348393343,
+     "hi": 0.06018602649537464,
+     "resamples": 1000
+    }
+   }
+  }
+ },
+ "reference": "original"
+}

@@ -1,0 +1,125 @@
+{
+ "face": 1.25,
+ "step": 1.0,
+ "normal_sign": -1,
+ "threshold": 90.0,
+ "shape": [
+  21,
+  7681,
+  9741
+ ],
+ "renders": {
+  "original": {
+   "path": "D:\\vesuvius\\ink\\w052\\original_flipped_c1.zarr",
+   "pixels": 66386737,
+   "gap_outside": 0.529253591722696,
+   "papyrus_inside": 0.5925371659703654,
+   "both": 0.22395791195461226,
+   "brighter_inside": 0.5949886797418587,
+   "mean_outside": 86.00687916774702,
+   "mean_inside": 97.16114638229621,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  },
+  "snapped": {
+   "path": "D:\\vesuvius\\ink\\w052\\snapped_flipped_c1.zarr",
+   "pixels": 66386737,
+   "gap_outside": 0.6751400509411993,
+   "papyrus_inside": 0.7002176955918168,
+   "both": 0.4202969487715596,
+   "brighter_inside": 0.8084829353790953,
+   "mean_outside": 73.60115779602182,
+   "mean_inside": 106.72394109760207,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  },
+  "mirrored": {
+   "path": "D:\\vesuvius\\ink\\sweep\\w052\\mirrored_flipped_c1.zarr",
+   "pixels": 66386737,
+   "gap_outside": 0.48321325086364764,
+   "papyrus_inside": 0.5424143078458579,
+   "both": 0.16323822332162521,
+   "brighter_inside": 0.5028751450760414,
+   "mean_outside": 90.08378257467301,
+   "mean_inside": 92.38127268930238,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  },
+  "lp1": {
+   "path": "D:\\vesuvius\\ink\\moves\\lp1_flipped_c1.zarr",
+   "pixels": 66386737,
+   "gap_outside": 0.59697553744809,
+   "papyrus_inside": 0.6416297430012263,
+   "both": 0.30871865264292175,
+   "brighter_inside": 0.708329315839096,
+   "mean_outside": 80.01425528340096,
+   "mean_inside": 101.90687541624466,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  },
+  "lp2": {
+   "path": "D:\\vesuvius\\ink\\moves\\lp2_flipped_c1.zarr",
+   "pixels": 66386737,
+   "gap_outside": 0.5632358915305627,
+   "papyrus_inside": 0.6165289762622315,
+   "both": 0.2652640692372032,
+   "brighter_inside": 0.6531369511352847,
+   "mean_outside": 82.96909767533838,
+   "mean_inside": 99.49453542956931,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  },
+  "lp4": {
+   "path": "D:\\vesuvius\\ink\\moves\\lp4_flipped_c1.zarr",
+   "pixels": 66386737,
+   "gap_outside": 0.5490159879374701,
+   "papyrus_inside": 0.6049320062228695,
+   "both": 0.24727975408702493,
+   "brighter_inside": 0.6279849693471152,
+   "mean_outside": 84.20509663699845,
+   "mean_inside": 98.36843129901082,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  },
+  "hp2": {
+   "path": "D:\\vesuvius\\ink\\moves\\hp2_flipped_c1.zarr",
+   "pixels": 66386737,
+   "gap_outside": 0.6051042394205939,
+   "papyrus_inside": 0.6419004295993641,
+   "both": 0.30787703875248457,
+   "brighter_inside": 0.7267012987850269,
+   "mean_outside": 79.24767315721512,
+   "mean_inside": 102.26364369663176,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  },
+  "rand": {
+   "path": "D:\\vesuvius\\ink\\moves\\rand_flipped_c1.zarr",
+   "pixels": 66386737,
+   "gap_outside": 0.49709882562837815,
+   "papyrus_inside": 0.5812014228082938,
+   "both": 0.19712803477598242,
+   "brighter_inside": 0.5524936855986762,
+   "mean_outside": 88.95528446065967,
+   "mean_inside": 95.92163614699123,
+   "render_offsets": {
+    "outside": 2.25,
+    "inside": 0.25
+   }
+  }
+ }
+}
