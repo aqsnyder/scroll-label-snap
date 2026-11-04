@@ -422,6 +422,117 @@ def test_folder_row_survives_a_lost_main_process(folder_run, tmp_path):
     assert rows_of(out) == [n[:-4] for n in names]
 
 
+def test_folder_refuses_to_overwrite_its_input(tmp_path):
+    names = mini_set(tmp_path / "in", 1)
+    before = (tmp_path / "in" / "labels" / names[0]).read_bytes()
+    r = run("snap_folder.py", tmp_path / "in", tmp_path / "in", "--workers", 1)
+    assert r.returncode != 0 and "input" in r.stderr
+    assert (tmp_path / "in" / "labels" / names[0]).read_bytes() == before and not (tmp_path / "in" / "confidence").exists()
+    # labels with nothing beside them are not this tool's output: a copy of the input, say
+    (tmp_path / "copy" / "labels").mkdir(parents=True)
+    shutil.copy(tmp_path / "in" / "labels" / names[0], tmp_path / "copy" / "labels" / names[0])
+    r = run("snap_folder.py", tmp_path / "in", tmp_path / "copy", "--workers", 1)
+    assert r.returncode != 0 and "not from this tool" in r.stderr
+    assert (tmp_path / "copy" / "labels" / names[0]).read_bytes() == before
+
+
+def test_folder_files_appear_only_when_complete(tmp_path, monkeypatch):
+    import snap_folder
+    path = tmp_path / "a.tif"
+    path.write_bytes(b"old")
+
+    def refuse(*args):
+        raise PermissionError("held open")
+    monkeypatch.setattr(snap_folder.os, "replace", refuse)
+    with pytest.raises(PermissionError):
+        snap_folder.write_tif(str(path), np.zeros((4, 4, 4), np.uint8))
+    assert path.read_bytes() == b"old" and os.listdir(tmp_path) == ["a.tif"]
+
+
+def test_folder_writes_the_row_first_and_the_labels_last(tmp_path, monkeypatch):
+    import snap_folder
+    names = mini_set(tmp_path / "in", 1)
+    out = tmp_path / "out"
+    for sub in snap_folder.OUTPUTS:
+        (out / sub).mkdir(parents=True)                  # no rows/: run_one makes it, so it can be called on its own
+    row = out / "rows" / (names[0][:-4] + ".json")
+    order = []
+    real = snap_folder.write_tif
+
+    def spy(path, data):
+        order.append((os.path.basename(os.path.dirname(path)), row.exists()))
+        real(path, data)
+    monkeypatch.setattr(snap_folder, "write_tif", spy)
+    r = snap_folder.run_one(str(tmp_path / "in" / "images" / names[0]), str(tmp_path / "in" / "labels" / names[0]), str(out))
+    assert order == [("confidence", False), ("flags", False), ("labels", True)]
+    assert json.load(open(row)) == r and (out / "labels" / names[0]).exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="only Windows refuses to replace a file another program has open")
+def test_summary_held_open_is_not_a_cube_failure(tmp_path):
+    names = mini_set(tmp_path / "in", 2)
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "summary.csv").write_text("cube,samples\n")
+    with open(out / "summary.csv"):                      # as a spreadsheet holds it
+        r = run("snap_folder.py", tmp_path / "in", out, "--workers", 1)
+    assert r.returncode == 0 and "FAILED" not in r.stdout and r.stdout.count("warning: can't write summary.csv") == 1, r.stdout + r.stderr
+    assert (out / "labels" / names[1]).exists() and not [f for f in os.listdir(out) if f.endswith(".tmp")]
+    r = run("snap_folder.py", tmp_path / "in", out, "--workers", 1)
+    assert r.returncode == 0 and "0 to process" in r.stdout
+    assert rows_of(out) == [n[:-4] for n in names]
+
+
+def test_a_failed_cube_is_still_reported_when_the_summary_is_held_open(tmp_path):
+    names = mini_set(tmp_path / "in", 2)
+    (tmp_path / "in" / "images" / names[1]).write_bytes(b"not a tiff")
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "summary.csv").write_text("cube,samples\n")
+    with open(out / "summary.csv"):
+        r = run("snap_folder.py", tmp_path / "in", out, "--workers", 1)
+    assert r.returncode != 0 and "1 of 2 cubes failed" in r.stderr
+
+
+@pytest.mark.parametrize("text", ["bom", "extra column", "not a summary", "not text"])
+def test_summary_edited_by_hand_does_not_stop_a_run(tmp_path, text):
+    names = mini_set(tmp_path / "in", 2)
+    out = tmp_path / "out"
+    assert run("snap_folder.py", tmp_path / "in", out, "--workers", 1, "--limit", 1).returncode == 0
+    path = out / "summary.csv"
+    if text == "bom":                                    # as "CSV UTF-8" saves it
+        path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
+    elif text == "extra column":
+        path.write_text(path.read_text().replace("seconds", "seconds,note", 1).rstrip() + ",mine\n")
+    elif text == "not a summary":
+        path.write_text("garbage,x\n1,2\n")
+    else:
+        path.write_bytes(b"\xff\xfe\x00garbage")
+    r = run("snap_folder.py", tmp_path / "in", out, "--workers", 1)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert ("rebuilt" in r.stdout) == (text.startswith("not"))
+    assert rows_of(out) == [n[:-4] for n in names]
+    assert open(path).readline().strip() == ",".join(json.load(open(out / "rows" / (names[0][:-4] + ".json"))))
+
+
+def test_a_mistyped_folder_leaves_no_settings_behind(tmp_path):
+    mini_set(tmp_path / "in", 1)
+    out = tmp_path / "out"
+    r = run("snap_folder.py", tmp_path / "TYPO", out, "--workers", 1, "--param", "keep_topology=1")
+    assert r.returncode != 0 and "images/" in r.stderr and "Traceback" not in r.stderr and not out.exists()
+    # settings left by a try that made no cube don't hold the folder, either way round
+    out.mkdir()
+    (out / "params.json").write_text(json.dumps(dict(keep_topology=True)))
+    r = run("snap_folder.py", tmp_path / "in", out, "--workers", 1, "--param", "orient_cube=1")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert json.load(open(out / "params.json")) == dict(orient_cube=True)
+    other = tmp_path / "other"
+    other.mkdir()
+    (other / "params.json").write_text(json.dumps(dict(keep_topology=True)))
+    assert run("snap_folder.py", tmp_path / "in", other, "--workers", 1).returncode == 0
+    assert not (other / "params.json").exists()
+
+
 def test_folder_failure_is_reported_in_the_exit_code(tmp_path):
     names = mini_set(tmp_path / "in", 3)
     (tmp_path / "in" / "images" / names[1]).write_bytes(b"not a tiff")
@@ -448,6 +559,32 @@ def test_snap_cube_carries_on_after_a_failure(tmp_path):
     r = run("snap_cube.py", tmp_path / "cube", *pairs)
     assert r.returncode != 0 and "FAILED" in r.stdout
     assert (tmp_path / "cube" / "labels" / names[1]).exists()
+
+
+def test_snap_cube_carries_on_after_a_failed_write(tmp_path, monkeypatch):
+    import snap_cube
+    names = mini_set(tmp_path / "in", 2)
+    pairs = [str(p) for n in names for p in (tmp_path / "in" / "images" / n, tmp_path / "in" / "labels" / n)]
+    real = snap_cube.write_tif
+
+    def held_open(path, data):
+        if names[0] in path:
+            raise PermissionError("held open")
+        real(path, data)
+    monkeypatch.setattr(snap_cube, "write_tif", held_open)
+    with pytest.raises(SystemExit, match="1 cubes failed"):
+        snap_cube.main(str(tmp_path / "out"), *pairs)
+    assert (tmp_path / "out" / "labels" / names[1]).exists() and not (tmp_path / "out" / "labels" / names[0]).exists()
+
+
+def test_snap_cube_takes_pairs_and_no_wildcards(tmp_path):
+    names = mini_set(tmp_path / "in", 2)
+    im, la = (tmp_path / "in" / "images" / names[0], tmp_path / "in" / "labels" / names[0])
+    for paths, says in (((im,), "pairs"), ((im, la, tmp_path / "in" / "images" / names[1]), "pairs"),
+                        ((tmp_path / "in" / "images" / "*.tif", tmp_path / "in" / "labels" / "*.tif"), "wildcards")):
+        r = run("snap_cube.py", tmp_path / "out", *paths)
+        assert r.returncode != 0 and says in r.stderr, r.stdout + r.stderr
+        assert not (tmp_path / "out").exists()
 
 
 # --------------------------------------------------------------------------- recto side

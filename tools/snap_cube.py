@@ -11,7 +11,8 @@ Writes, per cube:
   OUT_DIR/flags/<name>.tif       255 where the label sits on a face of the opposite polarity
   OUT_DIR/<name>.json            summary (samples, shift statistics, parameters)
 
-A cube that fails is reported and the rest still run; the exit code is non-zero if any failed.
+A cube that fails, while snapping or while writing, is reported and the rest still run; the exit code is non-zero if
+any failed. The paths are given one by one: wildcards are not expanded here (tools/snap_folder.py takes a whole folder).
 """
 import argparse
 import json
@@ -22,8 +23,11 @@ import time
 import numpy as np
 import tifffile
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, ".."))
+sys.path.insert(0, HERE)
 from scroll_label_snap.core import Params, parse_params, snap, shift_volumes  # noqa: E402
+from snap_folder import write_tif  # noqa: E402
 
 
 def main(out_dir, *paths, p=None):
@@ -39,21 +43,19 @@ def main(out_dir, *paths, p=None):
             img = tifffile.imread(img_path)
             lab = tifffile.imread(lab_path)
             res = snap(img, lab, p)
+            # 255 in flags on band voxels whose label sits on a face of the opposite polarity: worth a look
+            conf, flags = shift_volumes(lab.shape, res.labels == 1, res.pts,
+                                        [(res.confidence * 255).astype(np.uint8), (res.reversed_face * 255).astype(np.uint8)])
+            write_tif(os.path.join(out_dir, "labels", name + ".tif"), res.labels)
+            write_tif(os.path.join(out_dir, "confidence", name + ".tif"), conf)
+            write_tif(os.path.join(out_dir, "flags", name + ".tif"), flags)
+            info = dict(res.info, seconds=round(time.time() - t0, 1))
+            with open(os.path.join(out_dir, name + ".json"), "w") as f:
+                json.dump(info, f, indent=2)
         except Exception as e:  # keep going; report at the end
             failed.append(name)
             print(f"{name}: FAILED: {type(e).__name__}: {e}", flush=True)
             continue
-        # 255 in flags on band voxels whose label sits on a face of the opposite polarity: worth a look
-        conf, flags = shift_volumes(lab.shape, res.labels == 1, res.pts,
-                                    [(res.confidence * 255).astype(np.uint8), (res.reversed_face * 255).astype(np.uint8)])
-        tifffile.imwrite(os.path.join(out_dir, "labels", name + ".tif"), res.labels,
-                         compression="zlib")
-        tifffile.imwrite(os.path.join(out_dir, "confidence", name + ".tif"), conf,
-                         compression="zlib")
-        tifffile.imwrite(os.path.join(out_dir, "flags", name + ".tif"), flags, compression="zlib")
-        info = dict(res.info, seconds=round(time.time() - t0, 1))
-        with open(os.path.join(out_dir, name + ".json"), "w") as f:
-            json.dump(info, f, indent=2)
         print(f"{name}: {info['n_samples']} samples, {info['n_sheets']} sheets, "
               f"mean |shift| {info['mean_abs_shift']:.2f} vox, moved >=1 vox "
               f"{info['frac_moved_1vox']:.0%}, flagged {info['frac_reversed_face']:.0%}, {info['seconds']} s")
@@ -70,4 +72,8 @@ if __name__ == "__main__":
     ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE",
                     help="override a snapper parameter (see scroll_label_snap/core.py Params), e.g. keep_topology=true")
     a = ap.parse_args()
+    if len(a.paths) % 2:
+        ap.error(f"image and label TIFFs come in pairs, and {len(a.paths)} paths were given")
+    if any("*" in x or "?" in x for x in a.paths):
+        ap.error("wildcards are not expanded here: give each TIFF, or use tools/snap_folder.py for a folder")
     main(a.out_dir, *a.paths, p=Params(**parse_params(a.param)))
