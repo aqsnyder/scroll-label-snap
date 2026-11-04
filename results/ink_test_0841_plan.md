@@ -69,4 +69,13 @@ All results go into `results/ink_test_0841.md`, the README and the write-up, whi
 
 ## Amendments
 
-(None yet.)
+### Amendment 1: the depth transfer didn't do what this plan says (post hoc, exploratory)
+
+This was added after the results were in. It isn't part of the pre-registration and it changes no outcome. The numbers in [`ink_test_0841.md`](ink_test_0841.md), as run at 627d058, remain this plan's outcome. Credit for the windings, the idea and the first numbers stays with KLAVIS.
+
+- **What this plan says.** Under "Surfaces compared": hit within 2 voxels of a surface sample.
+- **What ran.** `tools/depth_transfer.py` at 627d058 measured that 2-voxel gap to the sample nearest the target's pixel, not the sample nearest the hit. On a rough surface those two sit about depth × local slope apart, so correct hits failed, more often the deeper the surface lay. Those pixels stayed empty, and `tools/render_depth.py` rendered them as zeros through all 21 layers.
+- **How much.** Against an exact ray-mesh intersection written separately, the as-run transfer dropped no hits on the traced targets, 0.5% on the snapped targets, 8.9% on the windings as received, 11.5% on the drop-in output, 19.5% on the dense output and 21.1% on the second try.
+- **The fix.** `98542c1` adds `--refine` and `--normal-sigma`, both off by default. With them off, all 26 of this plan's depth files reproduce bit for bit (depth, gap, valid, roi). The corrected test is `--refine 3 --normal-sigma 10`. The normal smoothing and its scale were chosen after this plan, and after its results.
+- **The rerun.** The same five pairs and three targets, the same snaps, and this plan's model, settings and scoring, at seeds 42 and 43. This plan ran seed 42 only. Its readings were fixed in [`ink_test_0841_rerun/rule.md`](ink_test_0841_rerun/rule.md) (sha256 dbac861b…) before its maps existed, but after one pair (w056 on …144552896, seed 42) had already been scored. So it isn't blind, and it doesn't replace this plan. The rule wasn't pushed then, so only local file times show the order. The rerun came from an automated review ([`review_2026_11.md`](review_2026_11.md)).
+- **Results.** In [`ink_test_0841.md`](ink_test_0841.md), under "Later check: a bug in the depth transfer".

@@ -4,7 +4,7 @@ Moves approximate recto-surface labels in Herculaneum scroll CT back onto the re
 
 This is work in progress toward a [Vesuvius Challenge](https://scrollprize.org/prizes) progress-prize submission. It targets the "label quality" open problem in the [2026 open problems](https://scrollprize.org/2026_open_problems). Surface models are trained on hand-traced labels, and those labels drift off the surface. The organizers name this one of the main unwrapping bottlenecks and suggest "label snapping" as a fix.
 
-## Status, 3 November 2026: the ink tests went against snapping
+## Status, 4 November 2026: the w052 ink test went against snapping, and on PHerc. 0841 no gain repeats
 
 Three tests of the mesh snapper came in this week. Two were pre-registered.
 
@@ -14,7 +14,7 @@ Three tests of the mesh snapper came in this week. Two were pre-registered.
   - Details: [`results/ink_test.md`](results/ink_test.md).
 - **Ink labels on a scroll the model hasn't seen** (pre-registered, suggested by KLAVIS).
   - On three traced PHerc. 0841 segments, snapping made no detectable difference to agreement with the ink labels.
-  - On KLAVIS's spiral-fit windings, the drop-in output was about even, and the dense output lost up to 0.22 AUC.
+  - On KLAVIS's spiral-fit windings, as run, the drop-in output was about even and the dense output lost up to 0.22 AUC. Part of that loss came from a bug in our depth transfer. With it fixed (post hoc, exploratory), the dense output's pooled loss goes from −0.078 to −0.051 at the plan's seed, and from −0.098 to −0.002 at a second model seed. Neither output shows a loss or a gain that repeats at both seeds, though the intervals still allow a pooled loss of up to about 0.09 AUC.
   - Details: [`results/ink_test_0841.md`](results/ink_test_0841.md).
 - **Face placement against an independent reference** (by Chase).
   - The test used fresh PHerc. 0139 sites: 173 vertices of model-output surfaces at 28 sites. Chase compared them with the recto face found in two higher-resolution scans.
@@ -23,7 +23,7 @@ Three tests of the mesh snapper came in this week. Two were pre-registered.
 
 A follow-up diagnostic ([`results/depth_sweep.md`](results/depth_sweep.md)) looked for the cause:
 - **Not the surface's average depth.** Moving a whole mesh 1–2 voxels barely changes the ink map's level, and agreement with ink labels doesn't change detectably.
-- **The snapper's varying moves.** Snapping lowered w052's map level, and so did a mirrored mesh moved as far the other way, a little less. On PHerc. 0841, the mirrored depth cost 0.07 AUC while the snapped one cost nothing.
+- **The snapper's varying moves.** Snapping lowered w052's map level, and so did a mirrored mesh moved as far the other way, a little less. On PHerc. 0841, the mirrored depth cost 0.07 AUC while the snapped one made no detectable difference (read as 0 ± 0.05). The mirrored depth hasn't been rerun without the depth transfer bug's false holes, about 0.5% of hits.
 - **Their vertex-scale bumps, specifically** ([`results/move_scale.md`](results/move_scale.md)). The drop-in output's moves vary from one vertex to the next. With the moves smoothed over about 20 voxels, w052 keeps its map level, and the mesh keeps 43% of the snapper's gain at the face. With only the bumps, it loses as much as the full snap.
 
 So, for now:
@@ -219,7 +219,7 @@ It was developed on segment w035 of PHerc. 0139 at 9.362 µm, the one in the scr
 | Mean step across the face | 8.4 / 30.2 | 46.8 / 64.7 | 59.7 / 74.8 | 60.4 / 75.3 |
 | The whole of w035 on disk, with channels | 0.9 MB | 1.4 MB | 23 MB | 71 MB |
 
-`tools/eval_mesh.py --output dense|fine|grid` scores each one. This table scores position against the snapper's own face (see the note on drift tests in the status section), not reading. The pre-registered ink test (`results/ink_test_plan.md`) rendered `snapped.tifxyz`, so its result describes the 20-voxel column: reviewers preferred the snapped map less often than the original's (`results/ink_test.md`). The fine grid has had no blind review. In an exploratory look at 15 w052 sites, on central 256-pixel crops where such changes run larger than over the whole map, its ink map was dimmer than the 20-voxel file's at both model seeds (mean probability -0.048 and -0.041 against the original, where `snapped.tifxyz` gave -0.032 and -0.019). So treat it as a geometry output, not one for ink reading. `tools/render_surface_volume.py` renders the fine grid onto the input's pixels. The fine grid's normals are rougher, like the dense surface's: 9.6° from the original mesh's on average, against 4.7° at 20 voxels, so a layer 8 voxels off the surface wanders by about 1.3 voxels instead of 0.65. None of these files has been opened in VC3D.
+`tools/eval_mesh.py --output dense|fine|grid` scores each one. This table scores position against the snapper's own face (see the note on drift tests in the status section), not reading. The pre-registered ink test (`results/ink_test_plan.md`) rendered `snapped.tifxyz`, so its result describes the 20-voxel column: reviewers preferred the snapped map less often than the original's (`results/ink_test.md`). The fine grid has had no blind review. In an exploratory look at 15 w052 sites, on central 256-pixel crops where such changes run larger than over the whole map, its ink map was dimmer than the 20-voxel file's at both model seeds (mean probability -0.048 and -0.041 against the original, where `snapped.tifxyz` gave -0.032 and -0.019). So treat it as a geometry output, not one for ink reading ([`results/review_2026_11.md`](results/review_2026_11.md)). `tools/render_surface_volume.py` renders the fine grid onto the input's pixels. The fine grid's normals are rougher, like the dense surface's: 9.6° from the original mesh's on average, against 4.7° at 20 voxels, so a layer 8 voxels off the surface wanders by about 1.3 voxels instead of 0.65. None of these files has been opened in VC3D.
 
 The w035 results are below.
 
@@ -252,7 +252,7 @@ So the snapper lands on recto faces. The effect is small but consistent. See [`r
 That test rendered `snapped.tifxyz`. The dense and fine surfaces have not had a blind review.
 
 **Options.**
-- `--target-offset T`, on `snap_tifxyz.py` and `snap_segment.py`, puts the mesh T voxels from the face along papyrus → gap (negative = inside the papyrus). On one synthetic scene it lands within 0.24 voxel of T for T from -3 to +3. On real data, Chase's test above put `--target-offset 0` about a voxel inside his two-scan face (median +0.91 voxels with the learned profile off, +1.34 with it on, pinned at 347ea5b4, before the change below). This version has not been run against that reference.
+- `--target-offset T`, on `snap_tifxyz.py` and `snap_segment.py`, puts the mesh T voxels from the face along papyrus → gap (negative = inside the papyrus). On one synthetic scene it lands within 0.24 voxel of T for T from -3 to +3. On real data, Chase's test above put `--target-offset 0` about a voxel inside the two-scan face (median +0.91 voxels with the learned profile off, +1.34 with it on, pinned at 347ea5b4, before the change below). This version has not been run against that reference.
 - **`--target-offset` and the learned profile.** It now moves the learned profile too. `results/ink_test_0841_plan.md` uses `--target-offset 0 --param smooth_w=0.1`, at its pinned commit 627d058, and Chase's test ran `--target-offset 0` at 347ea5b4. At both, the profile stays at each tile's own position. The same flags now give other surfaces wherever a tile's own offset is not 0, and whether those sit closer to the two-scan face has not been measured. Read patch by patch, on w035 patch_3 (own offset +1.5), 58.4% of samples differ by at least 1 voxel, and on w052 patch_2 (own offset -1.0), 15.2% do. Patches with an own offset of 0 are identical. Add `--param template_follows_offset=false` to get the earlier behaviour.
 - With `--tifxyz`, the recto side comes from `--axis`, `--normals`, or the mesh's own curve if it is at least 1,600 voxels across. Shorter pieces of w035 and w052 can fit a tight false circle with a confident, wrong sign. Otherwise the tool stops and asks. `--normals ct` lets the CT vote decide; that vote is wrong on 4 of the 16 patches here.
 

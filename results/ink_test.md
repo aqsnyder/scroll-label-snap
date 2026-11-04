@@ -16,7 +16,7 @@ This test was pre-registered in [`ink_test_plan.md`](ink_test_plan.md), which wa
 - **Seed 43**, the second checkpoint, gives the same picture.
 - **The follow-up on PHerc. 0841** is in [`ink_test_0841.md`](ink_test_0841.md).
   - On three traced segments, snapping made no detectable difference to agreement with the ink labels.
-  - On KLAVIS's spiral-fit windings, the drop-in output was about even and the dense output lost ground.
+  - On KLAVIS's spiral-fit windings, as run, the drop-in output was about even and the dense output lost ground, part of it from a bug in our depth transfer ([`ink_test_0841.md`](ink_test_0841.md)).
 
 ## Primary outcome: blind legibility review (w052)
 

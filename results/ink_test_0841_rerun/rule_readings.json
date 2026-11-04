@@ -1,0 +1,274 @@
+{
+ "R1|primary|V1|42": {
+  "pooled_includes0": true,
+  "pairs_below0": 0,
+  "pairs_below_list": [],
+  "improvement": 0.068,
+  "imp_ok": true,
+  "pooled": "-0.0293 (-0.0615 to +0.0035)",
+  "v0": "-0.0973 (-0.1418 to -0.0536)",
+  "category": "SUPPORTED"
+ },
+ "R1|primary|V1|43": {
+  "pooled_includes0": true,
+  "pairs_below0": 0,
+  "pairs_below_list": [],
+  "improvement": 0.0767,
+  "imp_ok": true,
+  "pooled": "+0.0256 (-0.0056 to +0.0595)",
+  "v0": "-0.0511 (-0.0899 to -0.0111)",
+  "category": "SUPPORTED"
+ },
+ "R1|primary|V2|42": {
+  "pooled_includes0": false,
+  "pairs_below0": 2,
+  "pairs_below_list": [
+   [
+    "s214732",
+    "w055_fr0"
+   ],
+   [
+    "s022814",
+    "w058_fr0"
+   ]
+  ],
+  "improvement": 0.0463,
+  "imp_ok": false,
+  "pooled": "-0.0510 (-0.0858 to -0.0160)",
+  "v0": "-0.0973 (-0.1418 to -0.0536)",
+  "category": "NOT SUPPORTED"
+ },
+ "R1|primary|V3|42": {
+  "pooled_includes0": false,
+  "pairs_below0": 0,
+  "pairs_below_list": [],
+  "improvement": 0.0577,
+  "imp_ok": true,
+  "pooled": "-0.0397 (-0.0734 to -0.0042)",
+  "v0": "-0.0973 (-0.1418 to -0.0536)",
+  "category": "PARTLY"
+ },
+ "R1|secondary|V1|42": {
+  "pooled_includes0": true,
+  "pairs_below0": 0,
+  "pairs_below_list": [],
+  "improvement": 0.0735,
+  "imp_ok": true,
+  "pooled": "-0.0238 (-0.0618 to +0.0114)",
+  "v0": "-0.0973 (-0.1418 to -0.0536)",
+  "category": "SUPPORTED"
+ },
+ "R1|secondary|V1|43": {
+  "pooled_includes0": true,
+  "pairs_below0": 0,
+  "pairs_below_list": [],
+  "improvement": 0.0807,
+  "imp_ok": true,
+  "pooled": "+0.0296 (-0.0012 to +0.0645)",
+  "v0": "-0.0511 (-0.0899 to -0.0111)",
+  "category": "SUPPORTED"
+ },
+ "R1|secondary|V2|42": {
+  "pooled_includes0": false,
+  "pairs_below0": 2,
+  "pairs_below_list": [
+   [
+    "s214732",
+    "w055_fr0"
+   ],
+   [
+    "s022814",
+    "w058_fr0"
+   ]
+  ],
+  "improvement": 0.0572,
+  "imp_ok": true,
+  "pooled": "-0.0402 (-0.0806 to -0.0034)",
+  "v0": "-0.0973 (-0.1418 to -0.0536)",
+  "category": "PARTLY"
+ },
+ "R1|secondary|V3|42": {
+  "pooled_includes0": true,
+  "pairs_below0": 0,
+  "pairs_below_list": [],
+  "improvement": 0.0624,
+  "imp_ok": true,
+  "pooled": "-0.0349 (-0.0734 to +0.0002)",
+  "v0": "-0.0973 (-0.1418 to -0.0536)",
+  "category": "SUPPORTED"
+ },
+ "R2|primary|42": {
+  "eligible": 4,
+  "both": 1,
+  "punch": 2,
+  "fill": 2,
+  "pairs": [
+   [
+    [
+     "s213127",
+     "w056_fr0b"
+    ],
+    true,
+    false
+   ],
+   [
+    [
+     "s214732",
+     "w055_fr0"
+    ],
+    false,
+    false
+   ],
+   [
+    [
+     "s214732",
+     "w056_fr0b"
+    ],
+    true,
+    true
+   ],
+   [
+    [
+     "s022814",
+     "w058_fr0"
+    ],
+    false,
+    true
+   ]
+  ]
+ },
+ "R2|primary|43": {
+  "eligible": 3,
+  "both": 1,
+  "punch": 2,
+  "fill": 1,
+  "pairs": [
+   [
+    [
+     "s214732",
+     "w055_fr0"
+    ],
+    false,
+    false
+   ],
+   [
+    [
+     "s214732",
+     "w056_fr0b"
+    ],
+    true,
+    true
+   ],
+   [
+    [
+     "s022814",
+     "w058_fr0"
+    ],
+    true,
+    false
+   ]
+  ]
+ },
+ "R2|secondary|42": {
+  "eligible": 4,
+  "both": 1,
+  "punch": 2,
+  "fill": 1,
+  "pairs": [
+   [
+    [
+     "s213127",
+     "w056_fr0b"
+    ],
+    true,
+    false
+   ],
+   [
+    [
+     "s214732",
+     "w055_fr0"
+    ],
+    false,
+    false
+   ],
+   [
+    [
+     "s214732",
+     "w056_fr0b"
+    ],
+    true,
+    true
+   ],
+   [
+    [
+     "s022814",
+     "w058_fr0"
+    ],
+    false,
+    false
+   ]
+  ]
+ },
+ "R2|secondary|43": {
+  "eligible": 3,
+  "both": 1,
+  "punch": 2,
+  "fill": 1,
+  "pairs": [
+   [
+    [
+     "s214732",
+     "w055_fr0"
+    ],
+    false,
+    false
+   ],
+   [
+    [
+     "s214732",
+     "w056_fr0b"
+    ],
+    true,
+    true
+   ],
+   [
+    [
+     "s022814",
+     "w058_fr0"
+    ],
+    true,
+    false
+   ]
+  ]
+ },
+ "R3|primary|B2-B1": {
+  "s42": "-0.0215 (-0.0520 to +0.0107)",
+  "s43": "-0.0274 (-0.0630 to +0.0085)",
+  "summary": "no detectable pooled difference at both seeds"
+ },
+ "R3|primary|B3-B1": {
+  "s42": "-0.0509 (-0.0934 to -0.0037)",
+  "s43": "-0.0018 (-0.0369 to +0.0407)",
+  "summary": "seeds disagree"
+ },
+ "R3|primary|B4-B1": {
+  "s42": "-0.0500 (-0.0934 to -0.0031)",
+  "s43": "+0.0024 (-0.0324 to +0.0380)",
+  "summary": "seeds disagree"
+ },
+ "R3|secondary|B2-B1": {
+  "s42": "-0.0265 (-0.0574 to +0.0068)",
+  "s43": "-0.0375 (-0.0683 to +0.0009)",
+  "summary": "no detectable pooled difference at both seeds"
+ },
+ "R3|secondary|B3-B1": {
+  "s42": "-0.0502 (-0.0948 to -0.0022)",
+  "s43": "-0.0078 (-0.0441 to +0.0310)",
+  "summary": "seeds disagree"
+ },
+ "R3|secondary|B4-B1": {
+  "s42": "-0.0435 (-0.0869 to +0.0026)",
+  "s43": "+0.0005 (-0.0337 to +0.0363)",
+  "summary": "no detectable pooled difference at both seeds"
+ }
+}
