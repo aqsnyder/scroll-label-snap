@@ -99,4 +99,6 @@ The snapper puts the steepest edge at the mesh's own offset, which is close to w
 - **Why it hurts is not known.** Two candidates, neither tested:
   - The model was trained on renders of traced meshes. It may depend on how those sit relative to the papyrus, so moving the surface, even onto an edge, moves the ink away from where the model expects it.
   - The steepest density edge may not be where the ink is.
-- **A direct check would be cheap:** render the original mesh at uniform offsets of a few voxels either way, and see how strongly the ink signal depends on depth.
+- **Checked since** ([`depth_sweep.md`](depth_sweep.md)):
+  - It isn't the surface's average depth: moving the whole mesh 1–2 voxels barely changes the ink signal.
+  - It comes with the snapper's varying moves. A mirrored mesh, moved by the same amounts the other way, also lowers w052's signal, a little less.

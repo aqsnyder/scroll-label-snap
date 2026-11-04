@@ -1,0 +1,55 @@
+{
+ "labels": "D:\\vesuvius\\f0841\\s022814\\labels.npz",
+ "pixels": 1275522,
+ "ink_fraction": 0.22679734257817583,
+ "blocks": 110,
+ "block_size": 128,
+ "scores": {
+  "traced": {
+   "path": "D:\\vesuvius\\f0841\\s022814\\maps\\A1_traced_forward.tif",
+   "auc": 0.7172331687318456,
+   "best_f1": 0.4925143294234197,
+   "threshold": 98,
+   "threshold_probability": 0.3843,
+   "positives": 289285,
+   "negatives": 986237
+  },
+  "snapped_dense": {
+   "path": "D:\\vesuvius\\f0841\\s022814\\maps\\A2_snapped_dense_forward.tif",
+   "auc": 0.7387643151674318,
+   "best_f1": 0.5152791843664425,
+   "threshold": 95,
+   "threshold_probability": 0.3725,
+   "positives": 289285,
+   "negatives": 986237,
+   "minus_reference": {
+    "auc": 0.02153114643558618,
+    "best_f1": 0.022764854943022772,
+    "auc_95": {
+     "lo": -0.02475930216825473,
+     "hi": 0.07146483286877973,
+     "resamples": 1000
+    }
+   }
+  },
+  "mirrored_dense": {
+   "path": "D:\\vesuvius\\ink\\sweep\\0841\\s022814\\maps\\A2neg_mirrored_dense.tif",
+   "auc": 0.6464539016815759,
+   "best_f1": 0.4110814513754927,
+   "threshold": 71,
+   "threshold_probability": 0.2784,
+   "positives": 289285,
+   "negatives": 986237,
+   "minus_reference": {
+    "auc": -0.07077926705026971,
+    "best_f1": -0.08143287804792704,
+    "auc_95": {
+     "lo": -0.12834473667067345,
+     "hi": -0.0062203031616073785,
+     "resamples": 1000
+    }
+   }
+  }
+ },
+ "reference": "traced"
+}

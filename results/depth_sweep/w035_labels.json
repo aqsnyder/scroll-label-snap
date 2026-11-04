@@ -1,0 +1,74 @@
+{
+ "labels": "D:\\vesuvius\\ink\\labels\\w035\\w035_inklabels.zarr",
+ "mask": "D:\\vesuvius\\ink\\labels\\w035\\w035_supervision_mask.zarr",
+ "labels_shape": [
+  5820,
+  5240
+ ],
+ "map_shape": [
+  5801,
+  5221
+ ],
+ "inplane_shift_yx": [
+  0,
+  0
+ ],
+ "pixels": 1071121,
+ "ink_fraction": 0.31185552332556266,
+ "scores": {
+  "original": {
+   "path": "D:\\vesuvius\\ink\\w035\\original_seed42.tif",
+   "auc": 0.9979167730734704,
+   "best_f1": 0.9685978927730007,
+   "threshold": 116,
+   "threshold_probability": 0.4549,
+   "positives": 334035,
+   "negatives": 737086
+  },
+  "dm2": {
+   "path": "D:\\vesuvius\\ink\\sweep\\w035\\original_dm2.tif",
+   "auc": 0.9976870218263031,
+   "best_f1": 0.967081396286244,
+   "threshold": 115,
+   "threshold_probability": 0.451,
+   "positives": 334035,
+   "negatives": 737086
+  },
+  "dm1": {
+   "path": "D:\\vesuvius\\ink\\sweep\\w035\\original_dm1.tif",
+   "auc": 0.997793189529662,
+   "best_f1": 0.9680863947419177,
+   "threshold": 117,
+   "threshold_probability": 0.4588,
+   "positives": 334035,
+   "negatives": 737086
+  },
+  "d0": {
+   "path": "D:\\vesuvius\\ink\\sweep\\w035\\original_d0.tif",
+   "auc": 0.9979167730734704,
+   "best_f1": 0.9685978927730007,
+   "threshold": 116,
+   "threshold_probability": 0.4549,
+   "positives": 334035,
+   "negatives": 737086
+  },
+  "dp1": {
+   "path": "D:\\vesuvius\\ink\\sweep\\w035\\original_dp1.tif",
+   "auc": 0.9979018221360852,
+   "best_f1": 0.9676782490132331,
+   "threshold": 115,
+   "threshold_probability": 0.451,
+   "positives": 334035,
+   "negatives": 737086
+  },
+  "dp2": {
+   "path": "D:\\vesuvius\\ink\\sweep\\w035\\original_dp2.tif",
+   "auc": 0.9969435953506481,
+   "best_f1": 0.9614992244362248,
+   "threshold": 114,
+   "threshold_probability": 0.4471,
+   "positives": 334035,
+   "negatives": 737086
+  }
+ }
+}

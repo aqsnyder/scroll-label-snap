@@ -21,6 +21,10 @@ Three tests of the mesh snapper came in this week. Two were pre-registered.
   - At default settings, 18% of vertices ended within 1 voxel of that face, against 17% before snapping. By design, the snapper keeps each mesh's own offset from the face.
   - With `--target-offset 0` and the learned profile off, the share was 43%. His tool, snap_labels, reached 80%.
 
+A follow-up diagnostic ([`results/depth_sweep.md`](results/depth_sweep.md)) looked for the cause:
+- **Not the surface's average depth.** Moving a whole mesh 1–2 voxels barely changes the ink signal, and agreement with ink labels doesn't change detectably.
+- **The snapper's varying moves.** Snapping lowered w052's signal, and so did a mirrored mesh moved as far the other way, a little less. On PHerc. 0841, the mirrored depth cost 0.07 AUC while the snapped one cost nothing.
+
 So, for now:
 - **Don't use snapped meshes for ink detection.**
 - **Read the drift tests below as consistency** (does the snapper put a drifted label back where it was?), not as accuracy against the true face.
@@ -371,5 +375,5 @@ A second reviewer, who did not work on the tool and had never seen these scans, 
 1. **Decide flagged labels with more context.** Following each sheet over a larger area, or using the traced mesh's own history, could tell which face a flagged label belongs to. Until then, flagged labels are the place for human review.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
 3. **Make the learned profile independent of the input labels** (see "Drift draws" above; in Chase's test, turning it off helped). Then test it on a fresh held-out set.
-4. **Meshes: find out why snapping hurts ink detection.** Render the original mesh at uniform offsets of a few voxels either way, and see how strongly the ink signal depends on depth.
+4. **Meshes: find what in the snapper's varying moves costs legibility.** The average depth isn't it ([`results/depth_sweep.md`](results/depth_sweep.md)). A much smoother snap, or one that corrects only a segment's offset and keeps the shape of the trace, would test it.
 5. **Meshes: face placement.** Find out why `--target-offset 0` still sits about a voxel inside the two-scan face in Chase's test. Compare with snap_labels in the blind ink test.
