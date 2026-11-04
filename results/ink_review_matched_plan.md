@@ -139,4 +139,14 @@ All outcomes go into `results/ink_review_matched.md`, the README and the write-u
 
 ## Run log
 
-(Nothing yet.)
+4 November 2026, on Lysander, with `run_ink_review_matched.ps1`, the tools pinned at b0831ba.
+
+- **Built** at seed 1104 on the first try, in about 43 s.
+  - 112 items: 60 comparisons at matched level, 20 on the fixed scale, 20 level only, 8 catch and 4 weak catch.
+  - 4 practice items.
+  - Set `b5713cdd210c`.
+- **Sealed before any reviewer started.**
+  - The key's SHA-256, taken as `json.dumps(key, sort_keys=True)`, is `b5713cdd210cde02a304e9a3a19d43079cf6c5959f14d4f852dbd00404204578`.
+  - The key file's own SHA-256 is `eb475199ebe8503e57b1ba9c5faaf1bf58cfbbbc7ee0572dd85856481a605a61`.
+  - An encrypted copy is `review/sealed_key_b5713cdd210c.enc` (AES-256-CBC, `openssl enc -pbkdf2 -iter 200000`).
+- **The page** is `review/ink/index.html`, unchanged.
