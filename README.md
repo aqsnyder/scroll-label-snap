@@ -216,10 +216,11 @@ So the snapper lands on recto faces. The effect is small but consistent. See [`r
 
 **Open question.** At this resolution, sheets are often thin layers packed into bundles. Where two recto faces lie within ±4 voxels of a wandering trace, neither the drift test nor the fibre check can say which sheet the tracer meant. That needs expert review, or a downstream check such as ink detection on renders of both meshes.
 
-Whether a cleaner surface reads better is not yet measured. The PHerc. 306B winners found that snapping to CT density peaks, after snapping to m7, did not make their letters more legible.
+Whether a cleaner surface reads better has had one test here, on `snapped.tifxyz`: reviewers preferred the original mesh's ink map, 75 to 31 ([`results/ink_review.md`](results/ink_review.md)). The dense and fine surfaces have not had that test. The PHerc. 306B winners found that snapping to CT density peaks, after snapping to m7, did not make their letters more legible.
 
 **Options.**
-- `--target-offset T`, on `snap_tifxyz.py` and `snap_segment.py`, puts the mesh T voxels from the face along papyrus → gap (0 = on the face, negative = inside the papyrus). No result here uses it.
+- `--target-offset T`, on `snap_tifxyz.py` and `snap_segment.py`, puts the mesh T voxels from the face along papyrus → gap (negative = inside the papyrus). On one synthetic scene it lands within 0.24 voxel of T for T from -3 to +3. No real scan has been checked against it here, so 0 means the face as that scene defines it.
+- **`--target-offset` and the learned profile.** It now moves the learned profile too. `results/ink_test_0841_plan.md` uses `--target-offset 0 --param smooth_w=0.1`, at its pinned commit 627d058, where the profile stays at each tile's own position. The same flags now give other surfaces wherever a tile's own offset is not 0. Read patch by patch, on w035 patch_3 (own offset +1.5), 58.4% of samples differ by at least 1 voxel, and on w052 patch_2 (own offset -1.0), 15.2% do. Patches with an own offset of 0 are identical. Add `--param template_follows_offset=false` to get the earlier behaviour.
 - With `--tifxyz`, the recto side comes from `--axis`, `--normals`, or the mesh's own curve if it is at least 1,600 voxels across. Shorter pieces of w035 and w052 can fit a tight false circle with a confident, wrong sign. Otherwise the tool stops and asks. `--normals ct` lets the CT vote decide; that vote is wrong on 4 of the 16 patches here.
 
 ### A whole segment

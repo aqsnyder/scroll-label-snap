@@ -289,7 +289,7 @@ def orient_normals(pts, n, i, j, ct_s, orient_cube=False):
 
 def _rays(ct_s, pts, n):
     """profile(grid) = np.stack([sample(ct_s, pts + g * n) for g in grid], 1), each offset sampled once:
-    the scoring steps ask for heavily overlapping offsets (161 columns, on 40 to 74 distinct offsets).
+    the scoring steps ask for heavily overlapping offsets (159 columns, on 38 distinct offsets, on sample_00007 and sample_00015).
     A subset of the samples is profile(grid)[rows], and looking along -n is profile(-grid)."""
     cols = {}
 

@@ -1,10 +1,10 @@
 # Pre-registered test: one orientation per cube
 
-Written and committed before any cube in this test is run with the option. The tool has been run on one development cube only (sample_00018), to show that it works.
+Written and committed before any cube in this test is run with the option. The tool has been run on no drawn cube. It has been run on development cubes sample_00018 and sample_00002, to show that it works and to check it against its verification, and in a review of the tool on sample_00146 and sample_00147, which are not in the draw.
 
 ## Why
 
-`orient_normals` ends with a cross-sheet step that flips any sheet disagreeing with the samples around it. `Params.orient_cube` replaces that step: each sheet takes the side of the cube's dominant normal axis, the votes of all sheets together choose which way the axis points, sheets across the axis keep their vote, and every sheet keeps its vote if the axis holds under 70% of the normals' squared projection. On the 20 development cubes, over 3 drift seeds each, the share of samples whose orientation changes between a clean and a drifted run goes from 6.52% on average (34.8% at most) to 0.00% (0.01% at most). Consistency within 1 voxel goes from 81.73% to 86.79% (+5.06 points, 95% interval 2.07 to 8.35 by cube; 9 cubes better and 0 worse at a 0.5-point margin). Drift within 1 voxel, at points trusted under both orientations, goes from 89.99% to 91.50% (+1.51 points, interval 0.12 to 3.57; 5 cubes better, 1 worse, sample_00014 at -1.3). The fibre signature, which uses no labels and no CT step sign, favours the new orientation on all 20 cubes (+0.226 to +0.551), and on the samples where the two orientations disagree it is positive on 7 of 8 cubes (sample_00009 is the exception, at -0.11). These are development-cube evidence only: the step was chosen on these cubes, and no other cube has been run with it. All 20 are far from the scroll centre, so the case near the centre rests on phantoms: without the 70% guard the step gets 61% right with the axis at the cube's centre. The sign margin was at least 0.90 and the axis share at least 0.797 on the 80 development inputs. The option turns sheets against their own vote on 1.89% of those samples (12.9% on sample_00014). Whether that holds on fresh cubes is what this test asks.
+`orient_normals` ends with a cross-sheet step that flips any sheet disagreeing with the samples around it. `Params.orient_cube` replaces that step: each sheet takes the side of the cube's dominant normal axis, the votes of all sheets together choose which way the axis points, sheets across the axis keep their vote, and every sheet keeps its vote if the axis holds under 70% of the normals' squared projection. On the 20 development cubes, over 3 drift seeds each, the share of samples whose orientation changes between a clean and a drifted run goes from 6.52% on average (34.8% at most) to 0.00% (0.01% at most). Consistency within 1 voxel goes from 81.73% to 86.79% (+5.06 points, 95% interval 2.07 to 8.35 by cube; 9 cubes better and 0 worse at a 0.5-point margin). Drift within 1 voxel, at points trusted under both orientations, goes from 89.99% to 91.50% (+1.51 points, interval 0.12 to 3.57; 5 cubes better, 1 worse, sample_00014 at -1.3). The fibre signature, which uses no label polarity and no CT step sign, favours the new orientation on all 20 cubes (+0.226 to +0.551), and on the samples where the two orientations disagree it is positive on 7 of 8 cubes (sample_00009 is the exception, at -0.11). These are development-cube evidence only: the step was chosen on these cubes, and no other cube has been run with it. All 20 are far from the scroll centre, so the case near the centre rests on phantoms: without the 70% guard the step gets 61% right with the axis at the cube's centre. The sign margin was at least 0.8996 and the axis share at least 0.797 on the 80 development inputs. The option turns sheets against their own vote on 1.89% of those samples (12.9% on sample_00014). Whether that holds on fresh cubes is what this test asks.
 
 ## Cubes
 
@@ -73,7 +73,7 @@ sample_00706 sample_00718 sample_00747 sample_00805 sample_00820 sample_00840 sa
 
 ## Arms
 
-All at the commit that adds this plan, with the other parameters at their defaults:
+All at one commit containing this plan, with the other parameters at their defaults. The tool records the commit and this file's SHA-256 with each cube, and refuses to mix them in one output folder:
 1. default;
 2. `orient_cube=True`;
 3. `orient_cube=True, keep_topology=True`.
@@ -86,16 +86,16 @@ Every position is measured on one fixed set of points: the clean labels' samples
 
 ## Primary measure
 
-Paired consistency: the share of all those points where the band from drifted labels is within 1 voxel of the band from clean labels, in the same arm. Per cube, the mean over the three seeds, for `orient_cube` minus default, in points. The 95% interval is by resampling cubes (5,000 resamples, seed 0).
+Paired consistency: among those points where both bands exist, the share where the band from drifted labels is within 1 voxel of the band from clean labels, in the same arm. The share of points with no band to measure (`missing`) is reported per arm and does not count against it. Per cube, the mean over the three seeds, for `orient_cube` minus default, in points. The 95% interval is by resampling cubes (5,000 resamples, seed 0).
 
 **Adopt only if the interval's lower end is above 0, and all the guards hold.**
 
 ## Guards
 
 All are required to adopt:
-- **Drift.** Within 1 voxel of the original label, on one fixed point set: the points trusted under both arms on the clean labels. For `orient_cube` minus default, the 95% interval's lower end must be above -1 point.
+- **Drift.** Within 1 voxel of the original label, on one fixed point set: the points trusted under both arms on the clean labels, where the band exists. For `orient_cube` minus default, the 95% interval's lower end must be above -1 point.
 - **Orientation change.** The share of points whose nearest sample in the drifted run, within 6 voxels, has a reversed normal. For `orient_cube`, the mean across seeds and cubes must be at most 1%.
-- **Fibre signature.** On the disputed samples, those where the two arms' normals disagree on the clean labels, under `orient_cube`'s normals. It must be positive in at least 75% of the cubes that have at least 1,000 disputed samples with fibre data. If no cube has that many, nothing independent supports the changed signs, and this guard is not met.
+- **Fibre signature.** On the disputed samples, those where the two arms' normals disagree on the clean labels, under `orient_cube`'s normals. It uses no label polarity and no CT step sign, though the samples' positions and normal lines come from the labels, and it assumes the scroll axis is scan z. It must be positive in at least 75% of the cubes that have at least 1,000 disputed samples with fibre data. If no cube has that many, nothing independent supports the changed signs, and this guard is not met.
 
 Reported per cube: axis share, sign margin, guard triggers (on how many of the four inputs the 70% guard fired), the share of samples turned against their own sheet's vote, and the numbers above. All of it is also reported for the id stretch 161-280 and for the other ids separately, since the topology audit found that the CT in that stretch rarely resolves gaps. The decision uses all 100 cubes.
 
@@ -103,7 +103,7 @@ Reported per cube: axis share, sign margin, guard triggers (on how many of the f
 
 ## The third arm
 
-It passes if, on the clean labels' output, Betti numbers equal the original's at both connectivities and merger events are 0, on all 100 cubes (`tools/eval_topology.py`). That merger count is a rule, not a tracking of voxels, and can count a small sheet whose voxels end up nearest a neighbouring sheet even if the two stay separate. It gave 0 on the `keep_topology` bands of the 20 development cubes (with the default orientation). Any event is reported with its sheets' sizes and the component counts. Also reported: drift on the same fixed set, consistency, and contested samples (samples that end within 3 voxels of a moved sample of another input sheet, at least 0.5 voxel closer than before), with how far its band differs from arm 2's at those samples and elsewhere.
+It passes if, on the clean labels' output, Betti numbers equal the original's at both connectivities and merger events are 0, on all 100 cubes (`tools/eval_topology.py`). That merger count is a rule, not a tracking of voxels, and can count a small sheet whose voxels end up nearest a neighbouring sheet even if the two stay separate. It gave 0 on the `keep_topology` bands of the 20 development cubes, with the default orientation and with `orient_cube`. Any event is reported with its sheets' sizes and the component counts. Also reported: drift on the same fixed set, consistency, and contested samples (samples that end within 3 voxels of a moved sample of another input sheet, at least 0.5 voxel closer than before), with how far its band differs from arm 2's at those samples and elsewhere.
 
 It is not adopted from this test, whichever way it comes out, because the drift test barely scores the samples it changes. On the development cubes, of the 3,655 samples it moved more than 1 voxel from the plain warp, 21 were trusted. That needs a blind review at contested sites.
 
@@ -113,4 +113,8 @@ Results go in `results/orient_test.md` whichever way they come out, with the too
 
 ## Amendments
 
-(None yet.)
+Made before any drawn cube was run:
+- The arms run at one recorded commit, not "the commit that adds this plan", because the tool and its tests changed after that commit.
+- The primary measure and the drift guard are stated as the tool computes them, at points where both bands exist. The share of points missing is reported per arm. On sample_00018 at seed 17, the tool's reading gives the default 65.80% and "all those points" would give about 65.55%.
+- The decision comes only from the list above: with any other list, the tool reports no decision.
+- Corrected: the sign margin's floor (written as 0.90; the smallest value is 0.8996), what the fibre signature uses, which cubes the tool has been run on, and the third arm's development result.
