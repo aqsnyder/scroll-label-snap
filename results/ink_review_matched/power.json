@@ -1,0 +1,758 @@
+{
+ "sims": 4000,
+ "seed": 321,
+ "primary": {
+  "R2_dec0.88_item0.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.99175,
+     "dimmer, not shown less legible": 0.008,
+     "inconclusive": 0.00025
+    },
+    "mean_share": 0.2891971738822509,
+    "mean_halfwidth": 0.08604159653042447
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.55175,
+     "dimmer, not shown less legible": 0.4465,
+     "inconclusive": 0.00175
+    },
+    "mean_share": 0.3999763725538114,
+    "mean_halfwidth": 0.093008636198709
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.027,
+     "more legible at matched level": 0.02875,
+     "dimmer, not shown less legible": 0.94425
+    },
+    "mean_share": 0.5002779933311989,
+    "mean_halfwidth": 0.09520056617019271
+   }
+  },
+  "R2_dec0.88_item0.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.9645,
+     "dimmer, not shown less legible": 0.03525,
+     "inconclusive": 0.00025
+    },
+    "mean_share": 0.2917367682004094,
+    "mean_halfwidth": 0.08548607220569733
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.53375,
+     "more legible at matched level": 0.00375,
+     "dimmer, not shown less legible": 0.46175,
+     "inconclusive": 0.00075
+    },
+    "mean_share": 0.4023725027569997,
+    "mean_halfwidth": 0.09226365942996649
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.096,
+     "more legible at matched level": 0.09875,
+     "dimmer, not shown less legible": 0.805,
+     "inconclusive": 0.00025
+    },
+    "mean_share": 0.5002032598960585,
+    "mean_halfwidth": 0.0940743175483139
+   }
+  },
+  "R2_dec0.88_item1.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.94075,
+     "dimmer, not shown less legible": 0.05675,
+     "inconclusive": 0.0025
+    },
+    "mean_share": 0.32249215108555895,
+    "mean_halfwidth": 0.09490576270493344
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.37625,
+     "dimmer, not shown less legible": 0.6145,
+     "inconclusive": 0.00925
+    },
+    "mean_share": 0.41660002168013743,
+    "mean_halfwidth": 0.10051991673696449
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.0295,
+     "more legible at matched level": 0.02925,
+     "dimmer, not shown less legible": 0.9395,
+     "inconclusive": 0.00175
+    },
+    "mean_share": 0.5002584334994049,
+    "mean_halfwidth": 0.10214533863851642
+   }
+  },
+  "R2_dec0.88_item1.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.87675,
+     "dimmer, not shown less legible": 0.11875,
+     "inconclusive": 0.0045
+    },
+    "mean_share": 0.3245595025733562,
+    "mean_halfwidth": 0.0944500068495631
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.3995,
+     "more legible at matched level": 0.004,
+     "dimmer, not shown less legible": 0.59075,
+     "inconclusive": 0.00575
+    },
+    "mean_share": 0.41792427280561184,
+    "mean_halfwidth": 0.09990508668686544
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.0745,
+     "more legible at matched level": 0.06675,
+     "dimmer, not shown less legible": 0.856,
+     "inconclusive": 0.00275
+    },
+    "mean_share": 0.49956852340597285,
+    "mean_halfwidth": 0.10137033185489674
+   }
+  },
+  "R2_dec0.7_item0.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.97775,
+     "dimmer, not shown less legible": 0.01475,
+     "inconclusive": 0.0075
+    },
+    "mean_share": 0.2897954825044648,
+    "mean_halfwidth": 0.09666559045128026
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.478,
+     "more legible at matched level": 0.0005,
+     "dimmer, not shown less legible": 0.47875,
+     "inconclusive": 0.04275
+    },
+    "mean_share": 0.3989136791708043,
+    "mean_halfwidth": 0.104261944601628
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.02775,
+     "more legible at matched level": 0.0295,
+     "dimmer, not shown less legible": 0.934,
+     "inconclusive": 0.00875
+    },
+    "mean_share": 0.5008711578079792,
+    "mean_halfwidth": 0.1066473129918163
+   }
+  },
+  "R2_dec0.7_item0.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.929,
+     "dimmer, not shown less legible": 0.06175,
+     "inconclusive": 0.00925
+    },
+    "mean_share": 0.29413732721667973,
+    "mean_halfwidth": 0.09621194282338723
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.4825,
+     "more legible at matched level": 0.00475,
+     "dimmer, not shown less legible": 0.48725,
+     "inconclusive": 0.0255
+    },
+    "mean_share": 0.4019486110368904,
+    "mean_halfwidth": 0.10359171591154345
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.07975,
+     "more legible at matched level": 0.084,
+     "dimmer, not shown less legible": 0.824,
+     "inconclusive": 0.01225
+    },
+    "mean_share": 0.5021492760511405,
+    "mean_halfwidth": 0.10569784247045809
+   }
+  },
+  "R2_dec0.7_item1.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.8885,
+     "dimmer, not shown less legible": 0.07225,
+     "inconclusive": 0.03925
+    },
+    "mean_share": 0.3216662146254264,
+    "mean_halfwidth": 0.10495995395774514
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.31175,
+     "more legible at matched level": 0.001,
+     "dimmer, not shown less legible": 0.59675,
+     "inconclusive": 0.0905
+    },
+    "mean_share": 0.41685540255458553,
+    "mean_halfwidth": 0.11116628990297582
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.026,
+     "more legible at matched level": 0.031,
+     "dimmer, not shown less legible": 0.92275,
+     "inconclusive": 0.02025
+    },
+    "mean_share": 0.5010762170625468,
+    "mean_halfwidth": 0.11292995972284499
+   }
+  },
+  "R2_dec0.7_item1.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.827,
+     "dimmer, not shown less legible": 0.12875,
+     "inconclusive": 0.04425
+    },
+    "mean_share": 0.32574697380215184,
+    "mean_halfwidth": 0.10475703801620392
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.3385,
+     "more legible at matched level": 0.00375,
+     "dimmer, not shown less legible": 0.5905,
+     "inconclusive": 0.06725
+    },
+    "mean_share": 0.41958335725786594,
+    "mean_halfwidth": 0.11024720586871518
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.06425,
+     "more legible at matched level": 0.06,
+     "dimmer, not shown less legible": 0.8515,
+     "inconclusive": 0.02425
+    },
+    "mean_share": 0.499702245057504,
+    "mean_halfwidth": 0.11188985829337775
+   }
+  },
+  "R2_dec0.5_item0.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.93075,
+     "dimmer, not shown less legible": 0.0165,
+     "inconclusive": 0.05275
+    },
+    "mean_share": 0.28989872181536785,
+    "mean_halfwidth": 0.11415505266905308
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.363,
+     "more legible at matched level": 0.00075,
+     "dimmer, not shown less legible": 0.408,
+     "inconclusive": 0.22825
+    },
+    "mean_share": 0.4010286405780561,
+    "mean_halfwidth": 0.12355036456195803
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.03325,
+     "more legible at matched level": 0.02875,
+     "dimmer, not shown less legible": 0.871,
+     "inconclusive": 0.067
+    },
+    "mean_share": 0.4998712796395218,
+    "mean_halfwidth": 0.12591865714757697
+   }
+  },
+  "R2_dec0.5_item0.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.8625,
+     "dimmer, not shown less legible": 0.05375,
+     "inconclusive": 0.08375
+    },
+    "mean_share": 0.2962527911844025,
+    "mean_halfwidth": 0.11406967551913795
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.39575,
+     "more legible at matched level": 0.0055,
+     "dimmer, not shown less legible": 0.42275,
+     "inconclusive": 0.176
+    },
+    "mean_share": 0.40164133365450266,
+    "mean_halfwidth": 0.12230496295977895
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.0715,
+     "more legible at matched level": 0.07175,
+     "dimmer, not shown less legible": 0.777,
+     "inconclusive": 0.07975
+    },
+    "mean_share": 0.5004579524414203,
+    "mean_halfwidth": 0.12498769791704112
+   }
+  },
+  "R2_dec0.5_item1.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.78,
+     "dimmer, not shown less legible": 0.0645,
+     "inconclusive": 0.1555
+    },
+    "mean_share": 0.32319469961043834,
+    "mean_halfwidth": 0.12243849056305257
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.25725,
+     "more legible at matched level": 0.00025,
+     "dimmer, not shown less legible": 0.481,
+     "inconclusive": 0.2615
+    },
+    "mean_share": 0.4166828692970254,
+    "mean_halfwidth": 0.1294435099928333
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.03075,
+     "more legible at matched level": 0.029,
+     "dimmer, not shown less legible": 0.84875,
+     "inconclusive": 0.0915
+    },
+    "mean_share": 0.5010436276525815,
+    "mean_halfwidth": 0.13132234461693823
+   }
+  },
+  "R2_dec0.5_item1.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.75475,
+     "dimmer, not shown less legible": 0.10675,
+     "inconclusive": 0.1385
+    },
+    "mean_share": 0.32445081075336873,
+    "mean_halfwidth": 0.12148731090334663
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.287,
+     "more legible at matched level": 0.00425,
+     "dimmer, not shown less legible": 0.467,
+     "inconclusive": 0.24175
+    },
+    "mean_share": 0.41719320921984393,
+    "mean_halfwidth": 0.12877031973179145
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.055,
+     "more legible at matched level": 0.058,
+     "dimmer, not shown less legible": 0.776,
+     "inconclusive": 0.111
+    },
+    "mean_share": 0.49929344018456384,
+    "mean_halfwidth": 0.1303833730911739
+   }
+  },
+  "R3_dec0.88_item0.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 1.0
+    },
+    "mean_share": 0.28975051711718175,
+    "mean_halfwidth": 0.07036707498227679
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.73075,
+     "dimmer, not shown less legible": 0.26925
+    },
+    "mean_share": 0.39932601682828034,
+    "mean_halfwidth": 0.07604174216407017
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.0275,
+     "more legible at matched level": 0.02575,
+     "dimmer, not shown less legible": 0.94675
+    },
+    "mean_share": 0.5000568336373792,
+    "mean_halfwidth": 0.07763825542392715
+   }
+  },
+  "R3_dec0.88_item0.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.99275,
+     "dimmer, not shown less legible": 0.00725
+    },
+    "mean_share": 0.29377789194163345,
+    "mean_halfwidth": 0.06996490680745569
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.65625,
+     "more legible at matched level": 0.00175,
+     "dimmer, not shown less legible": 0.342
+    },
+    "mean_share": 0.4024758852250873,
+    "mean_halfwidth": 0.07545451598826435
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.09125,
+     "more legible at matched level": 0.092,
+     "dimmer, not shown less legible": 0.81675
+    },
+    "mean_share": 0.50070116221544,
+    "mean_halfwidth": 0.0769394348116967
+   }
+  },
+  "R3_dec0.88_item1.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.9805,
+     "dimmer, not shown less legible": 0.0195
+    },
+    "mean_share": 0.32259760790840153,
+    "mean_halfwidth": 0.08228337690830256
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.4465,
+     "dimmer, not shown less legible": 0.55325,
+     "inconclusive": 0.00025
+    },
+    "mean_share": 0.41814666305736525,
+    "mean_halfwidth": 0.08733871586275754
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.02625,
+     "more legible at matched level": 0.02875,
+     "dimmer, not shown less legible": 0.945
+    },
+    "mean_share": 0.5009994148961469,
+    "mean_halfwidth": 0.08866625776831866
+   }
+  },
+  "R3_dec0.88_item1.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.946,
+     "dimmer, not shown less legible": 0.054
+    },
+    "mean_share": 0.3251380601242315,
+    "mean_halfwidth": 0.08167655073465702
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.474,
+     "more legible at matched level": 0.0035,
+     "dimmer, not shown less legible": 0.5225
+    },
+    "mean_share": 0.4165918141336875,
+    "mean_halfwidth": 0.08659180270329393
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.0655,
+     "more legible at matched level": 0.0685,
+     "dimmer, not shown less legible": 0.866
+    },
+    "mean_share": 0.4992829021534023,
+    "mean_halfwidth": 0.08804498702467989
+   }
+  },
+  "R3_dec0.7_item0.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.99875,
+     "dimmer, not shown less legible": 0.00125
+    },
+    "mean_share": 0.2901877818346126,
+    "mean_halfwidth": 0.0789115497959268
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.62425,
+     "dimmer, not shown less legible": 0.37575
+    },
+    "mean_share": 0.4007317120346695,
+    "mean_halfwidth": 0.08516481695384515
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.02275,
+     "more legible at matched level": 0.0285,
+     "dimmer, not shown less legible": 0.94875
+    },
+    "mean_share": 0.5010152005233526,
+    "mean_halfwidth": 0.08683516950694488
+   }
+  },
+  "R3_dec0.7_item0.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.9865,
+     "dimmer, not shown less legible": 0.0135
+    },
+    "mean_share": 0.29404064923793205,
+    "mean_halfwidth": 0.07869100782449015
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.59425,
+     "more legible at matched level": 0.00175,
+     "dimmer, not shown less legible": 0.404
+    },
+    "mean_share": 0.4013168925618197,
+    "mean_halfwidth": 0.08434547328974717
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.0865,
+     "more legible at matched level": 0.083,
+     "dimmer, not shown less legible": 0.8305
+    },
+    "mean_share": 0.4991411947631428,
+    "mean_halfwidth": 0.08627044889234671
+   }
+  },
+  "R3_dec0.7_item1.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.95825,
+     "dimmer, not shown less legible": 0.03975,
+     "inconclusive": 0.002
+    },
+    "mean_share": 0.3220118657051672,
+    "mean_halfwidth": 0.08984195501743236
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.406,
+     "dimmer, not shown less legible": 0.59075,
+     "inconclusive": 0.00325
+    },
+    "mean_share": 0.4165607800134942,
+    "mean_halfwidth": 0.0954310312215696
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.02625,
+     "more legible at matched level": 0.02925,
+     "dimmer, not shown less legible": 0.9445
+    },
+    "mean_share": 0.5008764484300703,
+    "mean_halfwidth": 0.09708801536861052
+   }
+  },
+  "R3_dec0.7_item1.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.9195,
+     "dimmer, not shown less legible": 0.0795,
+     "inconclusive": 0.001
+    },
+    "mean_share": 0.3231756579448652,
+    "mean_halfwidth": 0.08923846624700771
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.415,
+     "more legible at matched level": 0.00375,
+     "dimmer, not shown less legible": 0.579,
+     "inconclusive": 0.00225
+    },
+    "mean_share": 0.4182759373938719,
+    "mean_halfwidth": 0.09490084152744391
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.062,
+     "more legible at matched level": 0.06525,
+     "dimmer, not shown less legible": 0.872,
+     "inconclusive": 0.00075
+    },
+    "mean_share": 0.5005594537235513,
+    "mean_halfwidth": 0.0963535262988332
+   }
+  },
+  "R3_dec0.5_item0.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.9855,
+     "dimmer, not shown less legible": 0.01075,
+     "inconclusive": 0.00375
+    },
+    "mean_share": 0.29051159265812476,
+    "mean_halfwidth": 0.09332148007954132
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.50425,
+     "more legible at matched level": 0.00025,
+     "dimmer, not shown less legible": 0.4715,
+     "inconclusive": 0.024
+    },
+    "mean_share": 0.3994219952023037,
+    "mean_halfwidth": 0.10071667849970638
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.03325,
+     "more legible at matched level": 0.02775,
+     "dimmer, not shown less legible": 0.93425,
+     "inconclusive": 0.00475
+    },
+    "mean_share": 0.4993868631431387,
+    "mean_halfwidth": 0.10321464690049945
+   }
+  },
+  "R3_dec0.5_item0.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.9495,
+     "dimmer, not shown less legible": 0.04325,
+     "inconclusive": 0.00725
+    },
+    "mean_share": 0.2944195262993137,
+    "mean_halfwidth": 0.0929581479831384
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.492,
+     "more legible at matched level": 0.00125,
+     "dimmer, not shown less legible": 0.4855,
+     "inconclusive": 0.02125
+    },
+    "mean_share": 0.40096892745558216,
+    "mean_halfwidth": 0.10033809360228681
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.071,
+     "more legible at matched level": 0.0755,
+     "dimmer, not shown less legible": 0.84625,
+     "inconclusive": 0.00725
+    },
+    "mean_share": 0.49980468001176903,
+    "mean_halfwidth": 0.10220576115281417
+   }
+  },
+  "R3_dec0.5_item1.0_reviewer0.0": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.894,
+     "dimmer, not shown less legible": 0.06275,
+     "inconclusive": 0.04325
+    },
+    "mean_share": 0.32098319908410927,
+    "mean_halfwidth": 0.10353037628176226
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.31725,
+     "more legible at matched level": 0.00025,
+     "dimmer, not shown less legible": 0.604,
+     "inconclusive": 0.0785
+    },
+    "mean_share": 0.41683998772833925,
+    "mean_halfwidth": 0.1097052235640734
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.02825,
+     "more legible at matched level": 0.02725,
+     "dimmer, not shown less legible": 0.92425,
+     "inconclusive": 0.02025
+    },
+    "mean_share": 0.4998555185726275,
+    "mean_halfwidth": 0.11129984296486578
+   }
+  },
+  "R3_dec0.5_item1.0_reviewer0.3": {
+   "0.29": {
+    "readings": {
+     "less legible at matched level": 0.84775,
+     "dimmer, not shown less legible": 0.108,
+     "inconclusive": 0.04425
+    },
+    "mean_share": 0.3249640326671248,
+    "mean_halfwidth": 0.10309842389521184
+   },
+   "0.4": {
+    "readings": {
+     "less legible at matched level": 0.35475,
+     "more legible at matched level": 0.00175,
+     "dimmer, not shown less legible": 0.57375,
+     "inconclusive": 0.06975
+    },
+    "mean_share": 0.41709341118818694,
+    "mean_halfwidth": 0.10896127718122472
+   },
+   "0.5": {
+    "readings": {
+     "less legible at matched level": 0.05,
+     "more legible at matched level": 0.05425,
+     "dimmer, not shown less legible": 0.877,
+     "inconclusive": 0.01875
+    },
+    "mean_share": 0.5003927886510166,
+    "mean_halfwidth": 0.11077929121393945
+   }
+  }
+ },
+ "small_arms": {
+  "R2_dec0.88_item0.0": {
+   "below_half": 0.75925,
+   "mean_halfwidth": 0.1478402232379032
+  },
+  "R2_dec0.88_item0.5": {
+   "below_half": 0.69225,
+   "mean_halfwidth": 0.152757872865522
+  },
+  "R2_dec0.6_item0.0": {
+   "below_half": 0.60375,
+   "mean_halfwidth": 0.1788762040627974
+  },
+  "R2_dec0.6_item0.5": {
+   "below_half": 0.569,
+   "mean_halfwidth": 0.18205414430676298
+  },
+  "R3_dec0.88_item0.0": {
+   "below_half": 0.88675,
+   "mean_halfwidth": 0.12118786806684183
+  },
+  "R3_dec0.88_item0.5": {
+   "below_half": 0.8305,
+   "mean_halfwidth": 0.12738013108780313
+  },
+  "R3_dec0.6_item0.0": {
+   "below_half": 0.7525,
+   "mean_halfwidth": 0.1465379710931494
+  },
+  "R3_dec0.6_item0.5": {
+   "below_half": 0.68925,
+   "mean_halfwidth": 0.15154578134539964
+  }
+ }
+}

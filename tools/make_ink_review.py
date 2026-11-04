@@ -4,6 +4,8 @@ the two w052 ink maps (original and snapped mesh, seed 42).
 Usage:
   python tools/make_ink_review.py OUT_DIR KEY_JSON --original TIF --snapped TIF --renders R_ORIG R_SNAP
       [--roi R0 R1 C0 C1] [--practice-map TIF --practice-renders R_ORIG R_SNAP] [--seed 2026]
+      [--display {fixed,midway}] [--n-comparisons N] [--n-controls N] [--reuse-places KEY_JSON]
+      [--fixed-arm N] [--level-only N] [--weak-catch N] [--weak-sigma S]
 
 Items, as pre-registered (with amendments 1 and 2):
   - 60 comparisons: 512 x 512 crops of the two maps at the same place. Centres are drawn at random
@@ -18,6 +20,18 @@ Items, as pre-registered (with amendments 1 and 2):
   - Display: the model card's scaling (p - 0.25) / 0.5 clipped to 0..1, identically for both
     panels; pixels outside the mesh (either render) are black in both.
   - Practice (optional, from another segment's map): sharp against blurred, with feedback.
+
+Options for a follow-up review that separates "dimmer" from "less legible" (all off by default; without them the
+output is byte-identical to the pre-registered set):
+  --display midway  every comparison, control, catch and practice pair goes through a monotone per-crop LUT onto the
+                    midway of its two histograms (over the crop's valid pixels), then the same fixed display. Level and
+                    contrast are then the same in both panels and only structure differs.
+  --fixed-arm N     N more comparisons (kind "comparison_fixed") on the fixed scale, for a concurrent check.
+  --level-only N    N items (kind "level_only"): the original map against itself pushed to the snapped crop's histogram,
+                    fixed scale. Structure is identical by construction, so answers measure dimming alone.
+  --weak-catch N    N more catch items (kind "catch_weak", half from each map) blurred with --weak-sigma (default 2).
+  --n-comparisons, --n-controls  counts (default 60 and 10).
+  --reuse-places K  comparisons and controls at the places of an earlier key instead of new draws.
 
 Writes OUT_DIR/items.json and OUT_DIR/img/*.png, which say nothing about which map is which, and
 KEY_JSON, the answer key, to keep private until the answers are in. The set id is the first 12
@@ -59,6 +73,8 @@ def feasible(pool, valid, min_valid=MIN_VALID):
 
 def draw(ys, xs, rng, need, taken):
     """Up to `need` centres in random order, none closer than CROP (rows or columns) to another."""
+    if need <= 0:
+        return []
     out = []
     ty = np.array([t[0] for t in taken], np.int64)
     tx = np.array([t[1] for t in taken], np.int64)
@@ -98,6 +114,30 @@ def crop(a, y, x):
     return a[y - HALF:y + HALF, x - HALF:x + HALF]
 
 
+def lut_to(src, ref_sorted):
+    """256-entry monotone LUT: each level of uint8 `src` goes to the mean of `ref_sorted` over that level's ranks."""
+    h = np.bincount(src, minlength=256)
+    cum = np.cumsum(h)
+    lo = np.concatenate([[0], cum[:-1]])
+    S = np.concatenate([[0.0], np.cumsum(ref_sorted, dtype=np.float64)])
+    lut = np.arange(256, dtype=np.float64)
+    used = h > 0
+    lut[used] = (S[cum[used]] - S[lo[used]]) / h[used]
+    return lut
+
+
+def midway(a, b, valid_crop):
+    """Two uint8 crops on the midway of their histograms, as floats on the 0..255 scale. Valid pixels decide the LUTs."""
+    va, vb = a[valid_crop], b[valid_crop]
+    ref = 0.5 * (np.sort(va).astype(np.float64) + np.sort(vb).astype(np.float64))
+    return lut_to(va, ref)[a], lut_to(vb, ref)[b]
+
+
+def to_histogram_of(a, b, valid_crop):
+    """uint8 crop `a` pushed to the histogram of crop `b` by a monotone LUT: the structure of `a` at the level of `b`."""
+    return lut_to(a[valid_crop], np.sort(b[valid_crop]).astype(np.float64))[a]
+
+
 def save_png(path, p_u8, valid_crop):
     from PIL import Image
     d = display(p_u8)
@@ -118,6 +158,8 @@ def build_practice(a, rng, img_dir):
         sharp_first = k % 2 == 0
         vc = crop(valid, y, x)
         panels = [crop(p, y, x), blurred(p, valid, y, x)]
+        if a.display == "midway":
+            panels = list(midway(panels[0], panels[1], vc))
         if not sharp_first:
             panels = panels[::-1]
         ids = []
@@ -143,6 +185,14 @@ def main():
     ap.add_argument("--practice-renders", nargs="+")
     ap.add_argument("--practice", type=int, default=4)
     ap.add_argument("--seed", type=int, default=2026)
+    ap.add_argument("--display", choices=("fixed", "midway"), default="fixed")
+    ap.add_argument("--n-comparisons", type=int, default=N_COMP)
+    ap.add_argument("--n-controls", type=int, default=N_CTRL)
+    ap.add_argument("--reuse-places", metavar="KEY_JSON")
+    ap.add_argument("--fixed-arm", type=int, default=0)
+    ap.add_argument("--level-only", type=int, default=0)
+    ap.add_argument("--weak-catch", type=int, default=0)
+    ap.add_argument("--weak-sigma", type=float, default=2.0)
     a = ap.parse_args()
     img_dir = os.path.join(a.out_dir, "img")
     os.makedirs(img_dir, exist_ok=True)
@@ -160,15 +210,22 @@ def main():
 
     # comparisons: from p >= 0.5, or the top 1% if fewer than 60 places qualify
     ys, xs = feasible(over, valid)
-    comp = draw(ys, xs, rng, N_COMP, [])
     pool_name = "higher map >= 0.5"
-    if len(comp) < N_COMP:
-        ys, xs = feasible(top, valid)
-        comp = draw(ys, xs, rng, N_COMP, [])
-        pool_name = f"top 1% (higher map >= {thr:.3f})"
+    if a.reuse_places:
+        old = json.load(open(a.reuse_places))["key"]
+        comp = [tuple(v["centre_yx"]) for _, v in sorted(old.items()) if v["kind"] == "comparison"]
+        ctrl = [tuple(v["centre_yx"]) for _, v in sorted(old.items()) if v["kind"] == "control"]
+        pool_name = f"places of {os.path.basename(a.reuse_places)}"
+    else:
+        comp = draw(ys, xs, rng, a.n_comparisons, [])
+        if len(comp) < a.n_comparisons:
+            ys, xs = feasible(top, valid)
+            comp = draw(ys, xs, rng, a.n_comparisons, [])
+            pool_name = f"top 1% (higher map >= {thr:.3f})"
     taken = list(comp)
     cy, cx = feasible(np.flatnonzero(valid.ravel()), valid)
-    ctrl = draw(cy, cx, rng, N_CTRL, taken)
+    if not a.reuse_places:
+        ctrl = draw(cy, cx, rng, a.n_controls, taken)
     taken += ctrl
     catch = draw(ys, xs, rng, N_CATCH, taken)
     catch_pool = pool_name
@@ -187,10 +244,24 @@ def main():
     catch_maps = (["original"] * (N_CATCH // 2) + ["snapped"] * (N_CATCH - N_CATCH // 2))
     catch_maps = [catch_maps[i] for i in rng.permutation(len(catch_maps))][:len(catch)]
     raw += [dict(kind="catch", c=c, map=m) for c, m in zip(catch, catch_maps)]
+    # extra arms of a follow-up review, drawn last so that the default draws don't change
+    taken += catch
+    extra = [("comparison_fixed", a.fixed_arm), ("level_only", a.level_only), ("catch_weak", a.weak_catch)]
+    for kind, n in extra:
+        if n <= 0:
+            continue
+        spots = draw(ys, xs, rng, n, taken)
+        if len(spots) < n:
+            sys.exit(f"only {len(spots)} free places left for {n} {kind} items: lower the counts")
+        taken += spots
+        maps_ = [("original", "snapped")[i % 2] for i in range(n)]
+        raw += [dict(kind=kind, c=c, map=m) for c, m in zip(spots, maps_)]
     first = np.zeros(len(raw), bool)            # True: original (or the sharp map) is A
-    for kind in ("comparison", "control", "catch"):
+    kinds_used = ["comparison", "control", "catch"] + [k for k, n in extra if n > 0]
+    for kind in kinds_used:
         members = [j for j, r in enumerate(raw) if r["kind"] == kind]
-        first[rng.permutation(members)[:len(members) // 2]] = True
+        if members:
+            first[rng.permutation(members)[:len(members) // 2]] = True
     order = rng.permutation(len(raw))
 
     items, key = [], {}
@@ -198,13 +269,20 @@ def main():
         r = raw[j]
         y, x = r["c"]
         vc = crop(valid, y, x)
-        if r["kind"] == "catch":
+        if r["kind"] in ("catch", "catch_weak"):
             src = p_o if r["map"] == "original" else p_s
             kinds = [f"{r['map']} (sharp)", f"{r['map']} (blurred)"]
-            panels = [crop(src, y, x), blurred(src, valid, y, x)]
+            sigma = SIGMA if r["kind"] == "catch" else a.weak_sigma
+            panels = [crop(src, y, x), blurred(src, valid, y, x, sigma)]
+        elif r["kind"] == "level_only":
+            kinds = ["original", "original at the snapped level"]
+            panels = [crop(p_o, y, x), to_histogram_of(crop(p_o, y, x), crop(p_s, y, x), vc)]
         else:
             kinds = ["original", "snapped"]
             panels = [crop(p_o, y, x), crop(p_s, y, x)]
+        shown = "fixed" if r["kind"] in ("level_only", "comparison_fixed") else a.display
+        if shown == "midway":
+            panels = list(midway(panels[0], panels[1], vc))
         if not first[j]:
             kinds, panels = kinds[::-1], panels[::-1]
         qid = f"q{rank:03d}"
@@ -219,10 +297,14 @@ def main():
                         pmax_centre=round(float(pmax[y, x]) / 255, 4),
                         p_original_mean=round(float(crop(p_o, y, x)[vc].mean()) / 255, 4),
                         p_snapped_mean=round(float(crop(p_s, y, x)[vc].mean()) / 255, 4))
+        if a.display != "fixed" or any(n > 0 for _, n in extra):
+            key[qid]["display"] = shown
     practice = build_practice(a, np.random.default_rng(a.seed + 1), img_dir)
     set_id = hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()[:12]
     meta = dict(original=a.original, snapped=a.snapped, renders=a.renders, roi=roi, seed=a.seed,
                 pool=pool_name, catch_pool=catch_pool, pixels_over_half=int(len(over)), top1_threshold=thr)
+    if a.display != "fixed" or any(n > 0 for _, n in extra):
+        meta.update(display=a.display, weak_sigma=a.weak_sigma, reuse_places=a.reuse_places)
     with open(os.path.join(a.out_dir, "items.json"), "w") as f:
         json.dump(dict(version="ink-1", set=set_id, crop=CROP, items=items, practice=practice), f, indent=1)
     with open(a.key_json, "w") as f:
