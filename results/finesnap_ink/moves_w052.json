@@ -1,0 +1,90 @@
+{
+ "original": "segments/w052_whole/segment.tifxyz",
+ "snapped": "finesnap/PHerc0139/20260227000000-w052_2026022705/snapped.tifxyz",
+ "grid": [
+  385,
+  488
+ ],
+ "original_vertices": 167307,
+ "snapped_vertices": 141374,
+ "snapped_where_original_has_none": 0,
+ "moves": {
+  "vertices": 141363,
+  "mean": -2.809684367838733,
+  "sd": 3.6710592024140443,
+  "mean_abs": 3.4120430364060725,
+  "median_abs": 2.478762662391091,
+  "p90_abs": 8.034619659124294,
+  "p99_abs": 13.575559165030281,
+  "share_abs_over_5": 0.2286100323281198,
+  "share_abs_over_10": 0.054922433734428386,
+  "neighbour_r": 0.36138249035543024,
+  "tangential_mean": 0.0014007624642128945,
+  "smoothed_1_vertex": {
+   "sd": 1.9818731557052212,
+   "neighbour_r": 0.9015878371035835
+  },
+  "rest_sd": 2.605972942725486
+ },
+ "compare": {
+  "path": "segments/w052_whole/w052_snapped.tifxyz",
+  "moves": {
+   "vertices": 167295,
+   "mean": 0.046658825925237284,
+   "sd": 2.391714745912436,
+   "mean_abs": 1.9475689550425552,
+   "median_abs": 1.6865615442802664,
+   "p90_abs": 4.049440905830126,
+   "p99_abs": 5.178569073243706,
+   "share_abs_over_5": 0.016689082160255834,
+   "share_abs_over_10": 0.0,
+   "neighbour_r": 0.47023042357127603,
+   "tangential_mean": 0.00012945811752649024,
+   "smoothed_1_vertex": {
+    "sd": 1.332250607155422,
+    "neighbour_r": 0.883110869713104
+   },
+   "rest_sd": 1.582200442308023,
+   "correlation_with_snapped": 0.2640530105603993,
+   "correlation_smoothed_1_vertex": 0.3638893430592624
+  }
+ },
+ "codes": {
+  "abstain": {
+   "path": "finesnap/PHerc0139/20260227000000-w052_2026022705/abstain.tif",
+   "counts": {
+    "0": 121556,
+    "1": 530,
+    "2": 19288,
+    "255": 25933
+   },
+   "median_abs_move": {
+    "0": 2.4030918326607207,
+    "1": 0.0,
+    "2": 2.8464202391915023
+   }
+  },
+  "release_mask": {
+   "path": "finesnap/PHerc0139/20260227000000-w052_2026022705/release_mask.tif",
+   "counts": {
+    "0": 141374,
+    "1": 25933
+   },
+   "median_abs_move": {
+    "0": 2.478762662391091
+   }
+  }
+ },
+ "blocks": {
+  "code": "release_mask",
+  "n": 5,
+  "largest": 24488,
+  "sizes": [
+   24488,
+   1389,
+   32,
+   13,
+   11
+  ]
+ }
+}

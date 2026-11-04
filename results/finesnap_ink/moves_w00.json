@@ -1,0 +1,59 @@
+{
+ "original": "data/0841/PHerc0841/segments/20260220213127-w00/mesh/20260220213127-on-20250821151531-9.366um.tifxyz",
+ "snapped": "finesnap/PHerc0841/20260220213127-w00/snapped.tifxyz",
+ "grid": [
+  211,
+  238
+ ],
+ "original_vertices": 36829,
+ "snapped_vertices": 36829,
+ "snapped_where_original_has_none": 0,
+ "moves": {
+  "vertices": 36807,
+  "mean": -3.4839588382122195,
+  "sd": 3.98166362937306,
+  "mean_abs": 4.138552297117367,
+  "median_abs": 3.3376057681743987,
+  "p90_abs": 9.028634225248748,
+  "p99_abs": 14.112664045610694,
+  "share_abs_over_5": 0.3086641128046296,
+  "share_abs_over_10": 0.07340994919444671,
+  "neighbour_r": 0.26022012055949806,
+  "tangential_mean": 0.0002400482639904541,
+  "smoothed_1_vertex": {
+   "sd": 1.8586036042809557,
+   "neighbour_r": 0.8701136411161959
+  },
+  "rest_sd": 3.0214925312414875
+ },
+ "codes": {
+  "abstain": {
+   "path": "finesnap/PHerc0841/20260220213127-w00/abstain.tif",
+   "counts": {
+    "0": 29347,
+    "1": 43,
+    "2": 7439
+   },
+   "median_abs_move": {
+    "0": 3.3600188195887313,
+    "1": 0.0,
+    "2": 3.297222304652678
+   }
+  },
+  "release_mask": {
+   "path": "finesnap/PHerc0841/20260220213127-w00/release_mask.tif",
+   "counts": {
+    "0": 36829
+   },
+   "median_abs_move": {
+    "0": 3.3376057681743987
+   }
+  }
+ },
+ "blocks": {
+  "code": "release_mask",
+  "n": 0,
+  "largest": 0,
+  "sizes": []
+ }
+}

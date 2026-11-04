@@ -6,22 +6,26 @@ depend on where the surface sits, and does the direction of the snapper's move m
       drop-in output shares the original's grid). Other vertices are left out.
 
   python tools/depth_sweep.py filter OUT_TIFXYZ --original TIFXYZ --snapped TIFXYZ
-                                      (--low-pass SIGMA | --high-pass SIGMA | --random-phase SEED)
+                                      [--low-pass SIGMA | --high-pass SIGMA | --random-phase SEED] [--minus-mean]
       The snapper's moves along the original's vertex normals, filtered over the vertex grid: only
       their large-scale part (a Gaussian of SIGMA vertices, normalised over valid vertices), only
       the rest (the move minus that), or a field with the same mean, spread and spatial spectrum
-      but random phases (unrelated to the scan). Written as a mesh on the original's grid.
+      but random phases (unrelated to the scan). --minus-mean then takes away the result's mean
+      over the valid vertices, which leaves the surface at the original's average depth; alone it
+      does that to the moves as they are. Written as a mesh on the original's grid.
 
   python tools/depth_sweep.py negate OUT_NPZ IN_NPZ
       A depth file from tools/depth_transfer.py with the depth negated (the same move the other
       way along the target's normals); everything else is copied.
 
   python tools/depth_sweep.py compare OUT_JSON --reference NAME=TIF --map NAME=TIF [--map ...]
-                                       --renders ZARR [ZARR ...] [--tile 256] [--min-valid 0.5]
+                                       --renders ZARR [ZARR ...] [--tile 256] [--min-valid 0.5] [--margin 0]
       Each map against the reference, over the pixels valid in every render: whether it is the
       same map, the Pearson r, the whole-map mean and 99th percentile, and the ink test's tile
       measures (the change in each 256-pixel tile's mean and 99th percentile; the share of tiles
       losing or gaining more than 0.02). A map whose file is missing is reported as missing.
+      --margin M leaves out pixels within M pixels of an invalid one (a hole in any render, or
+      off the mesh), where the zeros change the model's output.
 
 A uniform shift needs no new render: the model reads the middle 17 of a render's 21 layers
 (layers 2-18), and villa's --layer-start 2+d --layer-end 19+d reads the stack d layers further
@@ -107,8 +111,16 @@ def cmd_filter(a):
         e, what = low_pass(d, valid, a.low_pass), f"large-scale part (Gaussian, sigma {a.low_pass:g} vertices)"
     elif a.high_pass is not None:
         e, what = d - low_pass(d, valid, a.high_pass), f"the rest after a Gaussian of sigma {a.high_pass:g} vertices"
-    else:
+    elif a.random_phase is not None:
         e, what = random_phase(d, valid, a.random_phase), f"random phases (seed {a.random_phase})"
+    elif a.minus_mean:
+        e, what = d.copy(), "the moves"
+    else:
+        sys.exit("give --low-pass, --high-pass, --random-phase or --minus-mean")
+    if a.minus_mean:
+        m = float(e[valid].mean())
+        e = np.where(valid, e - m, 0.0)
+        what += f", less their mean ({m:+.3f}): at the original's average depth"
     out = P.astype(np.float64) + e[..., None] * N
     write_tifxyz(a.out_tifxyz, out.astype(np.float32), valid, meta)
     st = lambda x: f"mean {x[valid].mean():+.3f}, sd {x[valid].std():.3f}, mean |.| {np.abs(x[valid]).mean():.3f}, neighbour r {lag1(x, valid):.2f}"  # noqa: E731
@@ -165,12 +177,26 @@ def compare_one(ref, m, valid, tile, min_valid):
     return out
 
 
+def away_from_invalid(valid, margin):
+    """valid, less every pixel within `margin` pixels (rows and columns) of an invalid one or of the image edge:
+    the ink model's output is changed near the zeros a render has outside the mesh and in its holes."""
+    if margin <= 0:
+        return valid
+    from scipy.ndimage import maximum_filter
+    near = maximum_filter((~valid).astype(np.uint8), size=2 * margin + 1, mode="constant", cval=1)
+    return valid & (near == 0)
+
+
 def cmd_compare(a):
     rname, rpath = a.reference.split("=", 1)
     ref = load_map(rpath)
     valid = valid_both(a.renders, shape=ref.shape)
+    all_valid = int(valid.sum())
+    valid = away_from_invalid(valid, a.margin)
     res = dict(reference=dict(name=rname, path=rpath), renders=a.renders, pixels=int(valid.sum()), tile=a.tile,
                min_valid=a.min_valid, maps={})
+    if a.margin > 0:
+        res.update(margin=a.margin, pixels_before_margin=all_valid)
     for spec in a.map:
         name, path = spec.split("=", 1)
         if not os.path.exists(path):
@@ -185,7 +211,8 @@ def cmd_compare(a):
         if c["identical"]:
             print(f"{name}: identical to {rname}")
         else:
-            print(f"{name}: r {c['pearson_r']:.4f}; mean {c['whole_map']['mean']:.4f} (reference {c['whole_map']['mean_reference']:.4f}); "
+            r_text = "-" if c["pearson_r"] is None else f"{c['pearson_r']:.4f}"     # None for a constant map
+            print(f"{name}: r {r_text}; mean {c['whole_map']['mean']:.4f} (reference {c['whole_map']['mean_reference']:.4f}); "
                   f"tiles: median change in the 99th percentile {c.get('d_p99_median', float('nan')):+.4f}, "
                   f"{c.get('share_tiles_d_p99_below_minus_0_02', float('nan')):.0%} lose and "
                   f"{c.get('share_tiles_d_p99_above_0_02', float('nan')):.0%} gain more than 0.02")
@@ -204,10 +231,11 @@ def main():
     p.add_argument("out_tifxyz")
     p.add_argument("--original", required=True)
     p.add_argument("--snapped", required=True)
-    g = p.add_mutually_exclusive_group(required=True)
+    g = p.add_mutually_exclusive_group()
     g.add_argument("--low-pass", type=float)
     g.add_argument("--high-pass", type=float)
     g.add_argument("--random-phase", type=int)
+    p.add_argument("--minus-mean", action="store_true")
     p = sub.add_parser("negate")
     p.add_argument("out_npz")
     p.add_argument("in_npz")
@@ -218,6 +246,7 @@ def main():
     p.add_argument("--renders", nargs="+", required=True)
     p.add_argument("--tile", type=int, default=256)
     p.add_argument("--min-valid", type=float, default=0.5)
+    p.add_argument("--margin", type=int, default=0)
     a = ap.parse_args()
     dict(mirror=cmd_mirror, filter=cmd_filter, negate=cmd_negate, compare=cmd_compare)[a.cmd](a)
 

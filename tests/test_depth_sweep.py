@@ -93,6 +93,33 @@ def test_compare(tmp_path):
     assert low["share_tiles_d_p99_below_minus_0_02"] == 1.0 and low["share_tiles_d_p99_above_0_02"] == 0.0
     assert low["whole_map"]["mean"] == pytest.approx(low["whole_map"]["mean_reference"] - 10 / 255, abs=1e-6)
     assert res["maps"]["gone"]["missing"]
+    assert "margin" not in res
+
+
+def test_compare_margin_leaves_out_pixels_near_holes(tmp_path):
+    H, W = 300, 400
+    valid = np.ones((H, W), bool)
+    valid[100:120, 200:230] = False                       # a hole in one render
+    near = ds.away_from_invalid(valid, 10)
+    assert not near[:10].any() and not near[:, -10:].any()  # the image edge counts as invalid
+    assert near[10:90, 10:390].all() and not near[90:130, 190:240].any()
+    assert near[89, 189] and near[131, 241]
+    # the hole raises one map around it: with the margin, the compare no longer sees that
+    ref = np.full((H, W), 100, np.uint8)
+    holey = ref.copy()
+    holey[80:140, 180:250] = 140
+    holey[~valid] = 0
+    for name, img in (("ref", ref), ("holey", holey)):
+        tifffile.imwrite(tmp_path / f"{name}.tif", img)
+    full = np.ones((H, W), bool)
+    r1, r2 = render_zarr(tmp_path / "r1.zarr", full), render_zarr(tmp_path / "r2.zarr", valid)
+    run("compare", tmp_path / "m.json", "--reference", f"ref={tmp_path / 'ref.tif'}", "--map", f"holey={tmp_path / 'holey.tif'}",
+        "--renders", r1, r2, "--tile", 50, "--margin", 30)
+    res = json.load(open(tmp_path / "m.json"))
+    assert res["margin"] == 30 and res["pixels_before_margin"] == int(valid.sum())
+    assert res["pixels"] == int(ds.away_from_invalid(valid, 30).sum())
+    assert res["maps"]["holey"]["whole_map"]["mean"] == pytest.approx(100 / 255)
+    assert np.array_equal(ds.away_from_invalid(valid, 0), valid)
 
 
 def test_pearson_matches_numpy():
@@ -131,3 +158,17 @@ def test_filter_parts_add_up_and_random_phase_keeps_the_spread(tmp_path):
     assert e[v].mean() == pytest.approx(move[v].mean(), abs=1e-3) and e[v].std() == pytest.approx(move[v].std(), rel=1e-3)
     np.testing.assert_array_equal(outs["rp"][0], outs["rp2"][0])
     assert abs(np.corrcoef(e[v], move[v])[0, 1]) < 0.3
+    # --minus-mean: the same moves (or their large-scale part) at the original's average depth
+    S2 = P.copy()
+    S2[..., 0] += move + 3.0
+    write_tifxyz(str(tmp_path / "snap_off.tifxyz"), S2, valid, {"scale": [0.05, 0.05]})
+    for name, opt in (("mm", ["--minus-mean"]), ("lpmm", ["--low-pass", "2", "--minus-mean"])):
+        run("filter", tmp_path / f"{name}.tifxyz", "--original", tmp_path / "orig.tifxyz", "--snapped", tmp_path / "snap_off.tifxyz", *opt)
+        outs[name] = read_tifxyz(str(tmp_path / f"{name}.tifxyz"))
+    mm, lpmm = dz(outs["mm"][0]), dz(outs["lpmm"][0])
+    vm = outs["mm"][1]
+    assert mm[vm].mean() == pytest.approx(0.0, abs=1e-4) and lpmm[vm].mean() == pytest.approx(0.0, abs=1e-4)
+    np.testing.assert_allclose(mm[vm], (move + 3.0)[vm] - (move + 3.0)[vm].mean(), atol=1e-3)
+    np.testing.assert_allclose(lpmm[vm], dz(outs["lp"][0])[vm] - dz(outs["lp"][0])[vm].mean(), atol=1e-3)
+    with pytest.raises(subprocess.CalledProcessError):
+        run("filter", tmp_path / "none.tifxyz", "--original", tmp_path / "orig.tifxyz", "--snapped", tmp_path / "snap.tifxyz")

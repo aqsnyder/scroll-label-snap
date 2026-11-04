@@ -1,0 +1,82 @@
+{
+ "original": "data/0841/PHerc0841/segments/20260220214732-auto_grown_20260220144552896/mesh/20260220214732-on-20250821151531-9.366um.tifxyz",
+ "snapped": "finesnap/PHerc0841/20260220214732-auto_grown_20260220144552896/snapped.tifxyz",
+ "grid": [
+  232,
+  236
+ ],
+ "original_vertices": 37027,
+ "snapped_vertices": 37027,
+ "snapped_where_original_has_none": 0,
+ "moves": {
+  "vertices": 36999,
+  "mean": -3.464406925952435,
+  "sd": 3.9809317053765554,
+  "mean_abs": 4.131115578645689,
+  "median_abs": 3.351826113561401,
+  "p90_abs": 9.015992702124647,
+  "p99_abs": 14.073412653260158,
+  "share_abs_over_5": 0.31195437714532825,
+  "share_abs_over_10": 0.07202897375604746,
+  "neighbour_r": 0.2613600877707373,
+  "tangential_mean": 0.00023979521108635004,
+  "smoothed_1_vertex": {
+   "sd": 1.8808414953325758,
+   "neighbour_r": 0.8727083715273719
+  },
+  "rest_sd": 3.01051962504547
+ },
+ "compare": {
+  "path": "f0841/s214732/snap/s214732_snapped.tifxyz",
+  "moves": {
+   "vertices": 36999,
+   "mean": 0.34805062100618306,
+   "sd": 2.6803739319163924,
+   "mean_abs": 2.269896006315955,
+   "median_abs": 2.135386854162789,
+   "p90_abs": 4.349058300130127,
+   "p99_abs": 5.372782319578109,
+   "share_abs_over_5": 0.028838617259925942,
+   "share_abs_over_10": 0.0,
+   "neighbour_r": 0.4268458309591349,
+   "tangential_mean": 0.00024110687893405457,
+   "smoothed_1_vertex": {
+    "sd": 1.4320853842299832,
+    "neighbour_r": 0.8701051312797824
+   },
+   "rest_sd": 1.818393292955208,
+   "correlation_with_snapped": 0.04981231977400304,
+   "correlation_smoothed_1_vertex": 0.08199343970358558
+  }
+ },
+ "codes": {
+  "abstain": {
+   "path": "finesnap/PHerc0841/20260220214732-auto_grown_20260220144552896/abstain.tif",
+   "counts": {
+    "0": 29235,
+    "1": 125,
+    "2": 7667
+   },
+   "median_abs_move": {
+    "0": 3.3618227905535605,
+    "1": 0.0,
+    "2": 3.3630435300947283
+   }
+  },
+  "release_mask": {
+   "path": "finesnap/PHerc0841/20260220214732-auto_grown_20260220144552896/release_mask.tif",
+   "counts": {
+    "0": 37027
+   },
+   "median_abs_move": {
+    "0": 3.351826113561401
+   }
+  }
+ },
+ "blocks": {
+  "code": "release_mask",
+  "n": 0,
+  "largest": 0,
+  "sizes": []
+ }
+}

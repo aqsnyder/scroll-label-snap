@@ -34,6 +34,7 @@ So, for now:
 **Pre-registered next, not run yet.**
 - **A blind review at matched level** ([`results/ink_review_matched_plan.md`](results/ink_review_matched_plan.md)) asks whether snapped w052 maps are less legible or only dimmer.
 - **A labelled test of a smooth snap** on PHerc. 0841, at both seeds ([`results/smooth_snap_plan.md`](results/smooth_snap_plan.md)).
+- **The same ink tests on Chase Hendrick's released finesnap surfaces** ([`results/finesnap_ink_plan.md`](results/finesnap_ink_plan.md)): two labelled PHerc. 0841 segments and w052, as released, smoothed, and centred on the published depth.
 
 ![Chase's real drift test: snap_labels and four scroll-label-snap settings against a two-scan recto face on PHerc. 0139](results/independent_drift_test_chase.png)
 
