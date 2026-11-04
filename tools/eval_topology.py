@@ -4,9 +4,11 @@ Usage:
   python tools/eval_topology.py ORIG SNAPPED OUT_DIR [--workers N] [--limit K] [--min-size 1000]
 
 ORIG and SNAPPED are label folders with matching file names (or folders holding labels/, as tools/snap_folder.py
-writes them), or a pair of TIFFs. Each cube's result goes to OUT_DIR/cubes/<name>.json as soon as it finishes, so an
-interrupted run resumes where it stopped. At the end OUT_DIR/topology.json holds all cubes and OUT_DIR/topology.csv
-one row per cube. No CT is read. Each worker needs about 1 GB of RAM on a 320 cubed cube.
+writes them), or a pair of TIFFs; wildcards are not expanded here. Each cube's result goes to OUT_DIR/cubes/<name>.json
+as soon as it finishes, so an interrupted run resumes where it stopped. A result is kept only for the same two files, by
+path, size and time, and the same --min-size; otherwise that cube is measured again. At the end OUT_DIR/topology.json
+holds all cubes and OUT_DIR/topology.csv one row per cube. No CT is read. Each worker needs about 1 GB of RAM on a 320
+cubed cube. The exit code is non-zero if a cube failed or no cube matched.
 
 Label 1 is the foreground; label 2 and everything outside the cube count as background. Per cube, for the original
 and the snapped band:
@@ -20,7 +22,8 @@ and the snapped band:
     snapped component holding most of those voxels, if that is at least half of them and it has at least --min-size
     voxels itself. A snapped component that receives k >= 2 sheets is k - 1 events. This is a rule, not a tracking of
     voxels: a small sheet whose voxels end up nearest a neighbouring sheet counts even if the two stay separate. On the
-    published labels of the 20 development cubes it equals per-voxel tracking cube by cube (50 events).
+    published labels of the 20 development cubes it equals per-voxel tracking cube by cube (50 events). A second tracker,
+    which counts a sheet once it holds at least 100 tracked voxels, gets 51, with sample_00020 at 3 instead of 2.
   - for merged components, the contact: each of their voxels near a meeting of two sheets takes the nearest original
     component, and 26-adjacent voxels that differ are contact voxels. Reported in total and per pair of sheets.
 
@@ -230,8 +233,17 @@ def measure_labels(lab_o, lab_s, name, min_size=1000):
         contact_voxels=int(n_contact), contact_pairs=pairs, seconds=round(time.time() - t0, 1))
 
 
+def source_of(orig_path, snap_path, min_size):
+    """What a cube's result was measured from, so a rerun can tell when it is out of date."""
+    def stamp(path):
+        s = os.stat(path)
+        return dict(path=os.path.abspath(path), size=s.st_size, mtime_ns=s.st_mtime_ns)
+    return dict(original=stamp(orig_path), snapped=stamp(snap_path), min_size=min_size)
+
+
 def run_one(orig_path, snap_path, out_json, name, min_size):
-    r = measure(orig_path, snap_path, name, min_size)
+    source = source_of(orig_path, snap_path, min_size)
+    r = dict(measure(orig_path, snap_path, name, min_size), source=source)
     with open(out_json + ".tmp", "w") as f:
         json.dump(r, f, indent=1)
     os.replace(out_json + ".tmp", out_json)
@@ -267,6 +279,9 @@ def main():
     ap.add_argument("--min-size", type=int, default=1000, help="smaller components are fragments, and take no part in merger events")
     a = ap.parse_args()
 
+    for path in (a.orig, a.snapped):
+        if not os.path.exists(path):
+            sys.exit(f"no such file or folder: {path} (wildcards are not expanded here)")
     if os.path.isfile(a.orig) != os.path.isfile(a.snapped):
         sys.exit("give two folders or two TIFFs")
     if os.path.isfile(a.orig):
@@ -277,9 +292,18 @@ def main():
         jobs = [(f[:-4], os.path.join(od, f), os.path.join(sd, f)) for f in names]
         if a.limit:
             jobs = jobs[:a.limit]
+        if not jobs:
+            sys.exit(f"no file name in {od} is also in {sd}, so there is nothing to compare")
     cube_dir = os.path.join(a.out_dir, "cubes")
     os.makedirs(cube_dir, exist_ok=True)
-    todo = [j for j in jobs if not os.path.exists(os.path.join(cube_dir, j[0] + ".json"))]
+    todo = []
+    for n, o, s in jobs:
+        path = os.path.join(cube_dir, n + ".json")
+        if os.path.exists(path):
+            if json.load(open(path)).get("source") == source_of(o, s, a.min_size):
+                continue
+            os.remove(path)                      # another file or --min-size, so that result is no longer this cube's
+        todo.append((n, o, s))
     print(f"{len(jobs)} cube pairs, {len(todo)} to measure, {a.workers} workers", flush=True)
 
     failed = []
@@ -301,10 +325,13 @@ def main():
         json.dump(cubes, f, indent=1)
     if cubes:
         rows = [csv_row(r) for r in cubes]
-        with open(os.path.join(a.out_dir, "topology.csv"), "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=list(rows[0]))
-            w.writeheader()
-            w.writerows(rows)
+        try:
+            with open(os.path.join(a.out_dir, "topology.csv"), "w", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=list(rows[0]))
+                w.writeheader()
+                w.writerows(rows)
+        except OSError as e:                     # held open by another program; the numbers are in topology.json
+            print(f"warning: can't write topology.csv ({e}); close the file and run the same command again", flush=True)
     print(f"wrote topology.json and topology.csv with {len(cubes)} of {len(jobs)} cubes -> {a.out_dir}", flush=True)
     if failed:
         sys.exit(f"{len(failed)} cubes failed: {', '.join(sorted(failed))}")

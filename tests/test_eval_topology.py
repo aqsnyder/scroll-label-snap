@@ -13,7 +13,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.join(HERE, "..", "tools")
 sys.path.insert(0, HERE)
 sys.path.insert(0, TOOLS)
-from eval_topology import betti, measure  # noqa: E402
+from eval_topology import betti, every_8th, measure  # noqa: E402
 from test_topology import betti as betti_other_way  # noqa: E402
 
 
@@ -157,6 +157,33 @@ def test_small_sheets_take_no_part_in_merger_events(tmp_path):
     assert run_measure(tmp_path, lab, joined, min_size=10)["merger_events"] == 1
 
 
+def test_a_sheet_split_under_half_goes_nowhere(tmp_path):
+    # the first sheet comes apart in three, and its largest part, 40% of it, joins the second sheet: that part alone is not
+    # enough to call the sheet merged into anything
+    lab = np.zeros((40, 60, 100), np.uint8)
+    lab[5:35, 10:12, 5:95] = 1
+    lab[5:35, 30:32, 5:95] = 1
+    moved = np.zeros_like(lab)
+    moved[5:35, 10:12, 5:41] = 1                            # 40% of the first sheet's length, joined to the second by a wall
+    moved[5:35, 12:30, 38:41] = 1
+    moved[5:35, 10:12, 44:68] = 1                           # 30% and 30%, each on its own
+    moved[5:35, 10:12, 71:95] = 1
+    moved[5:35, 30:32, 5:95] = 1
+    r = run_measure(tmp_path, lab, moved, min_size=100)
+    assert r["components"] == dict(original=2, snapped=3) and r["merger_events"] == 0
+    # the same sheet with most of it joined does count
+    most = moved.copy()
+    most[5:35, 10:12, 41:44] = 1
+    most[5:35, 10:12, 68:71] = 0
+    r = run_measure(tmp_path, lab, most, min_size=100)
+    assert r["components"] == dict(original=2, snapped=2) and r["merger_events"] == 1
+
+
+def test_every_8th_voxel_has_all_coordinates_even():
+    k = every_8th(np.ones((6, 6, 6), bool))
+    assert k.sum() == 27 and k[::2, ::2, ::2].all()
+
+
 def test_the_merger_rule_can_count_sheets_that_stay_separate(tmp_path):
     # a rule, not a tracking: the small sheet moves off, and the large one moves to where it was
     lab = np.zeros((48, 60, 48), np.uint8)
@@ -207,6 +234,21 @@ def test_tool_on_folders_and_on_a_pair(tmp_path):
     # a rerun measures nothing again
     r = run_tool(tmp_path / "o", tmp_path / "s", tmp_path / "out", "--workers", 1)
     assert r.returncode == 0 and "0 to measure" in r.stdout
+    # but another folder, a re-snap in place, or another --min-size is measured afresh
+    (tmp_path / "t" / "labels").mkdir(parents=True)
+    for n in ("sample_00001.tif", "sample_00002.tif"):
+        tifffile.imwrite(tmp_path / "t" / "labels" / n, lab)
+    r = run_tool(tmp_path / "o", tmp_path / "t", tmp_path / "out", "--workers", 1)
+    assert r.returncode == 0 and "2 to measure" in r.stdout
+    assert [c["merger_events"] for c in json.load(open(tmp_path / "out" / "topology.json"))] == [0, 0]
+    tifffile.imwrite(tmp_path / "t" / "labels" / "sample_00002.tif", joined)
+    r = run_tool(tmp_path / "o", tmp_path / "t", tmp_path / "out", "--workers", 1)
+    assert r.returncode == 0 and "1 to measure" in r.stdout
+    assert [c["merger_events"] for c in json.load(open(tmp_path / "out" / "topology.json"))] == [0, 1]
+    r = run_tool(tmp_path / "o", tmp_path / "t", tmp_path / "out", "--workers", 1, "--min-size", 100000)
+    assert r.returncode == 0 and "2 to measure" in r.stdout
+    cubes = json.load(open(tmp_path / "out" / "topology.json"))
+    assert [c["min_size"] for c in cubes] == [100000, 100000] and [c["merger_events"] for c in cubes] == [0, 0]
 
     r = run_tool(tmp_path / "o" / "labels" / "sample_00001.tif", tmp_path / "s" / "labels" / "sample_00001.tif",
                  tmp_path / "pair", "--workers", 1)
@@ -220,3 +262,35 @@ def test_tool_reports_a_failure(tmp_path):
     r = run_tool(tmp_path / "o.tif", tmp_path / "s.tif", tmp_path / "out", "--workers", 1)
     assert r.returncode != 0 and "shape" in r.stdout
     assert run_tool(tmp_path / "o.tif", tmp_path, tmp_path / "out", "--workers", 1).returncode != 0
+
+
+def test_a_failed_measure_does_not_leave_the_old_numbers(tmp_path):
+    tifffile.imwrite(tmp_path / "o.tif", plates())
+    tifffile.imwrite(tmp_path / "s.tif", plates())
+    assert run_tool(tmp_path / "o.tif", tmp_path / "s.tif", tmp_path / "out", "--workers", 1).returncode == 0
+    tifffile.imwrite(tmp_path / "s.tif", plates()[:40])
+    r = run_tool(tmp_path / "o.tif", tmp_path / "s.tif", tmp_path / "out", "--workers", 1)
+    assert r.returncode != 0 and json.load(open(tmp_path / "out" / "topology.json")) == []
+
+
+def test_nothing_to_compare_is_an_error(tmp_path):
+    for d, name in (("a", "x.tif"), ("b", "y.tif")):
+        (tmp_path / d).mkdir()
+        tifffile.imwrite(tmp_path / d / name, plates())
+    r = run_tool(tmp_path / "a", tmp_path / "b", tmp_path / "out", "--workers", 1)
+    assert r.returncode != 0 and "nothing to compare" in r.stderr
+    r = run_tool(tmp_path / "a" / "*.tif", tmp_path / "b" / "*.tif", tmp_path / "out", "--workers", 1)
+    assert r.returncode != 0 and "wildcards" in r.stderr and "Traceback" not in r.stderr
+
+
+@pytest.mark.skipif(os.name != "nt", reason="only Windows locks a file this way")
+def test_csv_held_open_loses_nothing(tmp_path):
+    import msvcrt
+    tifffile.imwrite(tmp_path / "o.tif", plates())
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "topology.csv").write_text("x\n")
+    with open(tmp_path / "out" / "topology.csv", "r+") as h:
+        msvcrt.locking(h.fileno(), msvcrt.LK_NBLCK, 1)
+        r = run_tool(tmp_path / "o.tif", tmp_path / "o.tif", tmp_path / "out", "--workers", 1)
+    assert r.returncode == 0 and "warning: can't write topology.csv" in r.stdout, r.stdout + r.stderr
+    assert json.load(open(tmp_path / "out" / "topology.json"))[0]["merger_events"] == 0
