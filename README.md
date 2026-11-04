@@ -29,7 +29,7 @@ A follow-up diagnostic ([`results/depth_sweep.md`](results/depth_sweep.md)) look
 So, for now:
 - **Don't use snapped meshes for ink detection.**
 - **Read the drift tests below as consistency** (does the snapper put a drifted label back where it was?), not as accuracy against the true face.
-- **The label-cube results** and their blind reviews below still stand for what they measured. None of these three tests looked at the cubes.
+- **The label-cube results** and their blind reviews below still stand for what they measured. None of these three tests looked at the cubes. The [November review](results/review_2026_11.md) did: snapped labels gain tunnels and merge sheets, and the drift test can't rank the snapper against a plain per-sample search.
 
 ![Chase's real drift test: snap_labels and four scroll-label-snap settings against a two-scan recto face on PHerc. 0139](results/independent_drift_test_chase.png)
 
@@ -75,7 +75,7 @@ The offset removal uses the clean labels, which a real user wouldn't have; the s
 
 ### Drift test
 
-Each cube's labels were pushed off the surface by a known smooth random drift (std 1.5 voxels, correlation length 40 voxels). Each method was then run on the drifted labels, and we measured how far the result lands from the original label. This is scored only at **trusted points**: places where the original label sits on a strong, unambiguous edge, so it can serve as ground truth (258,394 points in development, 717,523 held out).
+Each cube's labels were pushed off the surface by a known smooth random drift (std 1.5 voxels, correlation length 40 voxels). Each method was then run on the drifted labels, and we measured how far the result lands from the original label. This is scored only at **trusted points**: the 10% of samples (7% held out) where, by the snapper's own edge score, the strongest edge within reach is already at the label and no other edge comes close (258,394 points in development, 717,523 held out). A method that goes to the strongest edge returns to these points almost by construction.
 
 | Method | Within 1 voxel: development | Within 1 voxel: held-out | Mean error (voxels): development | Mean error: held-out |
 |---|---|---|---|---|
@@ -88,6 +88,8 @@ Each cube's labels were pushed off the surface by a known smooth random drift (s
 
 The refiner's ceiling on the held-out cubes, the pair that is best there (50-110, picked after seeing them), reaches 80% within 1 voxel (mean error 0.69).
 
+A per-sample best score with no graph cut beats the snapper on all 20 development cubes (94% vs 89%, +4.4 points, 95% CI 3.7 to 5.2; held-out cubes not run). The order depends on how trust is defined: trust a point because the edges of its neighbours 4-12 voxels away sit at the label, without reading its own CT, and the snapper leads on all 20 (85.5% vs 82.2%). So this test doesn't show that the graph cut helps or hurts ([`results/review_2026_11.md`](results/review_2026_11.md)).
+
 **Consistency** is measured at all points. It asks whether correcting the drifted labels lands in the same place as correcting the clean labels.
 
 | Within 1 voxel | Development | Held-out |
@@ -96,7 +98,7 @@ The refiner's ceiling on the held-out cubes, the pair that is best there (50-110
 | Existing refiner, thresholds from each cube's own levels | 77% | 73% |
 | **Snapper** | **81%** | **75%** |
 
-**Clean labels.** This is the intensity step across each label, papyrus side minus gap side. It is partly circular: the snapper optimizes edge strength, and the refiner also seeks an edge. The drift test is the stronger evidence.
+**Clean labels.** This is the intensity step across each label, papyrus side minus gap side. It is circular: the snapper optimizes edge strength, and a per-sample search with no graph cut scores higher (95% vs 91% on the development cubes, higher on all 20). The drift test picks its points with the same edge score, so it isn't independent of this table.
 
 | Papyrus on the correct side of the label | Development | Held-out |
 |---|---|---|
@@ -126,8 +128,8 @@ The drift is random, so per-cube numbers depend on the draw. Earlier versions of
 
 Most cubes move by a few points between draws. sample_00018, a hazy cube, goes from 93% with the old draw to 67% with the new one:
 - **What happens.** With the new draw, 15% of its trusted points end more than 2 voxels off (8% for the refiner with the cube's own levels). Most of them are about 3 voxels toward the papyrus side, in many small patches, and not where the drift was largest.
-- **Why.** The learned profile is the main cause. It is learned from the labels being corrected, and with this draw it favours a position inside the sheet. With the profile term off, the share more than 2 voxels off falls to 6.5% (75% within 1 voxel).
-- **Next.** Learning the profile so it doesn't depend on where the input labels sit is a next step. A change like that needs a fresh held-out set, since this one has now been used.
+- **Why.** This draw reverses the sheet orientation at 32% of the cube's trusted points. The snapper gets 10% within 1 voxel at those points and 93% at the others, the same as the old draw. A per-sample search has the same problem (5% and 98%). Turning the profile term off lifts the reversed points to 44% and lowers the others to 90%, which gives 75% in all and 6.5% more than 2 voxels off.
+- **Next.** Keeping sheet orientation stable under drift comes first (`Params.orient_cube`, with its test pre-registered in [`results/orient_test_plan.md`](results/orient_test_plan.md)), then making the learned profile independent of where the input labels sit. A change like that needs a fresh held-out set, since this one has now been used.
 
 `tools/drift_draws.py` runs both checks: `seeds` rebuilds an older run's drifted labels with a given seed scheme, and `diagnose` describes one cube's large misses under one draw. The v1-to-v2 comparison below comes from the earlier runs. We haven't confirmed that v1 used the same draws.
 
@@ -155,7 +157,7 @@ From the earlier development runs, [`results/eval_v1.md`](results/eval_v1.md) an
 | Consistency: within 1 voxel | 79% | 83% |
 | Extra edge roughness of the band vs. the original labels | +11% | +6% |
 
-- **Smooth warp.** Roughness is the number of exposed voxel faces per band voxel, over all 20 cubes (`tools/roughness.py`). Moving a band by a perfectly smooth shift still adds 2-4% from resampling, so +6% is close to that floor. See [`results/warp_v1_vs_v2.png`](results/warp_v1_vs_v2.png).
+- **Smooth warp.** Roughness is the number of exposed voxel faces per band voxel, over all 20 cubes (`tools/roughness.py`). Moving a band by a smooth shift adds roughness by itself: the drift test's smooth drift (std 1.5, corr. 40) adds +6.1% over these cubes, so the snapper's +6.0% is at that floor. A per-sample search with no graph cut adds +18.8%. See [`results/warp_v1_vs_v2.png`](results/warp_v1_vs_v2.png).
 - **Inside-the-sheet guard.** On the 120 moves in the blind review, v2 puts 3 of the 8 losses back on the original label (q057, q070, q107). It leaves 90 of the 98 wins within 0.5 voxel of where v1 put them; 2 went back to the original. See [`results/review_v1_losses_v2.png`](results/review_v1_losses_v2.png); `tools/recheck_review.py` produced the per-item numbers in [`results/review_v1_items_under_v2.json`](results/review_v1_items_under_v2.json).
   - The guard only penalizes outward moves. We chose that after seeing that penalizing inward moves as well also undid 2 wins, so these review numbers are optimistic. A fresh review is the real test.
 - **Drift-test inputs.** The drifted labels and the existing refiner's output now go through the smooth warp too, so their rows moved slightly from v1.
@@ -213,7 +215,7 @@ It was developed on segment w035 of PHerc. 0139 at 9.362 µm, the one in the scr
 
 | | Input mesh | `snapped.tifxyz` (20 voxels) | `snapped_fine.tifxyz` (5 voxels) | `snapped_dense.tifxyz` (about 3 voxels) |
 |---|---|---|---|---|
-| Drift test, within 1 voxel (std 1.5, corr. 40) | 70% / 69% | 72% / 82% | 90% / 94% | 90% / 94% |
+| Drift test, within 1 voxel (std 1.5, corr. 40) | 70% / 69% | 72% / 83% | 90% / 94% | 90% / 94% |
 | Drift test, within 1 voxel (std 2.0, corr. 80) | 42% / 41% | 73% / 82% | 90% / 92% | 90% / 92% |
 | Papyrus on the recto side of the face | 55% / 70% | 81% / 89% | 88% / 92% | 88% / 93% |
 | Mean step across the face | 8.4 / 30.2 | 46.8 / 64.7 | 59.7 / 74.8 | 60.4 / 75.3 |
@@ -236,12 +238,12 @@ The w035 results are below.
 
 Each patch shows the CT read through the original and the snapped mesh, just inside and just outside the recto face, plus a cross-section.
 
-**Fibre check.** Recto fibres run around the scroll and verso fibres along its axis. So under a surface on a recto face, the fibre direction should turn from across the axis to along it, going deeper into the papyrus. `tools/fibre_check.py` measures this, independently of the snapper's scores.
+**Fibre check.** Recto fibres run around the scroll and verso fibres along its axis. So under a surface on a recto face, the fibre direction should turn from across the axis to along it, going deeper into the papyrus. `tools/fibre_check.py` measures this from the CT alone, except that its depth origin is the snapper's estimate of where the face is.
 - **Snapped surface:** shows the pattern in 8 of 8 patches.
 - **Original mesh:** 5 of 8, with near-zero size.
 - **Control snapped onto the opposite faces:** 4 of 8.
 
-So the snapper lands on recto faces. The effect is small but consistent. See [`results/fibre_w035.png`](results/fibre_w035.png).
+So surfaces moved onto recto-polarity faces show the recto pattern. The effect is small but consistent. It doesn't single out the snapper: a plain gradient search with a light median scores +0.18 on w035 (snapper +0.15) and +0.21 on w052 (snapper +0.20), 8 of 8 patches each, and on w052 the original mesh moved 2 voxels toward the papyrus at every vertex scores +0.18, 8 of 8 (w035: +0.05, 6 of 8). See [`results/fibre_w035.png`](results/fibre_w035.png).
 
 **Review flags.** 15% of samples stop at the ±4-voxel search limit (`snap_limit`), and 10.5% sit on a reversed face (`snap_flag`). On the input grid, `snap_review` marks the 17% of vertices where most of the surrounding surface is flagged.
 
@@ -302,7 +304,7 @@ python tools/summarize_eval.py out/summary out/eval.json
 python tools/render_compare.py out/cmp.png images/X.tif labels/X.tif OUT_DIR/labels/X.tif z
 ```
 
-Each worker needs about 3 GB of RAM. A 320³ cube takes 30–120 s per core.
+Each worker peaked at about 1 GB on the development cubes. A 320³ cube takes 30–120 s per core.
 
 ### Windows
 
@@ -317,7 +319,7 @@ python tools\snap_folder.py D:\vesuvius\kaggle D:\vesuvius\snapped --workers 12
 
 ## Data
 
-The tools run on the Vesuvius Challenge surface-label cubes ([Hugging Face bucket](https://huggingface.co/buckets/scrollprize/datasets/tree/surfaces/kaggle)): `images/sample_NNNNN.tif` paired with `labels/sample_NNNNN.tif`. Each cube is 320³ uint8.
+The tools run on the Vesuvius Challenge surface-label cubes ([Hugging Face bucket](https://huggingface.co/buckets/scrollprize/datasets/tree/surfaces/kaggle)): `images/sample_NNNNN.tif` paired with `labels/sample_NNNNN.tif`. Each cube is uint8. Most are 320³; 51 of the 892 are 256³ and one is 384³.
 
 | Label value | Meaning |
 |---|---|
@@ -396,6 +398,7 @@ A second reviewer, who did not work on the tool and had never seen these scans, 
 
 1. **Decide flagged labels with more context.** Following each sheet over a larger area, or using the traced mesh's own history, could tell which face a flagged label belongs to. Until then, flagged labels are the place for human review.
 2. **Use the confidence map:** leave or flag low-confidence regions instead of moving them.
-3. **Make the learned profile independent of the input labels** (see "Drift draws" above; in Chase's test, turning it off helped). Then test it on a fresh held-out set.
+3. **Keep sheet orientation stable under drift first** (`Params.orient_cube`, off by default; its test on 100 fresh cubes is pre-registered in [`results/orient_test_plan.md`](results/orient_test_plan.md) and not yet run). **Then make the learned profile independent of the input labels** (see "Drift draws" above; in Chase's test, turning it off helped), and test that on a fresh held-out set.
 4. **Meshes: a smooth snap (not started).** The drop in map level is in the moves' vertex-scale bumps ([`results/move_scale.md`](results/move_scale.md)). Moves smoothed over about one vertex spacing keep the map level; `tools/depth_sweep.py filter --low-pass 1` makes such a mesh after the fact. Whether it reads better needs a pre-registered blind review.
-5. **Meshes: face placement.** Find out why `--target-offset 0` still sits about a voxel inside the two-scan face in Chase's test. Compare with snap_labels in the blind ink test.
+5. **Meshes: face placement.** Run the current `--target-offset 0` against the two-scan face; at 347ea5b4 it sat about a voxel inside in Chase's test. Compare with snap_labels in the blind ink test.
+6. **Ink: a blind review with matched displays.** It is the only test here that can separate a dimmer map from a less legible one ([`results/review_2026_11.md`](results/review_2026_11.md)). Pre-register it first.

@@ -66,7 +66,7 @@ This comparison was not part of the pre-registered test. It was run on both segm
 
 How to read this:
 - **Drift test.** Its ground truth is where the original mesh sits on a clear face in the CT, so it favours a method that aims at the CT face. Snapping to the prediction aims at the prediction's centre instead, and part of its error is the local difference between the two.
-- **Consistency and the fibre check** have no such bias. The snapper does better on both.
+- **Consistency and the fibre check** also reward landing on a CT edge. A per-sample search with no graph cut gets 93% consistency on w052 (snapper 90%) and a fibre score of +0.19, 8 of 8 patches (snapper +0.20). So these rows compare CT-edge methods with a prediction-based one. They don't show that the snapper is more accurate than snapping to m7.
 - **Recto-surface prediction.** This is a different model from m7, but it marks similar bands. It favours snapping onto m7.
   - All three meshes lie on or next to the predicted recto surface almost everywhere.
   - The snapper does not move meshes off it: 86% → 90% on w035 and 92% → 93% on w052.

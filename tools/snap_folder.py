@@ -8,7 +8,7 @@
 Usage (Windows or Linux):
   python tools/snap_folder.py IN_DIR OUT_DIR [--workers N] [--limit K] [--param NAME=VALUE ...]
 
-Each worker needs about 3 GB of RAM. Cubes with all three outputs in OUT_DIR are skipped, so an
+Each worker peaked at about 1 GB on the development cubes. Cubes with all three outputs in OUT_DIR are skipped, so an
 interrupted run can be resumed: each file is written under a temporary name and renamed into place,
 and each finished cube leaves its summary row in OUT_DIR/rows/ before its labels appear. The exit
 code is non-zero if any cube failed. A summary.csv held open by another program does not count as
