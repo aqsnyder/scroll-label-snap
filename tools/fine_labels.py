@@ -10,10 +10,11 @@ coarser scan (using tools/grid_correspondence.py), and ink maps scored against t
       at least half its footprint is, and ink when at least half of its supervised part is.
 
   python tools/fine_labels.py score OUT_JSON --labels-npz NPZ --map NAME=TIF [...] --renders ZARR [...]
-                                  [--reference NAME] [--blocks 128] [--boot 1000]
+                                  [--reference NAME] [--blocks 128] [--boot 1000] [--save-draws]
       ROC AUC (ties count half) and the best F1 of each map over the supervised pixels valid in all
       renders, and for each map its AUC difference from the reference map with a 95% interval from
-      a paired bootstrap over blocks of pixels.
+      a paired bootstrap over blocks of pixels. --save-draws also writes the bootstrap draws, which
+      tools/smooth_snap_readings.py pools over targets.
 
 Pixels are 1/scale per vertex on both grids (20 for scale 0.05), with pixel (r, c) at vertex (r/k, c/k).
 """
@@ -110,8 +111,9 @@ def cmd_transfer(a):
     print(f"{supervised.sum():,} supervised pixels in the roi, {ink.sum() / max(supervised.sum(), 1):.1%} ink")
 
 
-def block_bootstrap_auc_diff(scores_a, scores_b, truth, blocks, n_boot, seed=0):
-    """95% interval of AUC(b) - AUC(a) over resampled blocks (paired: the same pixels for both)."""
+def bootstrap_auc_diffs(scores_a, scores_b, truth, blocks, n_boot, seed=0):
+    """AUC(b) - AUC(a) over each resample of blocks (paired: the same pixels for both). A resample
+    with no ink or no background pixel is skipped."""
     ub = np.unique(blocks)
     idx_of = {b: np.flatnonzero(blocks == b) for b in ub}
     rng = np.random.default_rng(seed)
@@ -123,10 +125,19 @@ def block_bootstrap_auc_diff(scores_a, scores_b, truth, blocks, n_boot, seed=0):
         if t.all() or not t.any():
             continue
         diffs.append(auc_f1(scores_b[sel], t)["auc"] - auc_f1(scores_a[sel], t)["auc"])
+    return diffs
+
+
+def block_bootstrap_auc_diff(scores_a, scores_b, truth, blocks, n_boot, seed=0, keep_draws=False):
+    """95% interval of AUC(b) - AUC(a) over resampled blocks (paired: the same pixels for both)."""
+    diffs = bootstrap_auc_diffs(scores_a, scores_b, truth, blocks, n_boot, seed)
     if not diffs:
         return None
     lo, hi = np.percentile(diffs, [2.5, 97.5])
-    return dict(lo=float(lo), hi=float(hi), resamples=len(diffs))
+    out = dict(lo=float(lo), hi=float(hi), resamples=len(diffs))
+    if keep_draws:
+        out["draws"] = [float(d) for d in diffs]
+    return out
 
 
 def cmd_score(a):
@@ -160,7 +171,7 @@ def cmd_score(a):
             continue
         d = dict(auc=res["scores"][k]["auc"] - res["scores"][ref]["auc"],
                  best_f1=res["scores"][k]["best_f1"] - res["scores"][ref]["best_f1"])
-        d["auc_95"] = block_bootstrap_auc_diff(loaded[ref][use], m[use], truth, blocks, a.boot)
+        d["auc_95"] = block_bootstrap_auc_diff(loaded[ref][use], m[use], truth, blocks, a.boot, keep_draws=a.save_draws)
         res["scores"][k]["minus_reference"] = d
     json.dump(res, open(a.out_json, "w"), indent=1)
     for k, sc in res["scores"].items():
@@ -196,6 +207,8 @@ def main():
     p.add_argument("--reference")
     p.add_argument("--blocks", type=int, default=128)
     p.add_argument("--boot", type=int, default=1000)
+    p.add_argument("--save-draws", action="store_true",
+                   help="also write each difference's bootstrap draws (for pooling over targets)")
     a = ap.parse_args()
     {"roi": cmd_roi, "transfer": cmd_transfer, "score": cmd_score}[a.cmd](a)
 

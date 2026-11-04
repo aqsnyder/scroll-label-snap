@@ -96,3 +96,9 @@ def test_fine_labels(tmp_path):
     assert r["scores"]["snapped"]["auc"] == 1.0 and abs(r["scores"]["original"]["auc"] - 0.5) < 0.05
     ci = r["scores"]["snapped"]["minus_reference"]["auc_95"]
     assert ci["lo"] > 0.3 and r["pixels"] == int(s.sum())
+    assert "draws" not in ci
+    run(os.path.join(TOOLS, "fine_labels.py"), "score", tmp_path / "score_d.json", "--labels-npz", tmp_path / "lab.npz",
+        "--map", f"original={tmp_path / 'noise.tif'}", "--map", f"snapped={tmp_path / 'good.tif'}",
+        "--renders", tmp_path / "r.zarr", "--reference", "original", "--blocks", 32, "--boot", 200, "--save-draws")
+    cd = json.load(open(tmp_path / "score_d.json"))["scores"]["snapped"]["minus_reference"]["auc_95"]
+    assert len(cd["draws"]) == cd["resamples"] and (cd["lo"], cd["hi"]) == (ci["lo"], ci["hi"])

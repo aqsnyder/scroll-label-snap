@@ -31,6 +31,10 @@ So, for now:
 - **Read the drift tests below as consistency** (does the snapper put a drifted label back where it was?), not as accuracy against the true face.
 - **The label-cube results** and their blind reviews below still stand for what they measured. None of these three tests looked at the cubes. The [November review](results/review_2026_11.md) did: snapped labels gain tunnels and merge sheets, and the drift test can't rank the snapper against a plain per-sample search.
 
+**Pre-registered next, not run yet.**
+- **A blind review at matched level** ([`results/ink_review_matched_plan.md`](results/ink_review_matched_plan.md)) asks whether snapped w052 maps are less legible or only dimmer.
+- **A labelled test of a smooth snap** on PHerc. 0841, at both seeds ([`results/smooth_snap_plan.md`](results/smooth_snap_plan.md)).
+
 ![Chase's real drift test: snap_labels and four scroll-label-snap settings against a two-scan recto face on PHerc. 0139](results/independent_drift_test_chase.png)
 
 *Chart by Chase, shared in the Vesuvius Challenge Discord and used with his permission. In his test, scroll-label-snap ran on 13 × 13-vertex crops. That gives its offset estimate and learned profile fewer samples than a whole segment would.*
