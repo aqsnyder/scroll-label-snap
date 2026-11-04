@@ -18,13 +18,12 @@ import json
 import os
 import sys
 import time
-from dataclasses import replace
 
 import numpy as np
 import tifffile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from scroll_label_snap.core import Params, snap, shift_volumes  # noqa: E402
+from scroll_label_snap.core import Params, parse_params, snap, shift_volumes  # noqa: E402
 
 
 def main(out_dir, *paths, p=None):
@@ -71,11 +70,4 @@ if __name__ == "__main__":
     ap.add_argument("--param", action="append", default=[], metavar="NAME=VALUE",
                     help="override a snapper parameter (see scroll_label_snap/core.py Params), e.g. keep_topology=true")
     a = ap.parse_args()
-    params = Params()
-    for kv in a.param:
-        k, v = kv.split("=", 1)
-        if not hasattr(params, k):
-            sys.exit(f"unknown parameter {k}")
-        cur = getattr(params, k)
-        params = replace(params, **{k: (v.lower() in ("1", "true", "yes")) if isinstance(cur, bool) else type(cur or 0.0)(v)})
-    main(a.out_dir, *a.paths, p=params)
+    main(a.out_dir, *a.paths, p=Params(**parse_params(a.param)))

@@ -107,14 +107,8 @@ def main():
                     help="override a snapper parameter (see scroll_label_snap/core.py Params), e.g. keep_topology=true")
     a = ap.parse_args()
 
-    from scroll_label_snap.core import Params
-    p, overrides = Params(), {}
-    for kv in a.param:
-        k, v = kv.split("=", 1)
-        if not hasattr(p, k):
-            sys.exit(f"unknown parameter {k}")
-        cur = getattr(p, k)
-        overrides[k] = (v.lower() in ("1", "true", "yes")) if isinstance(cur, bool) else type(cur or 0.0)(v)
+    from scroll_label_snap.core import parse_params
+    overrides = parse_params(a.param)
 
     for sub in OUTPUTS + ("rows",):
         os.makedirs(os.path.join(a.out_dir, sub), exist_ok=True)

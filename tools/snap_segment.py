@@ -22,7 +22,8 @@ Options:
   --recentre-template     the default offset above moves only the step-edge term: each tile's learned
                           profile stays at the tile's own position, as in the published w035 run, so
                           tiles land between their own depth and the segment's. This option moves the
-                          profile too (--target-offset always does). It changes the output.
+                          profile too, and so does --target-offset, unless it comes with
+                          --param template_follows_offset=false. It changes the output.
   --normals auto|grid|flipped   recto side; default from the segment's curvature
   --param NAME=VALUE      override a snapper parameter
   --limit N               only the first N tiles (for a quick try)
@@ -54,10 +55,10 @@ import numpy as np
 from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from scroll_label_snap.core import Params, estimate_convention  # noqa: E402
+from scroll_label_snap.core import Params, estimate_convention, parse_params  # noqa: E402
 from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, dense_at_fine, densify,  # noqa: E402
                                     fine_factor, fine_surface, fit_vertex_shifts, mean_spacing, prepare_mesh,
-                                    snap_mesh, surface_area, vertex_normals)
+                                    refuse_label_only, snap_mesh, surface_area, vertex_normals)
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
 
@@ -310,6 +311,14 @@ def main():
                     help="also write <name>_snapped_fine.tifxyz, with vertices about V voxels apart (default 0: don't)")
     a = ap.parse_args()
     t_start = time.time()
+    overrides = parse_params(a.param)
+    refuse_label_only(overrides)
+    if "convention_offset" in overrides:
+        sys.exit("this tool sets convention_offset itself; use --target-offset to place the mesh (T = 0 - offset)")
+    if a.target_offset is not None and overrides.get("calibrate"):
+        sys.exit("--target-offset sets the offset, so it can't be combined with calibrate=true")
+    if a.recentre_template and overrides.get("template_follows_offset") is False:
+        sys.exit("--recentre-template and template_follows_offset=false ask for opposite things")
     os.makedirs(os.path.join(a.out_dir, "tiles"), exist_ok=True)
 
     seg_dir = a.segment
@@ -321,11 +330,7 @@ def main():
     name = a.name or os.path.basename(os.path.normpath(a.segment.rstrip("/"))).replace(".tifxyz", "")
     level_scale = 1.0 / 2 ** a.level
 
-    p = Params()
-    for kv in a.param:
-        k, v = kv.split("=", 1)
-        cur = getattr(p, k)
-        p = replace(p, **{k: (v.lower() in ("1", "true", "yes")) if isinstance(cur, bool) else type(cur or 0.0)(v)})
+    p = Params(**overrides)
 
     N, ok = vertex_normals(P.astype(np.float32), valid)
     spacing = mean_spacing(P.astype(np.float32), ok) * level_scale
@@ -390,8 +395,8 @@ def main():
         c_off = conv["median"]
         got = [o for o in conv["offsets"] if o is not None]
         c_note = f"median of {len(got)} tiles (range {min(got):+.2f} to {max(got):+.2f})"
-    p = replace(p, convention_offset=float(c_off),
-                template_follows_offset=a.target_offset is not None or a.recentre_template)
+    follows = a.target_offset is not None or a.recentre_template
+    p = replace(p, convention_offset=float(c_off), template_follows_offset=overrides.get("template_follows_offset", follows))
     print(f"recto face at {c_off:+.2f} voxels from the mesh ({c_note})", flush=True)
     if a.target_offset is None and abs(c_off) >= p.convention_reach - 0.25:
         print("warning: the face sits at the edge of the search range; the recto side may be the other one "

@@ -57,9 +57,9 @@ import tifffile
 from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from scroll_label_snap.core import Params  # noqa: E402
+from scroll_label_snap.core import Params, parse_params  # noqa: E402
 from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, dense_at_fine, expand_paths,  # noqa: E402
-                                    patch_orientation, snap_mesh, surface_area)
+                                    patch_orientation, refuse_label_only, snap_mesh, surface_area)
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
 
@@ -139,14 +139,12 @@ def main():
     ap.add_argument("--fine-grid", type=float, default=0, metavar="V",
                     help="also write snapped_fine.tifxyz, with vertices about V voxels apart (default 0: don't)")
     a = ap.parse_args()
-    p = Params()
-    for kv in a.param:
-        k, v = kv.split("=", 1)
-        if not hasattr(p, k):
-            sys.exit(f"unknown parameter {k}")
-        cur = getattr(p, k)
-        p = replace(p, **{k: (v.lower() in ("1", "true", "yes")) if isinstance(cur, bool) else type(cur or 0.0)(v)})
+    overrides = parse_params(a.param)
+    refuse_label_only(overrides)
+    p = Params(**overrides)
     if a.target_offset is not None:
+        if "convention_offset" in overrides or p.calibrate:
+            sys.exit("--target-offset sets the offset, so it can't be combined with --param convention_offset or calibrate=true")
         p = replace(p, convention_offset=0.0 - a.target_offset)   # T is mesh minus edge; the offset is edge minus mesh
     sign = {"auto": 0, "ct": 0, "grid": 1, "flipped": -1}[a.normals]
     jobs = [(os.path.basename(os.path.normpath(d)),) + load_patch(d) + (sign or (0 if a.normals == "ct" else patch_orientation(d)),)

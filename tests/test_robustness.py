@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, TOOLS)
 sys.path.insert(0, HERE)
 from regression_cases import wavy_sheets  # noqa: E402
-from scroll_label_snap.core import Params, estimate_convention, snap, surface_points, warp_labels  # noqa: E402
+from scroll_label_snap.core import Params, estimate_convention, parse_params, snap, surface_points, warp_labels  # noqa: E402
 from scroll_label_snap.mesh import axis_fit_is_meaningful, expand_paths, snap_mesh  # noqa: E402
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
@@ -334,6 +334,76 @@ def test_axis_fit_gate():
     P, v = arc(50000, 3)                  # nearly flat
     assert not axis_fit_is_meaningful(P, v, (3000.0, 3000.0))[0]
     assert not axis_fit_is_meaningful(P[:0], v[:0], (0.0, 0.0))[0]
+
+
+# --------------------------------------------------------------------------- --param
+
+def test_parse_params_converts_each_field():
+    got = parse_params(["t_max=6", "border=4", "keep_topology=on", "orient_cube=0", "convention_offset=-1.5", "smooth_warp=No"])
+    assert got == dict(t_max=6.0, border=4, keep_topology=True, orient_cube=False, convention_offset=-1.5, smooth_warp=False)
+    assert isinstance(got["t_max"], float) and isinstance(got["border"], int) and got["keep_topology"] is True
+    assert parse_params([]) == {}
+
+
+@pytest.mark.parametrize("bad,says", [("keep_topology", "NAME=VALUE"), ("border=0.5", "whole number"), ("t_max=abc", "a number"),
+                                      ("keep_topology=enable", "true or false"), ("orient_cube=2", "true or false"),
+                                      ("asdict=1", "unknown parameter"), ("nosuch=1", "unknown parameter")])
+def test_parse_params_stops_with_a_message(bad, says):
+    with pytest.raises(SystemExit, match=says):
+        parse_params([bad])
+
+
+def test_all_four_tools_stop_on_a_bad_param_before_doing_anything(scene, tmp_path):
+    root, _, _ = scene
+    names = mini_set(tmp_path / "in", 1)
+    cube = (tmp_path / "in" / "images" / names[0], tmp_path / "in" / "labels" / names[0])
+    calls = (("snap_cube.py", (tmp_path / "a", *cube)), ("snap_folder.py", (tmp_path / "in", tmp_path / "b")),
+             ("snap_tifxyz.py", (tmp_path / "c", "--tifxyz", root / "seg.tifxyz", "--volume", root / "vol.tif", "--normals", "flipped")),
+             # the address answers nothing, so a download attempted first would show up as a network error
+             ("snap_segment.py", (tmp_path / "d", "--segment", "http://127.0.0.1:9/none.tifxyz/", "--volume", "none")))
+    for tool, args in calls:
+        for bad in ("keep_topology", "t_max=abc", "nosuch=1"):
+            r = run(tool, *args, "--param", bad)
+            assert r.returncode != 0 and "Traceback" not in r.stderr and bad.split("=")[0] in r.stderr, (tool, bad, r.stderr)
+        assert not os.path.exists(tmp_path / "d" / "tiles")
+
+
+@pytest.mark.parametrize("name", ["keep_topology", "orient_cube", "smooth_warp"])
+def test_mesh_tools_refuse_what_only_labels_use(scene, tmp_path, name):
+    root, _, _ = scene
+    r = run("snap_tifxyz.py", tmp_path / "a", "--tifxyz", root / "seg.tifxyz", "--volume", root / "vol.tif", "--normals", "flipped",
+            "--param", f"{name}=true")
+    assert r.returncode != 0 and name in r.stderr and "labels" in r.stderr
+    r = run_segment(root, tmp_path / "b", "--param", f"{name}=true")
+    assert r.returncode != 0 and name in r.stderr and "labels" in r.stderr
+
+
+def test_a_given_offset_is_not_silently_replaced(scene, tmp_path):
+    root, _, _ = scene
+    tif = ("snap_tifxyz.py", tmp_path / "a", "--tifxyz", root / "seg.tifxyz", "--volume", root / "vol.tif", "--normals", "flipped")
+    r = run(*tif, "--target-offset=-2", "--param", "calibrate=true")
+    assert r.returncode != 0 and "calibrate" in r.stderr
+    r = run(*tif, "--target-offset=-2", "--param", "convention_offset=1")
+    assert r.returncode != 0 and "convention_offset" in r.stderr
+    r = run(*tif, "--param", "convention_offset=1", "--param", "calibrate=true")
+    assert r.returncode != 0 and "calibrate" in r.stderr
+    r = run_segment(root, tmp_path / "b", "--target-offset=-2", "--param", "calibrate=true")
+    assert r.returncode != 0 and "calibrate" in r.stderr
+    r = run_segment(root, tmp_path / "b", "--param", "convention_offset=1")
+    assert r.returncode != 0 and "--target-offset" in r.stderr
+
+
+def test_segment_honours_template_follows_offset(scene, tmp_path):
+    root, _, _ = scene
+    # --target-offset moves the learned profile too, unless told otherwise, which is how the ink test's second try ran
+    r = run_segment(root, tmp_path / "off", "--target-offset", 0, "--param", "template_follows_offset=false")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert not json.load(open(tmp_path / "off" / "snap_segment.json"))["params"]["template_follows_offset"]
+    r = run_segment(root, tmp_path / "on", "--param", "template_follows_offset=true")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert json.load(open(tmp_path / "on" / "snap_segment.json"))["params"]["template_follows_offset"]
+    r = run_segment(root, tmp_path / "both", "--recentre-template", "--param", "template_follows_offset=false")
+    assert r.returncode != 0 and "opposite" in r.stderr
 
 
 # --------------------------------------------------------------------------- input checks

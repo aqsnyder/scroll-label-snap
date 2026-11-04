@@ -23,6 +23,7 @@ from __future__ import annotations
 import glob
 import json
 import os
+import sys
 from dataclasses import dataclass
 
 import numpy as np
@@ -155,6 +156,17 @@ def axis_orientation(P, valid, axis_yx=None):
     frac = float(toward.mean()) if len(toward) else 0.5
     sign = 1 if frac >= 0.5 else -1
     return sign, max(frac, 1 - frac), (float(axis_yx[0]), float(axis_yx[1]))
+
+
+# Parameters only labels use: a mesh has its own samples, normals and neighbours, and moves vertices, not voxels.
+LABEL_ONLY = ("sigma_band", "neigh_radius", "tangential_tol", "normal_dot", "smooth_warp", "keep_topology", "orient_cube")
+
+
+def refuse_label_only(overrides):
+    """Stop a mesh tool that was given parameters it would record but not use."""
+    used = [k for k in LABEL_ONLY if k in overrides]
+    if used:
+        sys.exit(f"{', '.join(used)} only apply to labels; a mesh does not use them, so this run would not do what it records")
 
 
 # Below this extent in (y, x), a sheet's local waves can outweigh the curve of its wrap, and a circle fit

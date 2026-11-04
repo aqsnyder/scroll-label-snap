@@ -22,6 +22,7 @@ as a baseline.
 from __future__ import annotations
 
 import os
+import sys
 from collections import deque
 from dataclasses import dataclass, asdict
 
@@ -48,7 +49,8 @@ class Params:
     prior_mu: float = 0.02        # pull toward the original label, per voxel of shift
     template_weight: float = 2.0  # weight of the learned-profile match (0 = step edge only)
     # Experimental (off by default; the published 20-cube evaluation used neither):
-    calibrate: bool = False       # remove any cube-wide offset so the median correction is 0
+    calibrate: bool = False       # remove any cube-wide offset so the median correction is 0 (this
+                                  # also cancels a given convention_offset, so the tools refuse the pair)
     stay_bonus: float = 0.0       # score bonus for keeping the original position ("do no harm")
     neigh_radius: float = 3.6     # neighbour search radius (voxels)
     tangential_tol: float = 1.0   # max offset along the normal for same-sheet neighbours
@@ -72,6 +74,7 @@ class Params:
     forward_max: float = 0.5      # and no candidate with a normal-polarity edge this strong
     # Move the band only by flipping simple points, so it keeps the input's components, tunnels
     # and cavities and separate sheets never touch. Off by default: changes the published output.
+    # A mesh has no band to walk, so it doesn't use this.
     keep_topology: bool = False
     # Orient label samples by one axis per cube instead of sheet against neighbouring sheet (see
     # orient_normals). Off by default: changes the published output, and is being tested on
@@ -80,6 +83,32 @@ class Params:
 
     def asdict(self):
         return asdict(self)
+
+
+def parse_params(pairs):
+    """--param NAME=VALUE strings as overrides for Params, each converted to its field's type. A bad one stops
+    the tool with a message, before any work starts."""
+    fields = Params().asdict()
+    out = {}
+    for kv in pairs:
+        k, eq, v = kv.partition("=")
+        if not eq:
+            sys.exit(f"--param {kv}: expected NAME=VALUE")
+        if k not in fields:
+            sys.exit(f"unknown parameter {k}")
+        if isinstance(fields[k], bool):
+            if v.lower() not in ("1", "true", "yes", "on", "0", "false", "no", "off"):
+                sys.exit(f"--param {kv}: {k} is true or false (1, true, yes, on or 0, false, no, off)")
+            out[k] = v.lower() in ("1", "true", "yes", "on")
+        else:
+            kind = type(fields[k] or 0.0)
+            try:
+                out[k] = kind(v)
+            except ValueError:
+                sys.exit(f"--param {kv}: {k} is {'a whole number' if kind is int else 'a number'}")
+    if out.get("calibrate") and out.get("convention_offset") is not None:
+        sys.exit("calibrate=true replaces a given convention_offset with the median correction, so the two can't be combined")
+    return out
 
 
 def sample(vol, pts, order=1):
