@@ -73,6 +73,10 @@ class Params:
     # Move the band only by flipping simple points, so it keeps the input's components, tunnels
     # and cavities and separate sheets never touch. Off by default: changes the published output.
     keep_topology: bool = False
+    # Orient label samples by one axis per cube instead of sheet against neighbouring sheet (see
+    # orient_normals). Off by default: changes the published output, and is being tested on
+    # fresh cubes (results/orient_test_plan.md). Meshes are not oriented this way, so they don't use it.
+    orient_cube: bool = False
 
     def asdict(self):
         return asdict(self)
@@ -167,8 +171,10 @@ def neighbour_graph(pts, n, p: Params):
 
 # --------------------------------------------------------------------------- 3. orient
 
-def orient_normals(pts, n, i, j, ct_s):
+def orient_normals(pts, n, i, j, ct_s, orient_cube=False):
     """Flip normals so they agree along each sheet and point from papyrus toward the gap.
+    The last step is across sheets: against neighbouring sheets, or with orient_cube=True by one
+    axis for the whole cube.
 
     Returns (oriented normals, component id per sample)."""
     N = len(pts)
@@ -211,10 +217,28 @@ def orient_normals(pts, n, i, j, ct_s):
     flip = comp_vote[comp] < 0
     n[flip] *= -1
 
+    # orient_cube: every wrap's recto faces the scroll centre, so away from the centre all the
+    # sheets of a cube lie along one axis and point the same way. One sheet's vote can be nearly
+    # even or made by a small part of it, so each sheet takes the side of the axis it lies on, and
+    # the votes of all sheets together only choose which way the axis points. Sheets across the
+    # axis (mean along it under 0.3) keep their own vote.
+    if c > 1 and orient_cube:
+        w, v = np.linalg.eigh(n.astype(np.float64).T @ n.astype(np.float64))
+        # A guard for cubes at the scroll centre, where the normals have no single axis and one sign
+        # for the whole cube would be wrong: below this share of the normals' squared projection on
+        # the axis, every sheet keeps its own vote. 0.7 was put between phantoms (0.675 with the
+        # axis 120 voxels from the cube centre) and the smallest share on the development cubes
+        # (0.797). It was not tuned, and no real cube near the centre has tested it.
+        if w[-1] >= 0.7 * w.sum():
+            along = np.bincount(comp, weights=n @ v[:, -1], minlength=c) / np.bincount(comp, minlength=c)
+            if np.sign(along) @ np.abs(comp_vote) < 0:
+                along = -along
+            n[(along <= -0.3)[comp]] *= -1
+
     # cross-sheet check: every wrap's recto faces the scroll centre, so nearby sheets
     # should point the same way. Flip any sheet that disagrees with the samples of the
     # other sheets around it (mostly small fragments with a weak vote of their own).
-    if c > 1:
+    elif c > 1:
         sub = np.arange(0, N, 5)
         neighbours = cKDTree(pts).query_ball_point(pts[sub], r=12.0)
         agree_sum = np.zeros(c)
@@ -615,7 +639,7 @@ def prepare(img, lab, p: Params):
     ct_s = ndi.gaussian_filter(img.astype(np.float32), p.sigma_ct)
     pts, n, _ = surface_points(lab, p)
     i, j = neighbour_graph(pts, n, p)
-    n, comp = orient_normals(pts, n, i, j, ct_s)
+    n, comp = orient_normals(pts, n, i, j, ct_s, orient_cube=p.orient_cube)
     return ct_s, pts, n, i, j, comp
 
 

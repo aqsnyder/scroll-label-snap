@@ -18,7 +18,9 @@ and the snapped band:
   - merger events: sheets of the original that end up in one component. Every 8th voxel of the original band looks
     for its nearest snapped component within 7 voxels. An original component of at least --min-size voxels goes to the
     snapped component holding most of those voxels, if that is at least half of them and it has at least --min-size
-    voxels itself. A snapped component that receives k >= 2 sheets is k - 1 events.
+    voxels itself. A snapped component that receives k >= 2 sheets is k - 1 events. This is a rule, not a tracking of
+    voxels: a small sheet whose voxels end up nearest a neighbouring sheet counts even if the two stay separate. On the
+    published labels of the 20 development cubes it equals per-voxel tracking cube by cube (50 events).
   - for merged components, the contact: each of their voxels near a meeting of two sheets takes the nearest original
     component, and 26-adjacent voxels that differ are contact voxels. Reported in total and per pair of sheets.
 
@@ -196,12 +198,14 @@ def contacts(l_orig, l_snap, merged):
 
 
 def measure(orig_path, snap_path, name=None, min_size=1000):
+    name = name or os.path.basename(orig_path).rsplit(".", 1)[0]
+    return measure_labels(tifffile.imread(orig_path), tifffile.imread(snap_path), name, min_size)
+
+
+def measure_labels(lab_o, lab_s, name, min_size=1000):
     t0 = time.time()
-    lab_o = tifffile.imread(orig_path)
-    lab_s = tifffile.imread(snap_path)
     if lab_o.shape != lab_s.shape:
         raise ValueError(f"the original has shape {lab_o.shape} but the snapped labels have shape {lab_s.shape}")
-    name = name or os.path.basename(orig_path).rsplit(".", 1)[0]
     b_o, b_s = lab_o == 1, lab_s == 1
     l_o, n_o = ndi.label(b_o, structure=S26)
     l_s, n_s = ndi.label(b_s, structure=S26)
@@ -236,7 +240,8 @@ def run_one(orig_path, snap_path, out_json, name, min_size):
 
 def csv_row(r):
     """One flat row per cube: the Betti numbers, then the size and merger counts."""
-    row = dict(cube=r["cube"], label2_same=r["label2_same"], voxels_original=r["voxels"]["original"], voxels_snapped=r["voxels"]["snapped"])
+    row = dict(cube=r["cube"], label2_same=r["label2_same"],
+               voxels_original=r["voxels"]["original"], voxels_snapped=r["voxels"]["snapped"])
     for conn in ("26", "6"):
         for which in ("original", "snapped"):
             for k, v in r["betti"][which][conn].items():

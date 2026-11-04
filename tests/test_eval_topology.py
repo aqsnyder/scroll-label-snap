@@ -157,6 +157,19 @@ def test_small_sheets_take_no_part_in_merger_events(tmp_path):
     assert run_measure(tmp_path, lab, joined, min_size=10)["merger_events"] == 1
 
 
+def test_the_merger_rule_can_count_sheets_that_stay_separate(tmp_path):
+    # a rule, not a tracking: the small sheet moves off, and the large one moves to where it was
+    lab = np.zeros((48, 60, 48), np.uint8)
+    lab[4:44, 20:23, 4:44] = 1
+    lab[10:30, 28:30, 10:40] = 1
+    moved = np.zeros_like(lab)
+    moved[4:44, 26:29, 4:44] = 1
+    moved[10:30, 33:35, 10:40] = 1
+    r = run_measure(tmp_path, lab, moved)
+    assert r["components"] == dict(original=2, snapped=2) and r["betti"]["snapped"]["26"]["b0"] == 2
+    assert r["merger_events"] == 1
+
+
 def test_a_band_moved_out_of_reach_is_not_a_merger(tmp_path):
     lab = plates()
     r = run_measure(tmp_path, lab, np.zeros_like(lab))
