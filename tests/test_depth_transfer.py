@@ -171,6 +171,17 @@ def test_refine_stays_on_the_nearer_sheet():
     assert (d[np.isfinite(d)] < 8).mean() > 0.99
 
 
+def test_normal_sigma_is_in_voxels(monkeypatch):
+    seen = []
+    real = dt.smooth_normals
+    monkeypatch.setattr(dt, "smooth_normals", lambda N, ok, sigma: seen.append(sigma) or real(N, ok, sigma))
+    P, N, v, _ = target_pixels()
+    for spacing in (3, 6):
+        Pw, vw = surface(np.zeros((SIZE, SIZE)), 106.0, spacing)
+        dt.surface_samples(Pw, vw, P[v].min(0), P[v].max(0), 14, 12.0)
+    assert seen == pytest.approx([12.0 / 3, 12.0 / 6], rel=1e-3)
+
+
 def test_command_line_records_the_settings(tmp_path):
     height = rough_height(1.5)
     Pw, vw = surface(height, 106.0)
@@ -179,7 +190,8 @@ def test_command_line_records_the_settings(tmp_path):
     write_tifxyz(str(tmp_path / "surface.tifxyz"), Pw, vw, scale=1 / SPACING)
     write_tifxyz(str(tmp_path / "target.tifxyz"), Pt, np.ones(r.shape, bool), scale=0.05)
     results = {}
-    for name, extra in (("default", []), ("fixed", ["--refine", "3", "--normal-sigma", "10"])):
+    for name, extra in (("default", []), ("fixed", ["--refine", "3", "--normal-sigma", "10"]),
+                        ("refine", ["--refine", "3"])):
         out = tmp_path / f"{name}.npz"
         subprocess.run([sys.executable, os.path.join(TOOLS, "depth_transfer.py"), str(out),
                         "--target", str(tmp_path / "target.tifxyz"), "--surface", str(tmp_path / "surface.tifxyz"),
@@ -190,3 +202,5 @@ def test_command_line_records_the_settings(tmp_path):
     assert results["fixed"][1]["refine"] == 3 and results["fixed"][1]["normal_sigma"] == 10
     assert np.isnan(results["default"][0]).mean() > 0.05
     assert np.isnan(results["fixed"][0]).mean() < 0.005
+    assert results["refine"][1]["normal_sigma"] == 0
+    assert not np.array_equal(results["refine"][0], results["fixed"][0], equal_nan=True)    # the flag reaches the normals
