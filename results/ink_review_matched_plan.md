@@ -150,3 +150,4 @@ All outcomes go into `results/ink_review_matched.md`, the README and the write-u
   - The key file's own SHA-256 is `eb475199ebe8503e57b1ba9c5faaf1bf58cfbbbc7ee0572dd85856481a605a61`.
   - An encrypted copy is `review/sealed_key_b5713cdd210c.enc` (AES-256-CBC, `openssl enc -pbkdf2 -iter 200000`).
 - **The page** is `review/ink/index.html`, unchanged.
+- **Reviewer 1** (the repository owner) answered on 4 November, 15:46–15:53 UTC, in about 7 minutes. Asked the blinding question before the key was opened, they said: "not a clue".
