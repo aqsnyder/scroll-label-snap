@@ -176,10 +176,37 @@ def test_two_close_sheets_keep_their_topology(smooth):
     assert column.sum() >= 3
 
 
+def iou(a, b):
+    return (a & b).sum() / (a | b).sum()
+
+
+@pytest.mark.parametrize("smooth", [True, False])
+def test_kept_band_goes_all_the_way_to_where_it_was_sent(smooth):
+    # three sheets far apart, each moved by 2 to 4 voxels: nothing contests the move, so the walk must end at the plain warp
+    lab = np.zeros((64, 96, 64), np.uint8)
+    a, b = np.meshgrid(np.arange(1.0, 64, 3), np.arange(1.0, 64, 3), indexing="ij")
+    pts, shift, comp = [], [], []
+    for k, (y, sign) in enumerate(((20, 1.0), (46, -1.0), (70, 1.0))):
+        lab[:, y:y + 2] = 1
+        pts.append(np.stack([a.ravel(), np.full(a.size, y + 0.5), b.ravel()], 1))
+        shift.append(sign * (3.0 + np.sin(2 * np.pi * a.ravel() / 64)))
+        comp.append(np.full(a.size, k))
+    pts, shift, comp = np.vstack(pts).astype(np.float32), np.concatenate(shift).astype(np.float32), np.concatenate(comp)
+    normals = np.tile(np.array([0, 1, 0], np.float32), (len(pts), 1))
+    plain = warp_labels(lab, pts, normals, shift, comp=comp, smooth=smooth) == 1
+    kept = warp_labels(lab, pts, normals, shift, comp=comp, smooth=smooth, keep_topology=True) == 1
+    assert iou(plain, lab == 1) < 0.2                            # the sheets really move
+    assert iou(kept, plain) > 0.95
+    for conn in (6, 26):
+        assert betti(kept, conn) == betti(lab == 1, conn)
+
+
 def test_snap_option_keeps_topology_and_default_output():
     ct, lab = label_case()
     prepared = prepare(ct, lab, Params())
     r = snap(ct, lab, Params(keep_topology=True), prepared=prepared)
+    assert iou(r.labels == 1, snap(ct, lab, Params(), prepared=prepared).labels == 1) > 0.85
+    assert iou(r.labels == 1, snap(ct, lab, Params(), prepared=prepared).labels == 1) > iou(r.labels == 1, lab == 1) + 0.2
     for conn in (6, 26):
         assert betti(r.labels == 1, conn) == betti(lab == 1, conn)
     assert np.array_equal(r.labels == 2, lab == 2)

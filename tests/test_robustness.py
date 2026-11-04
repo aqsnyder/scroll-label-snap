@@ -107,6 +107,19 @@ def test_segment_default_keeps_the_template_at_each_tile(scene, tmp_path):
     assert abs(landed(tmp_path / "s_snapped_dense.tifxyz") - (0.0 - summary["convention_offset"])) < 0.5
 
 
+def test_recentre_template_moves_the_learned_profile(scene, tmp_path):
+    root, _, P = scene
+    Q = P.copy()
+    Q[..., 1] += 2.0 * (Q[..., 2] > 100)                 # tiles on one side have another offset of their own than the segment's
+    write_tifxyz(str(root / "step.tifxyz"), Q, np.ones(Q.shape[:2], bool), {"scale": [1 / 15, 1 / 15]}, uuid="step")
+    assert run_segment(root, tmp_path / "plain", "--sample-tiles", 9, segment="step.tifxyz").returncode == 0
+    assert run_segment(root, tmp_path / "moved", "--sample-tiles", 9, "--recentre-template", segment="step.tifxyz").returncode == 0
+    a = tifffile.imread(tmp_path / "plain" / "s_snapped_dense.tifxyz" / "snap_shift.tif")
+    b = tifffile.imread(tmp_path / "moved" / "s_snapped_dense.tifxyz" / "snap_shift.tif")
+    assert json.load(open(tmp_path / "moved" / "snap_segment.json"))["params"]["template_follows_offset"]
+    assert np.mean(np.abs(a - b) >= 0.5) > 0.05
+
+
 def test_convention_offset_moves_both_terms(scene):
     _, ct, P = scene
     valid = np.ones(P.shape[:2], bool)
