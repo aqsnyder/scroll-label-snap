@@ -58,7 +58,7 @@ from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import Params, parse_params  # noqa: E402
-from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, dense_at_fine, expand_paths,  # noqa: E402
+from scroll_label_snap.mesh import (FIT_RULE, axis_fit_is_meaningful, axis_orientation, dense_at_fine, expand_paths,  # noqa: E402
                                     patch_orientation, refuse_label_only, snap_mesh, surface_area)
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
 
@@ -161,7 +161,7 @@ def main():
                 curved, radius, extent = axis_fit_is_meaningful(P, valid, axis)
                 if agree < 0.9 or not curved:
                     sys.exit(f"this mesh's own curve does not settle which side is recto (agreement {agree:.0%}, fitted radius "
-                             f"{radius:.0f} voxels for a mesh {extent:.0f} voxels across); pass --axis Y X, or --normals grid "
+                             f"{radius:.0f} voxels for a mesh {extent:.0f} voxels across; {FIT_RULE}); pass --axis Y X, or --normals grid "
                              "or flipped, or --normals ct to let the CT vote decide")
         jobs.append((os.path.basename(os.path.normpath(a.tifxyz)).replace(".tifxyz", ""), a.tifxyz, a.volume,
                      list(a.offset), a.level_scale, sign))

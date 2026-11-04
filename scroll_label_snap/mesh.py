@@ -166,7 +166,7 @@ def refuse_label_only(overrides):
     """Stop a mesh tool that was given parameters it would record but not use."""
     used = [k for k in LABEL_ONLY if k in overrides]
     if used:
-        sys.exit(f"{', '.join(used)} only apply to labels; a mesh does not use them, so this run would not do what it records")
+        sys.exit(f"only labels use {', '.join(used)}; a mesh does not, so this run would not do what it records")
 
 
 # Below this extent in (y, x), a sheet's local waves can outweigh the curve of its wrap, and a circle fit
@@ -174,6 +174,7 @@ def refuse_label_only(overrides):
 # passed the other checks: none of the 1,882 at this extent or more had the wrong sign, and 20 of the 2,109 below it
 # did, the largest between 1,400 and 1,500 voxels. Measured on these two segments only.
 MIN_FIT_EXTENT = 1600.0
+FIT_RULE = f"it takes 90% agreement, at least {MIN_FIT_EXTENT:,.0f} voxels across and a radius under 3 times that"
 
 
 def axis_fit_is_meaningful(P, valid, axis_yx):
@@ -214,9 +215,13 @@ def patch_orientation(patch_dir, verbose=True):
     if whole not in _ORIENT:
         P, valid, _ = read_tifxyz(whole)
         sign, agree, axis = axis_orientation(P, valid)
-        if not axis_fit_is_meaningful(P, valid, axis)[0]:
-            agree = 0.0                      # nearly flat: the fit says nothing about the scroll centre
-        if verbose:
+        curved, radius, extent = axis_fit_is_meaningful(P, valid, axis)
+        if not curved:
+            agree = 0.0                      # nearly flat or short: the fit says nothing about the scroll centre
+            if verbose:
+                print(f"the whole segment's curve does not settle the recto side (fitted radius {radius:.0f} voxels for a "
+                      f"segment {extent:.0f} voxels across; {FIT_RULE})", flush=True)
+        elif verbose:
             print(f"orientation from the whole segment: scroll axis near y {axis[0]:.0f}, x {axis[1]:.0f}; "
                   f"recto normal {'= grid normal' if sign > 0 else '= flipped grid normal'} at {agree:.0%} of vertices",
                   flush=True)

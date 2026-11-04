@@ -20,7 +20,7 @@ TOOLS = os.path.join(HERE, "..", "tools")
 sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, TOOLS)
 sys.path.insert(0, HERE)
-from regression_cases import wavy_sheets  # noqa: E402
+from regression_cases import mesh_case, wavy_sheets  # noqa: E402
 from scroll_label_snap.core import Params, estimate_convention, parse_params, snap, surface_points, warp_labels  # noqa: E402
 from scroll_label_snap.mesh import axis_fit_is_meaningful, expand_paths, snap_mesh  # noqa: E402
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
@@ -73,7 +73,7 @@ def test_target_offset_snap_tifxyz(scene, tmp_path, target):
     assert abs(landed(tmp_path / "seg" / "snapped_dense.tifxyz") - target) < 0.5
 
 
-def run_segment(root, out, *args):
+def run_segment(root, out, *args, segment="seg.tifxyz", volume="scan.zarr"):
     pytest.importorskip("zarr")
     pytest.importorskip("fsspec")
     import zarr
@@ -82,7 +82,7 @@ def run_segment(root, out, *args):
         ct = tifffile.imread(root / "vol.tif")
         g = zarr.open_group(zarr.DirectoryStore(str(scan), dimension_separator="/"), mode="w")
         g.create_dataset("0", data=ct, chunks=(64, 64, 64), compressor=None)
-    return run("snap_segment.py", out, "--segment", root / "seg.tifxyz", "--volume", scan, "--tile", 8, "--overlap", 2,
+    return run("snap_segment.py", out, "--segment", root / segment, "--volume", root / volume, "--tile", 8, "--overlap", 2,
                "--workers", 1, "--sample-tiles", 4, "--normals", "flipped", "--name", "s", *args)
 
 
@@ -220,6 +220,147 @@ def test_segment_reports_a_tile_it_cannot_move(scene, tmp_path):
         assert "tiles failed" in r.stdout and json.load(open(tmp_path / "snap_segment.json"))["tiles_failed"]
 
 
+def as_old_folder(out):
+    """A finished folder as a run from before tiles/settings.json leaves it."""
+    os.remove(out / "tiles" / "settings.json")
+    s = json.load(open(out / "snap_segment.json"))
+    del s["fine_factor"]
+    for k in ("template_follows_offset", "keep_topology", "orient_cube"):
+        del s["params"][k]
+    json.dump(s, open(out / "snap_segment.json", "w"))
+
+
+def test_old_folder_is_only_reused_by_a_run_that_fits_it(scene, tmp_path):
+    root, _, _ = scene
+    assert run_segment(root, tmp_path).returncode == 0
+    as_old_folder(tmp_path)
+    dense = (tmp_path / "s_snapped_dense.tifxyz" / "x.tif").read_bytes()
+    for args, says in ((("--target-offset=-2",), "template_follows_offset"), (("--recentre-template",), "template_follows_offset"),
+                       (("--param", "t_max=8"), "t_max"), (("--tile", 6), "--tile"), (("--normals", "grid"), "normal_sign")):
+        r = run_segment(root, tmp_path, *args)
+        assert r.returncode != 0 and "before this tool recorded" in r.stderr and says in r.stderr, (args, r.stderr)
+        assert not (tmp_path / "tiles" / "settings.json").exists()
+    # the same settings may reuse the tiles and add a fine grid, without being stamped as if the tool knew how they were made
+    for args in ((), ("--fine-grid", 5)):
+        r = run_segment(root, tmp_path, *args)
+        assert r.returncode == 0 and "0 to go" in r.stdout, r.stdout + r.stderr
+        assert not (tmp_path / "tiles" / "settings.json").exists()
+        assert (tmp_path / "s_snapped_dense.tifxyz" / "x.tif").read_bytes() == dense
+    assert (tmp_path / "s_snapped_fine.tifxyz").exists()
+
+
+def test_old_folder_with_a_given_offset(scene, tmp_path):
+    root, _, _ = scene
+    # the old sign: an old run's --target-offset=-2 is recorded as convention_offset -2, which is T = +2 now
+    same = ("--target-offset=2", "--param", "template_follows_offset=false")
+    assert run_segment(root, tmp_path, *same).returncode == 0
+    as_old_folder(tmp_path)
+    assert run_segment(root, tmp_path, *same).returncode == 0
+    r = run_segment(root, tmp_path, "--target-offset=-2", "--param", "template_follows_offset=false")
+    assert r.returncode != 0 and "convention_offset" in r.stderr
+    r = run_segment(root, tmp_path, "--target-offset=2")
+    assert r.returncode != 0 and "template_follows_offset=false" in r.stderr
+    r = run_segment(root, tmp_path)
+    assert r.returncode != 0 and "--target-offset" in r.stderr
+
+
+def test_interrupted_old_folder_has_no_record_of_its_settings(scene, tmp_path):
+    root, _, _ = scene
+    assert run_segment(root, tmp_path).returncode == 0
+    as_old_folder(tmp_path)
+    os.remove(tmp_path / "snap_segment.json")
+    r = run_segment(root, tmp_path, "--param", "t_max=8")
+    assert r.returncode != 0 and "nothing records" in r.stderr
+    assert run_segment(root, tmp_path).returncode == 0
+    os.remove(tmp_path / "snap_segment.json")
+    (tmp_path / "tiles" / "r09999_c00000.npz").write_bytes(b"")         # not one of this segment's windows
+    r = run_segment(root, tmp_path)
+    assert r.returncode != 0 and "windows" in r.stderr
+    os.remove(tmp_path / "tiles" / "r09999_c00000.npz")
+    os.remove(tmp_path / "convention.json")                              # tiles and no offset: made with a given one
+    r = run_segment(root, tmp_path)
+    assert r.returncode != 0 and "--target-offset" in r.stderr
+
+
+def test_tiles_are_not_reused_for_another_segment_or_scan(scene, tmp_path):
+    root, _, P = scene
+    other = P.copy()
+    other[..., 1] -= SHEET + GAP                                         # the next sheet's face
+    write_tifxyz(str(root / "next.tifxyz"), other, np.ones(other.shape[:2], bool), {"scale": [1 / 15, 1 / 15]}, uuid="next")
+    assert run_segment(root, tmp_path).returncode == 0
+    r = run_segment(root, tmp_path, segment="next.tifxyz")
+    assert r.returncode != 0 and "other settings (segment)" in r.stderr
+    shutil.copytree(root / "scan.zarr", tmp_path / "elsewhere.zarr")
+    r = run_segment(root, tmp_path, volume=tmp_path / "elsewhere.zarr")
+    assert r.returncode != 0 and "other settings (volume)" in r.stderr and "another address" in r.stderr
+    for args, says in ((("--margin", 16), "margin"), (("--overlap", 1), "overlap"), (("--normals", "grid"), "sign"), (("--sample-tiles", 3), "sample_tiles")):
+        r = run_segment(root, tmp_path, *args)
+        assert r.returncode != 0 and says in r.stderr, (args, r.stderr)
+    r = run_segment(root, tmp_path, "--tile", 6)
+    assert r.returncode != 0 and "tile" in r.stderr
+
+
+def test_a_run_that_made_nothing_does_not_hold_the_folder(scene, tmp_path):
+    root, _, _ = scene
+    r = run_segment(root, tmp_path, volume="no_such.zarr")
+    assert r.returncode != 0 and "cannot read the scan" in r.stderr
+    assert run_segment(root, tmp_path).returncode == 0
+    (tmp_path / "convention.json").unlink()
+    for f in os.listdir(tmp_path / "tiles"):
+        if f.endswith(".npz"):
+            os.remove(tmp_path / "tiles" / f)
+    assert run_segment(root, tmp_path, "--param", "t_max=6").returncode == 0     # settings.json alone: nothing to protect
+
+
+def test_offset_of_a_limited_run_does_not_carry_over_to_a_longer_one(scene, tmp_path):
+    root, _, _ = scene
+    assert run_segment(root, tmp_path, "--limit", 2).returncode == 0
+    r = run_segment(root, tmp_path, "--limit", 1)
+    assert r.returncode == 0, r.stdout + r.stderr                        # a shorter run is fine, it has seen those tiles
+    r = run_segment(root, tmp_path)
+    assert r.returncode != 0 and "--limit" in r.stderr
+    assert run_segment(root, tmp_path / "whole").returncode == 0
+    assert run_segment(root, tmp_path / "whole", "--limit", 2).returncode == 0
+
+
+def test_every_tile_failing_is_an_error_and_writes_no_surface(scene, tmp_path):
+    root, _, _ = scene
+    pytest.importorskip("zarr")
+    import zarr
+    far = tmp_path / "far.zarr"
+    g = zarr.open_group(zarr.DirectoryStore(str(far), dimension_separator="/"), mode="w")
+    g.create_dataset("0", data=np.full((20, 20, 20), 60, np.uint8), chunks=(16, 16, 16), compressor=None)
+    assert run_segment(root, tmp_path / "first").returncode == 0         # makes the zarr
+    r = run_segment(root, tmp_path / "out", "--target-offset", 0, volume=far)
+    assert r.returncode != 0 and "tiles failed" in r.stderr
+    assert not (tmp_path / "out" / "snap_segment.json").exists() and not (tmp_path / "out" / "s_snapped.tifxyz").exists()
+    r = run_segment(root, tmp_path / "out", "--target-offset", 0, volume=far)  # and a rerun does not pass it off as done
+    assert r.returncode != 0 and not (tmp_path / "out" / "snap_segment.json").exists()
+    r = run_segment(root, tmp_path / "sampled", volume=far)              # with no offset given, the sample tiles already say so
+    assert r.returncode != 0 and "too few sample tiles" in r.stderr
+
+
+def test_sample_tile_outside_the_scan_does_not_vote_on_the_offset():
+    import snap_segment
+    P = mesh_grid() + 1000
+    snap_segment._STATE.update(seg=(P, np.ones(P.shape[:2], bool), {}), vol=CT)
+    offset, error = snap_segment.tile_convention((0, 5, 0, 5, (0, 5, 0, 5)), Params(), 1.0, 8, 1, 1)
+    assert offset is None and "inside the scan" in error
+
+
+def test_grid_past_the_scan_does_not_pull_the_offset_to_zero(scene, tmp_path):
+    root, _, _ = scene
+    zs, xs = np.arange(30, 121, 15.0), np.arange(30, 271, 15.0)        # the scan ends at x = 190
+    Z, X = np.meshgrid(zs, xs, indexing="ij")
+    Q = np.stack([Z, face_y(X, Z) + 3.0, X], -1).astype(np.float32)      # 3 voxels off the face, in the gap
+    write_tifxyz(str(root / "past.tifxyz"), Q, np.ones(Q.shape[:2], bool), {"scale": [1 / 15, 1 / 15]}, uuid="past")
+    r = run_segment(root, tmp_path / "out", "--sample-tiles", 12, segment="past.tifxyz")
+    assert r.returncode == 0, r.stdout + r.stderr
+    conv = json.load(open(tmp_path / "out" / "convention.json"))
+    assert None in conv["offsets"] and 0.0 not in conv["offsets"]
+    assert abs(conv["median"] + 3.0) < 1.0
+
+
 # --------------------------------------------------------------------------- folder runs
 
 def mini_set(root, k, empty=()):
@@ -326,6 +467,35 @@ def arc(radius, degrees, n=40):
     return np.stack([Z, 3000 + radius * np.sin(A), 3000 + radius * np.cos(A)], -1).astype(np.float32), np.ones(A.shape, bool)
 
 
+def test_short_segment_stops_and_names_the_rule(tmp_path, capsys):
+    import fetch_segment
+    P, v = arc(900, 58)                   # 100% agreement and a radius near its extent: only the length fails
+    write_tifxyz(str(tmp_path / "arc.tifxyz"), P, v, {"scale": [0.05, 0.05]}, uuid="arc")
+    r = run("snap_segment.py", tmp_path / "a", "--segment", tmp_path / "arc.tifxyz", "--volume", "not read")
+    assert r.returncode != 0 and "curvature" in r.stderr and "1,600 voxels across" in r.stderr     # run_0841.ps1 looks for "curvature"
+    r = run("snap_tifxyz.py", tmp_path / "b", "--tifxyz", tmp_path / "arc.tifxyz", "--volume", "not read")
+    assert r.returncode != 0 and "1,600 voxels across" in r.stderr
+    orient = fetch_segment.recto_orientation(P, v)
+    assert "recto_sign" not in orient and "1,600 voxels across" in capsys.readouterr().out
+    P, v = arc(1200, 150)                 # long enough
+    assert fetch_segment.recto_orientation(P, v)["recto_sign"] in (1, -1)
+
+
+def test_patch_folder_warns_when_only_the_ct_vote_is_left(tmp_path):
+    ct, P, v = mesh_case()
+    patch = tmp_path / "segs" / "patch_0"
+    os.makedirs(patch)
+    write_tifxyz(str(patch / "segment.tifxyz"), P, v, {"scale": [0.05, 0.05]}, uuid="synth")
+    tifffile.imwrite(patch / "volume.tif", ct)
+    json.dump(dict(offset_zyx=[0, 0, 0], scale_to_level=1.0), open(patch / "patch.json", "w"))
+    r = run("snap_tifxyz.py", tmp_path / "out", patch)
+    assert r.returncode == 0 and "warning" in r.stdout and "CT vote" in r.stdout, r.stdout + r.stderr
+    # the whole segment next to the patches is too short to settle it, and the tool says why
+    write_tifxyz(str(tmp_path / "segs" / "segment.tifxyz"), P, v, {"scale": [0.05, 0.05]}, uuid="whole")
+    r = run("snap_tifxyz.py", tmp_path / "out", patch)
+    assert r.returncode == 0 and "1,600 voxels across" in r.stdout and "CT vote" in r.stdout, r.stdout + r.stderr
+
+
 def test_axis_fit_gate():
     P, v = arc(1200, 150)                 # a long stretch of a wrap
     assert axis_fit_is_meaningful(P, v, (3000.0, 3000.0))[0]
@@ -334,6 +504,13 @@ def test_axis_fit_gate():
     P, v = arc(50000, 3)                  # nearly flat
     assert not axis_fit_is_meaningful(P, v, (3000.0, 3000.0))[0]
     assert not axis_fit_is_meaningful(P[:0], v[:0], (0.0, 0.0))[0]
+    # the extent rule itself, just under and just over 1,600 voxels across
+    P, v = arc(850, 150)
+    good, _, extent = axis_fit_is_meaningful(P, v, (3000.0, 3000.0))
+    assert 1500 < extent < 1600 and not good
+    P, v = arc(870, 150)
+    good, _, extent = axis_fit_is_meaningful(P, v, (3000.0, 3000.0))
+    assert 1600 < extent < 1700 and good
 
 
 # --------------------------------------------------------------------------- --param
@@ -373,9 +550,9 @@ def test_mesh_tools_refuse_what_only_labels_use(scene, tmp_path, name):
     root, _, _ = scene
     r = run("snap_tifxyz.py", tmp_path / "a", "--tifxyz", root / "seg.tifxyz", "--volume", root / "vol.tif", "--normals", "flipped",
             "--param", f"{name}=true")
-    assert r.returncode != 0 and name in r.stderr and "labels" in r.stderr
+    assert r.returncode != 0 and f"only labels use {name}" in r.stderr
     r = run_segment(root, tmp_path / "b", "--param", f"{name}=true")
-    assert r.returncode != 0 and name in r.stderr and "labels" in r.stderr
+    assert r.returncode != 0 and f"only labels use {name}" in r.stderr
 
 
 def test_a_given_offset_is_not_silently_replaced(scene, tmp_path):

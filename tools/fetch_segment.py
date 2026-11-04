@@ -35,7 +35,7 @@ import numpy as np
 import tifffile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from scroll_label_snap.mesh import axis_fit_is_meaningful, axis_orientation  # noqa: E402
+from scroll_label_snap.mesh import FIT_RULE, axis_fit_is_meaningful, axis_orientation  # noqa: E402
 from scroll_label_snap.tifxyz import read_tifxyz, write_tifxyz  # noqa: E402
 
 TIFXYZ_FILES = ("meta.json", "x.tif", "y.tif", "z.tif", "mask.tif")
@@ -122,6 +122,22 @@ def pick_windows(valid, size, count, rng, taken=()):
     return out
 
 
+def recto_orientation(P, valid):
+    """For patch.json: which way the recto faces, from the whole segment's geometry (recto faces the scroll axis). recto_sign
+    is left out, and the tool says so, if the segment's curve does not settle it."""
+    r_sign, r_agree, r_axis = axis_orientation(P, valid)
+    print(f"scroll axis near y {r_axis[0]:.0f}, x {r_axis[1]:.0f}: the recto side is "
+          f"{'along' if r_sign > 0 else 'against'} the grid normal at {r_agree:.0%} of vertices", flush=True)
+    orient = dict(recto_agree=r_agree, scroll_axis_yx=list(r_axis))
+    curved, radius, extent = axis_fit_is_meaningful(P, valid, r_axis)
+    if r_agree >= 0.9 and curved:
+        orient["recto_sign"] = r_sign
+    else:
+        print(f"recto_sign is not recorded: agreement {r_agree:.0%}, fitted radius {radius:.0f} voxels for a segment "
+              f"{extent:.0f} voxels across; {FIT_RULE}", flush=True)
+    return orient
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out_dir")
@@ -144,13 +160,7 @@ def main():
     print(f"segment: {', '.join(files)}", flush=True)
     P, valid, meta = read_tifxyz(seg_dir)
     print(f"grid {P.shape[1]} x {P.shape[0]}, {valid.mean():.0%} valid, scale {meta.get('scale')}", flush=True)
-    # which way the recto faces, from the whole segment's geometry (recto faces the scroll axis)
-    r_sign, r_agree, r_axis = axis_orientation(P, valid)
-    print(f"scroll axis near y {r_axis[0]:.0f}, x {r_axis[1]:.0f}: the recto side is "
-          f"{'along' if r_sign > 0 else 'against'} the grid normal at {r_agree:.0%} of vertices", flush=True)
-    orient = dict(recto_agree=r_agree, scroll_axis_yx=list(r_axis))
-    if r_agree >= 0.9 and axis_fit_is_meaningful(P, valid, r_axis)[0]:
-        orient["recto_sign"] = r_sign
+    orient = recto_orientation(P, valid)
 
     vol = open_level(a.volume, a.level)
     print(f"volume level {a.level}: shape {vol.shape}, chunks {vol.chunks}, dtype {vol.dtype}", flush=True)

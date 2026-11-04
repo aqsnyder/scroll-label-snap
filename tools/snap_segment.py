@@ -24,9 +24,11 @@ Options:
                           tiles land between their own depth and the segment's. This option moves the
                           profile too, and so does --target-offset, unless it comes with
                           --param template_follows_offset=false. It changes the output.
-  --normals auto|grid|flipped   recto side; default from the segment's curvature
+  --normals auto|grid|flipped   recto side; default from the segment's curvature, if that settles it (at
+                          least 1,600 voxels across); otherwise the tool stops and asks
   --param NAME=VALUE      override a snapper parameter
-  --limit N               only the first N tiles (for a quick try)
+  --limit N               only the first N tiles (for a quick try: the default offset then comes from
+                          those tiles, so a longer run needs a new folder)
   --name NAME             name for the outputs (default: the segment folder's name)
   --fine-grid V           also write <name>_snapped_fine.tifxyz, with vertices about V voxels apart
                           (5 is what has been tested; default 0 = don't write it)
@@ -41,9 +43,14 @@ Writes:
       (input grid) snap_review, as from snap_tifxyz.py
   OUT_DIR/snap_segment.json            summary
   OUT_DIR/tiles/                       one file per finished tile; a rerun skips them, and refuses
-                                       to mix them with different settings
+                                       to mix them with another segment, scan or settings
+                                       (tiles/settings.json). A folder from before that file is reused
+                                       only if its snap_segment.json fits this run, or for an
+                                       interrupted run, if this run has no settings of its own
+The exit code is non-zero if every tile failed; then nothing is written but the tiles.
 """
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -56,7 +63,7 @@ from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from scroll_label_snap.core import Params, estimate_convention, parse_params  # noqa: E402
-from scroll_label_snap.mesh import (axis_fit_is_meaningful, axis_orientation, dense_at_fine, densify,  # noqa: E402
+from scroll_label_snap.mesh import (FIT_RULE, axis_fit_is_meaningful, axis_orientation, dense_at_fine, densify,  # noqa: E402
                                     fine_factor, fine_surface, fit_vertex_shifts, mean_spacing, prepare_mesh,
                                     refuse_label_only, snap_mesh, surface_area, vertex_normals)
 from scroll_label_snap.tifxyz import densified_scale, read_tifxyz, write_tifxyz  # noqa: E402
@@ -168,7 +175,6 @@ def _chunk_cache_class():
 
 def cache_dir_for(cache, path):
     """A readable, short folder name for one array of one scan inside the cache folder."""
-    import hashlib
     import re
     tail = re.sub(r"[^A-Za-z0-9._-]+", "_", path.split("://", 1)[-1])[-72:].strip("_")
     return os.path.join(cache, f"{tail}-{hashlib.sha1(path.encode()).hexdigest()[:8]}")
@@ -237,9 +243,12 @@ def tile_convention(win, p, level_scale, margin, factor, sign):
         Pw, vw = P[r0:r1, c0:c1], valid[r0:r1, c0:c1]
         ct, lo = read_crop(_STATE["vol"], Pw, vw, level_scale, margin)
         prep = prepare_mesh(ct, Pw, vw, p, lo, level_scale, factor=factor, normal_sign=sign)
-        if not prep.vd.any():                   # says nothing about the segment's offset
+        pts = prep.Pd[prep.vd]
+        if not len(pts):                        # says nothing about the segment's offset
             return None, "no samples in this tile"
-        c_off, _ = estimate_convention(prep.ct_s, prep.Pd[prep.vd], prep.Nd[prep.vd], p)
+        if not np.all((pts >= p.border) & (pts <= np.array(prep.ct_s.shape) - 1 - p.border), axis=1).any():
+            return None, "no samples inside the scan, away from its edge"
+        c_off, _ = estimate_convention(prep.ct_s, pts, prep.Nd[prep.vd], p)
         return float(c_off), None
     except Exception as e:
         return None, f"{type(e).__name__}: {e}"
@@ -289,6 +298,39 @@ def blend_weights(n, ov_lo, ov_hi, f):
     return w
 
 
+def tile_file(win):
+    return f"r{win[0]:05d}_c{win[2]:05d}.npz"
+
+
+def place(path):
+    """A segment's or scan's address in one spelling, to compare two runs."""
+    return path.rstrip("/") if path.startswith(("http://", "https://")) else os.path.normcase(os.path.abspath(path))
+
+
+def old_tiles_problem(a, p, tile_files, all_wins, n_wins, factor, sign, grid, plain):
+    """Why tiles from before tiles/settings.json can't be reused by this run, or None if they can. Those tiles have the
+    learned profile at each tile's own position. The folder's snap_segment.json says the rest, if that run got so far. If it
+    didn't, nothing records how they were made, so only a run with no settings of its own may carry on there."""
+    if set(tile_files) - {tile_file(w) for w in all_wins}:
+        return "its tiles are not this segment's windows (--tile, --overlap)"
+    path = os.path.join(a.out_dir, "snap_segment.json")
+    if not os.path.exists(path):
+        return None if plain else "nothing records how they were made, so only a run with no settings of its own can carry on"
+    old = json.load(open(path))
+    theirs = dict(dict(template_follows_offset=False), **old["params"])
+    differ = [k for k, v in theirs.items() if v != getattr(p, k, v)]
+    differ += [k for k, mine in (("level", a.level), ("factor", factor), ("normal_sign", int(sign)), ("grid", grid))
+               if old.get(k, mine) != mine]
+    differ += [k for k, mine in (("segment", a.segment), ("volume", a.volume)) if place(old.get(k, mine)) != place(mine)]
+    if differ:
+        note = ("; those tiles have the learned profile at each tile's own position (--target-offset keeps that with "
+                "--param template_follows_offset=false)") if "template_follows_offset" in differ else ""
+        return f"{path} records other values of: {', '.join(differ)}{note}"
+    if n_wins > old.get("tiles", n_wins):
+        return f"its offset comes from a run of {old['tiles']} tiles (--limit), and this run has {n_wins}"
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("out_dir")
@@ -331,6 +373,8 @@ def main():
     level_scale = 1.0 / 2 ** a.level
 
     p = Params(**overrides)
+    follows = a.target_offset is not None or a.recentre_template
+    p = replace(p, template_follows_offset=overrides.get("template_follows_offset", follows))
 
     N, ok = vertex_normals(P.astype(np.float32), valid)
     spacing = mean_spacing(P.astype(np.float32), ok) * level_scale
@@ -345,17 +389,45 @@ def main():
         curved, radius, extent = axis_fit_is_meaningful(P, valid, axis)
         if agree < 0.9 or not curved:
             sys.exit(f"the segment's curvature does not settle which side is recto (agreement {agree:.0%}, fitted radius "
-                     f"{radius:.0f} voxels for a segment {extent:.0f} voxels across); pass --normals grid or flipped")
+                     f"{radius:.0f} voxels for a segment {extent:.0f} voxels across; {FIT_RULE}); pass --normals grid or flipped")
     else:
         sign = 1 if a.normals == "grid" else -1
 
-    wins = tile_windows(ok, a.tile, a.overlap)
-    if a.limit:
-        wins = wins[:a.limit]
+    all_wins = tile_windows(ok, a.tile, a.overlap)
+    wins = all_wins[:a.limit] if a.limit else all_wins
     print(f"{len(wins)} tiles of up to {a.tile} x {a.tile} vertices; dense factor {factor}", flush=True)
 
     if not wins:
         sys.exit("the segment has no tile with enough valid vertices")
+
+    # finished tiles and the offset can only be reused with the same segment, scan and settings
+    settings_path = os.path.join(a.out_dir, "tiles", "settings.json")
+    conv_path = os.path.join(a.out_dir, "convention.json")
+    tile_files = [f for f in os.listdir(os.path.join(a.out_dir, "tiles")) if f.endswith(".npz") and not f.endswith(".tmp.npz")]
+    made = bool(tile_files) or os.path.exists(conv_path)
+    settings = dict(segment=hashlib.sha256(P.tobytes() + valid.tobytes()).hexdigest(), volume=place(a.volume),
+                    target_offset=a.target_offset, sample_tiles=a.sample_tiles, params=p.asdict(), level=a.level, tile=a.tile,
+                    overlap=a.overlap, margin=a.margin, factor=factor, sign=int(sign))
+    earlier = json.load(open(settings_path)) if made and os.path.exists(settings_path) else None
+    if earlier:
+        differ = [k for k in settings if earlier.get(k) != settings[k]]
+        if differ:
+            sys.exit(f"{a.out_dir} holds tiles made with other settings ({', '.join(differ)}); use a new folder (see {settings_path})"
+                     + (". If it is the same scan at another address, change \"volume\" in that file" if "volume" in differ else ""))
+        if a.target_offset is None and len(wins) > earlier["offset_from_tiles"]:
+            sys.exit(f"{a.out_dir} has its offset from a run of {earlier['offset_from_tiles']} tiles (--limit), and this run has "
+                     f"{len(wins)}; use a new folder, so the offset comes from all of them")
+    elif made:
+        if a.target_offset is None and not os.path.exists(conv_path):
+            why = "they were made with a given --target-offset"
+        else:
+            given = a.target_offset is not None
+            c_old = 0.0 - a.target_offset if given else json.load(open(conv_path))["median"]
+            why = old_tiles_problem(a, replace(p, convention_offset=float(c_old)), tile_files, all_wins, len(wins), factor, sign,
+                                    list(P.shape[:2]), not (overrides or given or a.recentre_template))
+        if why:
+            sys.exit(f"{a.out_dir} is from before this tool recorded its settings, and {why}; use a new folder")
+        print(f"{a.out_dir} is from before this tool recorded its settings; its tiles are reused", flush=True)
 
     # open the scan and read one tile here first, so a problem shows up once, with its cause
     try:
@@ -369,6 +441,9 @@ def main():
           f"(crop {list(crop.shape)}, mean {crop.mean():.0f})" + (f"; chunks are kept in {a.cache}" if a.cache else ""),
           flush=True)
     del vol, crop
+    if earlier or not made:                     # a folder from before settings.json stays as it was: it is not known to fit
+        settings["offset_from_tiles"] = earlier["offset_from_tiles"] if earlier else len(wins)
+        json.dump(settings, open(settings_path, "w"), indent=1)
     ctx = dict(initializer=_init, initargs=(a.volume, a.level, a.cache, seg_dir))
 
     # one convention for the whole segment: the median of the segment's own offsets in sample tiles
@@ -376,7 +451,6 @@ def main():
     if a.target_offset is not None:
         c_off = 0.0 - a.target_offset           # T is mesh minus face; the offset is face minus mesh
     else:
-        conv_path = os.path.join(a.out_dir, "convention.json")
         if os.path.exists(conv_path):
             conv = json.load(open(conv_path))
         else:
@@ -395,22 +469,16 @@ def main():
         c_off = conv["median"]
         got = [o for o in conv["offsets"] if o is not None]
         c_note = f"median of {len(got)} tiles (range {min(got):+.2f} to {max(got):+.2f})"
-    follows = a.target_offset is not None or a.recentre_template
-    p = replace(p, convention_offset=float(c_off), template_follows_offset=overrides.get("template_follows_offset", follows))
+    p = replace(p, convention_offset=float(c_off))
     print(f"recto face at {c_off:+.2f} voxels from the mesh ({c_note})", flush=True)
     if a.target_offset is None and abs(c_off) >= p.convention_reach - 0.25:
         print("warning: the face sits at the edge of the search range; the recto side may be the other one "
               "(--normals), or the mesh is far off the surface", flush=True)
 
-    # snap every tile; finished tiles can only be reused with the same settings
-    settings = dict(params=p.asdict(), level=a.level, tile=a.tile, overlap=a.overlap, margin=a.margin, factor=factor, sign=int(sign))
-    settings_path = os.path.join(a.out_dir, "tiles", "settings.json")
-    if os.path.exists(settings_path) and json.load(open(settings_path)) != settings:
-        sys.exit(f"{a.out_dir} holds tiles made with other settings; use a new folder (see {settings_path})")
-    json.dump(settings, open(settings_path, "w"), indent=1)
+    # snap every tile
     todo = []
     for w in wins:
-        path = os.path.join(a.out_dir, "tiles", f"r{w[0]:05d}_c{w[2]:05d}.npz")
+        path = os.path.join(a.out_dir, "tiles", tile_file(w))
         if not os.path.exists(path):
             todo.append((w, path))
     print(f"{len(wins) - len(todo)} tiles already done, {len(todo)} to go", flush=True)
@@ -445,7 +513,7 @@ def main():
     limit = np.zeros((Hd, Wd), np.float64)
     failed = []
     for w in wins:
-        path = os.path.join(a.out_dir, "tiles", f"r{w[0]:05d}_c{w[2]:05d}.npz")
+        path = os.path.join(a.out_dir, "tiles", tile_file(w))
         t = np.load(path)
         r0, r1, c0, c1 = t["window"]
         if "error" in t:
@@ -460,6 +528,9 @@ def main():
         flag[sl] += wt * t["flag"]
         limit[sl] += wt * t["limit"]
         wsum[sl] += wt
+    if len(failed) == len(wins):
+        sys.exit(f"all {len(wins)} tiles failed, so nothing was written but the tiles, e.g. rows {failed[0]['window'][:2]}, columns "
+                 f"{failed[0]['window'][2:]}: {failed[0]['error']}. Is this the scan the segment was traced on? Delete tiles/ to retry.")
     have = wsum > 0
     shift_d = np.where(have, acc / np.maximum(wsum, 1e-12), 0).astype(np.float32)
     conf_d = np.where(have, conf / np.maximum(wsum, 1e-12), 0).astype(np.float32)
