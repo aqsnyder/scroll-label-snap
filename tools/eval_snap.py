@@ -112,6 +112,8 @@ def trusted_samples(lab, prep, p):
 
 def median_on_sheet(s, pts, comp, r=6.0, k=13):
     """Median of a shift field over up to k nearest samples within r voxels on the same sheet."""
+    if len(pts) < 2:                        # a query for k <= 1 returns another shape
+        return np.asarray(s, np.float32)
     _, idx = cKDTree(pts).query(pts, k=min(k, len(pts)), distance_upper_bound=r)
     ok = idx < len(pts)
     ic = np.where(ok, idx, 0)
@@ -127,13 +129,16 @@ def per_sample_shifts(shape, prep, p, h=1.0):
     the samples, as the snapper estimates its own). Samples at the border stay put, as for the snapper."""
     ct_s, pts, n, _, _, comp = prep
     ts, U, _, _, movable, _, _ = unary_scores(shape, prep, p)
+    if not movable.any():
+        return {m: np.zeros(len(pts), np.float32) for m in ("argmax", "gradient", "gradient median")}
     grid = np.arange(-1.5 * p.t_max - h, 1.5 * p.t_max + h + 1e-6, 0.5, dtype=np.float32)
     prof = np.stack([sample(ct_s, pts + g * n) for g in grid], 1)
     kh = int(round(h / 0.5))
     es, g = grid[kh:-kh], prof[:, :-2 * kh] - prof[:, 2 * kh:]
     win = np.abs(es) <= p.t_max
     peak = g[movable][:, win].max(1)
-    off = np.median(es[win][np.argmax(g[movable][:, win], 1)][peak > np.percentile(peak, 50)])
+    strong = peak > np.percentile(peak, 50)
+    off = np.median(es[win][np.argmax(g[movable][:, win], 1)][strong]) if strong.any() else 0.0
     ix = np.clip(np.rint((ts + np.round(off * 2) / 2 - es[0]) / 0.5).astype(int), 0, len(es) - 1)
     t_grad = ts[np.argmax(g[:, ix], 1)]
     out = {"argmax": ts[np.argmax(U, 1)], "gradient": t_grad, "gradient median": median_on_sheet(t_grad, pts, comp)}
@@ -183,7 +188,7 @@ def evaluate(img_path, lab_path, p, seed):
     # no graph cut: best candidate per sample, warped the same way as the snapper's shifts
     for tag, pr, lb in (("original", prep0, lab), ("drifted", prep_d, lab_d)):
         for m, s in per_sample_shifts(lab.shape, pr, p).items():
-            versions[f"{m}({tag})"] = warp_labels(lb, pr[1], pr[2], s, comp=pr[5], smooth=p.smooth_warp)
+            versions[f"{m}({tag})"] = warp_labels(lb, pr[1], pr[2], s, comp=pr[5], smooth=p.smooth_warp, keep_topology=p.keep_topology)
     pos = {k: band_position(v, pts0[inner], n0[inner]) for k, v in versions.items()}
     o = pos["original"]
     tr = trusted_samples(lab, prep0, p)[inner]
@@ -232,6 +237,10 @@ def evaluate(img_path, lab_path, p, seed):
 
 
 def main(out_json, *paths):
+    if len(paths) % 2:
+        sys.exit(f"image and label TIFFs come in pairs, and {len(paths)} paths were given")
+    if any("*" in x or "?" in x for x in paths):
+        sys.exit("wildcards are not expanded here: give each TIFF")
     p = Params()
     results = []
     for k, (img_path, lab_path) in enumerate(zip(paths[0::2], paths[1::2])):
